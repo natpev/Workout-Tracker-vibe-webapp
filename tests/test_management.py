@@ -153,3 +153,19 @@ def test_missing_session_key_never_regenerated(phase2_root):
     with pytest.raises(StorageError):
         create_app({"WORKOUT_DATA_ROOT": phase2_root})
     assert not key.exists()
+
+
+def test_schema1_process_requires_restart_after_offline_migration(tmp_path):
+    """An old process without a key fails safely rather than serving broken forms."""
+    from workout_tracker import create_app
+    from workout_tracker.storage import initialize_storage
+    from workout_tracker.migrations import migrate_storage
+    root = tmp_path / "restart-review"
+    initialize_storage(root)
+    old = create_app({"WORKOUT_DATA_ROOT": root, "TESTING": True}).test_client()
+    migrate_storage(root)
+    assert old.get("/people").status_code == 503
+    assert old.get("/health/ready").status_code == 503
+    restarted = create_app({"WORKOUT_DATA_ROOT": root, "TESTING": True}).test_client()
+    assert restarted.get("/people").status_code == 200
+    assert restarted.get("/health/ready").status_code == 200

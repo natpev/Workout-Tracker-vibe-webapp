@@ -53,7 +53,7 @@ def create_app(test_config=None):
     def unavailable_storage(error):
         """Expose a safe operational message without filenames or SQL payloads."""
         app.logger.error("Storage unavailable; request transaction not committed.")
-        return render_template("error.html", message="Storage unavailable. Check storage or run the explicit schema upgrade before editing."), 503
+        return render_template("error.html", message="Storage unavailable. Check storage, complete any explicit upgrade, and restart the application before editing."), 503
 
     @app.errorhandler(400)
     @app.errorhandler(409)
@@ -77,6 +77,8 @@ def create_app(test_config=None):
         """Recheck storage and return 503 on failure without leaking paths."""
         try:
             details = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+            if details["schema_version"] == 2 and not app.secret_key:
+                raise StorageError("Restart required after explicit migration.")
         except StorageError:
             app.logger.error("Storage readiness verification failed; writes remain unavailable.")
             return jsonify(status="unavailable"), 503

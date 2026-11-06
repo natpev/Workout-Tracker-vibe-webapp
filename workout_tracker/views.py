@@ -12,7 +12,7 @@ import secrets
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 
 from . import catalog
-from .storage import database_session
+from .storage import StorageError, database_session
 
 bp = Blueprint("manage", __name__)
 
@@ -27,6 +27,10 @@ def csrf_token():
 @bp.before_request
 def protect_forms():
     """Reject forged mutating requests before any database connection is opened."""
+    if not current_app.secret_key:
+        # A process started against schema 1 must restart after explicit upgrade
+        # so every worker loads the same provisioned key before serving forms.
+        raise StorageError("Restart the application after explicit schema migration.")
     if request.method == "POST":
         expected = session.get("csrf", "")
         provided = request.form.get("csrf_token", "")
