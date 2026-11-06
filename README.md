@@ -2,10 +2,10 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software; not audited or approved for production.
 
-Phases 1–4 are completed and approved. Phase 5 adds Settings, verified server-side
+Phases 1–5 are completed and approved for main. Phase 5 adds Settings, verified server-side
 backups, deliberate candidate restores, a dedicated scheduler and persistent
-filtered logs. Phase 5 is implemented for review on `phase-5-backups-logs`;
-do not merge/delete it or begin Phase 6 before approval. No deployment, real
+filtered logs. Phase 6 (installation, real-world testing and final polish) is next
+and requires separate authorization. No deployment, real
 workout data, cloud synchronization, internet exposure or authentication is authorized.
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and

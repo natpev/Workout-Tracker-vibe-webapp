@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–4 and Weight/Time design are approved and merged. Phase 5 only is authorized and implemented for review on phase-5-backups-logs. Do not merge/delete it or begin Phase 6 without approval. No deployment or real workout data access is authorized.
+**Project status:** Phases 1–5 and Weight/Time design are completed and approved for main. Phase 5 is approved for fast-forward merge and verified branch cleanup. Phase 6 (installation, real-world testing and final polish) is next and requires separate authorization. No deployment or real workout data access is authorized.
 **Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -178,14 +178,14 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–4 approved and merged; Phase 5 implemented for review)
+## 12. Phased plan (Phases 1–5 completed and approved; Phase 6 next, not authorized)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
-5. **Backups and recovery (implemented for review):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
-6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
+5. **Backups and recovery (completed and approved):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
+6. **Installation, real-world testing and final polish (next, not authorized):** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 

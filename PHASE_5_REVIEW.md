@@ -6,8 +6,13 @@
 
 Branch `phase-5-backups-logs` starts from fetched approved main
 `ad20d08eb3de40e2f8f05c7649bb92d8ececc957`, which contains Phases 1–4.
-No main merge, branch deletion, Phase 6, real household storage, deployment,
-cloud backups/synchronization, public exposure or authentication is included.
+Phase 5 was reviewed and approved on November 6, 2026. The authorized completion
+workflow updates approval documentation, runs the full regression suite,
+fast-forwards main, verifies remote containment and then deletes the fully merged
+feature branch. Phases 1–5 are completed and approved. Phase 6 (installation,
+real-world testing and final polish) is next but requires separate authorization.
+No real household storage, deployment, cloud backups/synchronization, public
+exposure or authentication is included.
 People switching, typed measurements, history/charts, permanent snapshots,
 append-only corrections and original protection triggers remain intact.
 
@@ -156,6 +161,11 @@ WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q
 The complete earlier Phase 1–4 suite remains included. Schema definition files
 are identical to approved main. `git diff --check`, Python compilation, dependency
 consistency and Python disclosure/function-explanation checks passed.
+Approval regression rerun on November 6, 2026: **236 passed in 62.19 seconds,
+with no failures or skips** (217 service/HTTP/storage, 11 Chromium, 8 Docker).
+Application code, tests, schema definitions and container configuration are
+unchanged from the approved implementation.
+
 All fixtures are disposable and synthetic; browser servers are loopback-only.
 Containers have no network/published ports and are removed after tests. Existing
 Phase 1–4 tests remain included. Old filesystem snapshot helpers now exclude

@@ -11,9 +11,10 @@ merged into main, including typed workout entry, snapshots, server drafts,
 recovery, previous performance, atomic completion/discard and candidate schema 3.
 Phase 4 is completed and approved for inclusion in main:
 history, local SVG charts, independent historical completion and append-only
-correction revisions. Phase 5 is now authorized and implemented for review on
-phase-5-backups-logs: verified backups, deliberate restore, separate scheduling
-and persistent safe logs. No schema-5 change is needed; do not merge or begin Phase 6 before review. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
+correction revisions. Phases 1–5 are completed and approved for main, including
+Phase 5 verified backups, deliberate restore, separate scheduling and persistent
+safe logs. No schema-5 change is needed. Phase 6 (installation, real-world testing
+and final polish) is next and requires separate authorization. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 
