@@ -40,5 +40,20 @@ def check_storage(data_root):
     click.echo(f"Storage verified; schema version {details['schema_version']}.")
 
 
+@main.command("migrate-storage")
+@click.option("--data-root", required=True, type=click.Path(path_type=str))
+@click.option("--confirm-upgrade", is_flag=True)
+def migrate(data_root, confirm_upgrade):
+    """Explicitly copy and upgrade known schema 1, never the original database."""
+    from .migrations import migrate_storage
+    if not confirm_upgrade:
+        raise click.ClickException("Explicit --confirm-upgrade is required; no migration was performed.")
+    try:
+        details = migrate_storage(data_root)
+    except StorageError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("Schema 2 verified. " + ("New candidate activated; original preserved." if details["changed"] else "Already compatible; no copy or write performed."))
+
+
 if __name__ == "__main__":
     main()

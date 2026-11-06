@@ -7,11 +7,15 @@ This module uses pathlib, SQLite, and POSIX file syncing, not a workout database
 """
 
 import json
+import fcntl
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import re
 import sqlite3
 from uuid import uuid4
+
+from .schema import PHASE2_TABLES
 
 SCHEMA_VERSION = 1
 APPLICATION_ID = 0x5754524B
@@ -75,7 +79,7 @@ def _unique_object(pairs):
     return result
 
 
-def inspect_storage(value):
+def _inspect_unlocked(value, *, selection=None):
     """Read and validate selected storage, returning its ID and schema version.
 
     Flask calls this before serving and for readiness checks. SQLite is opened
@@ -93,14 +97,18 @@ def inspect_storage(value):
         _regular_file(manifest_path)
         if manifest_path.stat().st_size > 4096:
             raise StorageError("The active database manifest is too large.")
-        manifest = json.loads(manifest_path.read_text(), object_pairs_hook=_unique_object)
+        manifest = (json.loads(manifest_path.read_text(), object_pairs_hook=_unique_object)
+                    if selection is None else selection)
         if not isinstance(manifest, dict) or set(manifest) != {"database", "storage_id"}:
             raise StorageError("The active database manifest has invalid fields.")
         storage_id = manifest["storage_id"]
         if not isinstance(storage_id, str) or not re.fullmatch(r"[0-9a-f]{32}", storage_id):
             raise StorageError("The active database identity is invalid.")
         filename = manifest["database"]
-        if filename != f"schema-1-{storage_id}.sqlite3":
+        if not isinstance(filename, str) or not (
+            filename == f"schema-1-{storage_id}.sqlite3" or
+            re.fullmatch(rf"schema-2-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+        ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = root / "data" / filename
         _regular_file(database)
@@ -116,7 +124,8 @@ def inspect_storage(value):
             connection.execute("PRAGMA query_only = ON")
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
-            if connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            if version not in (1, 2):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -126,17 +135,21 @@ def inspect_storage(value):
             objects = dict(connection.execute(
                 "SELECT name, sql FROM sqlite_schema WHERE substr(name, 1, 7) != 'sqlite_'"
             ))
-            if objects != TABLES:
+            expected = TABLES if version == 1 else TABLES | PHASE2_TABLES
+            if not filename.startswith(f"schema-{version}-"):
+                raise StorageError("The selected filename and schema version disagree.")
+            if objects != expected:
                 raise StorageError("The database schema does not match this release.")
             if connection.execute("SELECT * FROM storage_metadata").fetchall() != [(1, storage_id)]:
                 raise StorageError("The database identity does not match its manifest.")
-            if connection.execute("SELECT * FROM schema_migrations").fetchall() != [(1, "foundation")]:
+            migrations = [(1, "foundation")] + ([(2, "people_and_routines")] if version == 2 else [])
+            if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
         finally:
             connection.close()
     except (OSError, ValueError, sqlite3.Error) as error:
         raise StorageError("Storage cannot be read or verified; no replacement was created.") from error
-    return {"storage_id": storage_id, "schema_version": SCHEMA_VERSION}
+    return {"storage_id": storage_id, "schema_version": version, "database": database}
 
 
 def initialize_storage(value):
@@ -194,3 +207,68 @@ def initialize_storage(value):
             "Initialization refused or interrupted. Inspect existing storage; nothing was overwritten."
         ) from error
     return inspect_storage(root)
+
+
+@contextmanager
+def storage_lock(value, *, exclusive=False, nonblocking=False):
+    """Coordinate every app connection and migration using a directory flock.
+
+    Locking the persistent root inode avoids creating lock files at startup and
+    remains stable when active.json is atomically replaced. Writers serialize;
+    migration refuses active readers/writers. External SQLite tools are outside
+    this protocol and must be stopped before maintenance.
+    """
+    root = storage_root(value)
+    descriptor = None
+    try:
+        descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        operation = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+        if nonblocking:
+            operation |= fcntl.LOCK_NB
+        fcntl.flock(descriptor, operation)
+        yield root
+    except (OSError, sqlite3.Error) as error:
+        raise StorageError("Storage is unavailable or busy; no replacement was created.") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def inspect_storage(value):
+    """Verify storage read-only under the shared app/migration lock."""
+    with storage_lock(value):
+        details = _inspect_unlocked(value)
+        return {key: details[key] for key in ("storage_id", "schema_version")}
+
+
+@contextmanager
+def database_session(value, *, write=False):
+    """Routes/services use one validated schema-2 connection per transaction.
+
+    Browser -> route -> service -> this connection. A write takes an exclusive
+    root lock before SQLite BEGIN IMMEDIATE; migration cannot pass it. No
+    connection outlives the lock or can accidentally create a missing database.
+    """
+    with storage_lock(value, exclusive=write):
+        details = _inspect_unlocked(value)
+        if details["schema_version"] != 2:
+            raise StorageError("Phase 2 needs explicit migrate-storage before editing.")
+        mode = "rw" if write else "ro"
+        connection = sqlite3.connect(details["database"].as_uri() + f"?mode={mode}", uri=True, timeout=5)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("PRAGMA foreign_keys=ON")
+            connection.execute("PRAGMA trusted_schema=OFF")
+            connection.execute("PRAGMA synchronous=FULL")
+            if write:
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                connection.execute("PRAGMA query_only=ON")
+            yield connection
+            if write:
+                connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
