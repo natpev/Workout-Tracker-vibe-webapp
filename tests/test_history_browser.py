@@ -77,8 +77,11 @@ def test_historical_entry_correction_charts_filters_themes_and_snapshot(history_
     expect(page.locator('circle.chart-point')).to_have_count(2)
     expect(page.get_by_text('0.0 lb',exact=True).first).to_be_visible()
     expect(page.get_by_text('Longest logged duration',exact=False)).to_contain_text('1:05')
+    chart_url=page.url
+    page.goto(address+'/settings')
     for theme in ('light','dark','auto'):
         page.select_option('#theme',theme);page.reload();expect(page.locator('#theme')).to_have_value(theme)
+    page.goto(chart_url)
     for width in (320,768,1280):
         page.set_viewport_size({'width':width,'height':800})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')

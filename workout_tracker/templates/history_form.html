@@ -4,7 +4,7 @@
 {% extends 'base.html' %}
 {% from 'macros.html' import security with context %}
 {% block content %}
-<h2>{{ 'Correct saved workout' if correction else 'Review historical workout' }}</h2>
+<h1>{{ 'Correct saved workout' if correction else 'Review historical workout' }}</h1>
 <p>{{ workout.routine_name }} · {{ workout.timezone }}</p>
 <form method="post">{{ security() }}
 {% if correction %}<input type="hidden" name="correction_revision" value="{{ workout.correction_revision }}"><p>Only actual measurements, increase flags and workout date/time can change. Original snapshots and previous values remain in the audit.</p><label>Workout date <input type="date" name="workout_date" value="{{ workout.workout_date }}" required></label><label>Workout time (optional) <input type="time" step="1" name="workout_time" value="{{ workout.workout_time or '' }}"></label>{% include 'time_fold.html' %}

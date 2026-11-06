@@ -1,30 +1,30 @@
 <!-- SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-     Management templates extend this shell. Flask renders escaped data; local
-     theme/editor assets read browser preferences and configure form visibility. -->
+     Shared compact shell: local theme/menu scripts, server-owned person accent.
+     Active workouts omit global navigation; More provides deliberate save/exit. -->
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Workout Tracker{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='editor.js') }}" defer></script>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Workout Tracker{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
+<script src="{{ url_for('static',filename='theme.js') }}" defer></script>
+<script src="{{ url_for('static',filename='navigation.js') }}" defer></script>
+<script src="{{ url_for('static',filename='editor.js') }}" defer></script>
 </head>
-<body>
+<body data-accent="{{ accent_for(person.id) if person is defined and person else 'blue' }}" {% if workout_focused|default(false) %}class="workout-focus" data-workout-focus="{{ workout.id }}" data-person="{{ person.id }}"{% endif %} {% if workout is defined and workout.status|default('') in ['completed','discarded'] %}data-release-workout="{{ workout.id }}"{% endif %}>
 <main>
-  <header><h1>Workout Tracker</h1><a href="{{ url_for('manage.people') }}">People</a><a href="{{ url_for('settings.index') }}">Settings</a></header>
-  <p class="disclosure">SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.</p>
-  {% if person is defined %}<nav aria-label="Selected person"><strong>{{ person.name }}</strong> · <a href="{{ url_for('manage.dashboard', person_id=person.id) }}">Routines</a> · <a href="{{ url_for('history.index', person_id=person.id) }}">History</a> · <a href="{{ url_for('history.progress', person_id=person.id) }}">Progress charts</a> · <a href="{{ url_for('manage.exercises', person_id=person.id) }}">Exercise names</a> · <a href="{{ url_for('manage.people') }}">Switch person</a></nav>{% endif %}
-  {% block content %}{% endblock %}
-  <section aria-labelledby="appearance-heading">
-    <h2 id="appearance-heading">Appearance</h2>
-    <label for="theme">Theme for this browser</label>
-    <select id="theme"><option value="auto">Auto (device setting)</option><option value="light">Light</option><option value="dark">Dark</option></select>
-    <p id="theme-status" role="status"></p>
-    <noscript>Auto follows your device. Theme override and live field switching need JavaScript; choose a type and submit valid fields to configure without it.</noscript>
-  </section>
-  <footer><p>Household workout tracker. User selection is not authentication.</p></footer>
-</main>
-</body>
-</html>
+<header class="app-header">
+{% if workout_focused|default(false) %}<span class="brand">Workout<span class="brand-dot" aria-hidden="true">●</span></span><span class="person-label">{{ person.name }}</span>
+{% else %}<a class="brand" href="{{ url_for('manage.people') }}">Workout<span class="brand-dot" aria-hidden="true">●</span></a><div class="menu-wrap"><button class="icon-button secondary" type="button" data-menu-button aria-expanded="false" aria-controls="main-menu" aria-label="Open navigation">☰</button><div id="main-menu" class="menu-panel" hidden>
+<a href="{{ url_for('manage.people') }}">{{ 'Switch person' if person is defined and person else 'People' }}</a>
+{% if person is defined and person %}<a href="{{ url_for('manage.exercises',person_id=person.id) }}">Exercise names</a>{% endif %}
+<a href="{{ url_for('settings.index',person_id=person.id if person is defined and person else none) }}" {% if request.blueprint=='settings' %}aria-current="page"{% endif %}>Settings</a>
+</div></div>{% endif %}
+</header>
+{% if person is defined and person and not workout_focused|default(false) %}<nav class="primary-nav" aria-label="Selected person">
+<a href="{{ url_for('manage.dashboard',person_id=person.id) }}" {% if request.blueprint=='manage' or request.blueprint=='workout' %}aria-current="page"{% endif %}>Routines</a>
+<a href="{{ url_for('history.index',person_id=person.id) }}" {% if request.blueprint=='history' and request.endpoint!='history.progress' %}aria-current="page"{% endif %}>History</a>
+<a aria-label="Progress charts" href="{{ url_for('history.progress',person_id=person.id) }}" {% if request.endpoint=='history.progress' %}aria-current="page"{% endif %}>Progress</a>
+</nav>{% endif %}
+{% block content %}{% endblock %}
+{% if not workout_focused|default(false) %}<footer><small>Household use · Person selection is not authentication.</small></footer>{% endif %}
+</main></body></html>

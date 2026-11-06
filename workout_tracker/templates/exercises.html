@@ -4,7 +4,7 @@
 {% extends 'base.html' %}
 {% from 'macros.html' import security with context %}
 {% block content %}
-<h2>Exercise names for {{ person.name }}</h2>
+<h1>Exercise names for {{ person.name }}</h1>
 <p>Renaming updates the name in this person’s routines that reuse the same exercise. Copies have independent identities. History snapshots will keep their original names.</p>
 <section><h3>Add exercise name</h3><form method="post">{{ security() }}<input type="hidden" name="action" value="create"><label>Exercise name <input name="name" required maxlength="100"></label><button>Add exercise name</button></form></section>
 {% for row in exercises %}<section>

@@ -3,7 +3,7 @@
    GET filters never mutate storage; all names/parameters are Jinja-escaped. #}
 {% extends 'base.html' %}
 {% block content %}
-<h2>Workout history</h2>
+<h1>Workout history</h1>
 <p><a class="pill" href="{{ url_for('history.historical',person_id=person.id) }}">Enter historical workout</a> <a class="pill" href="{{ url_for('history.progress',person_id=person.id) }}">Exercise progress</a></p>
 <form method="get"><div class="duration"><label>From date <input name="from" type="date" value="{{ filters.get('from','') }}"></label><label>To date <input name="to" type="date" value="{{ filters.get('to','') }}"></label></div>
 <label for="routine-filter">Routine</label><select id="routine-filter" name="routine"><option value="">All routines</option>{% for id,name in routines.items() %}<option value="{{ id }}" {% if filters.get('routine')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>

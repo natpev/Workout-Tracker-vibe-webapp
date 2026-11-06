@@ -1,5 +1,6 @@
 // SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-// Loaded by home.html. Reads/writes only this browser's theme preference in
+// Loaded by every page; Settings optionally supplies the selector. Reads/writes
+// only this browser's theme preference in
 // localStorage; it sends no user data or network requests.
 "use strict";
 (() => {
@@ -12,9 +13,10 @@
     const saved = localStorage.getItem("workout-theme");
     if (allowed.includes(saved)) theme = saved;
   } catch {
-    status.textContent = "Theme preferences cannot be stored in this browser.";
+    if (status) status.textContent = "Theme preferences cannot be stored in this browser.";
   }
   document.documentElement.dataset.theme = theme;
+  if (!selector) return;
   selector.value = theme;
   selector.addEventListener("change", () => {
     // Change appearance immediately; report if browser persistence is blocked.

@@ -1,7 +1,7 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
    Confirmation dialog posts only acknowledgment and revision, never measurements.
    Cancel navigates back without changing the saved draft. JS gates OK on consent. #}
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% set workout_focused = true %}
 {% from 'macros.html' import security with context %}
 {% block content %}
 <script src="{{ url_for('static', filename='workout.js') }}" defer></script>

@@ -14,7 +14,7 @@
 <label>Number of sets <input name="target_sets" type="number" min="1" max="1000" step="1" value="{{ item.target_sets if item else 3 }}" required></label>
 <div data-fields="weight">
   <label>Target repetitions per set <input name="target_reps" type="number" min="1" max="10000" step="1" value="{{ item.target_reps if item and item.target_reps is not none else 12 }}"></label>
-  <p>Weight unit: pounds (lb). Decimal weight entry will be available in the workout phase.</p>
+  <p>Weight unit: pounds (lb). Actual weight is entered during the workout.</p>
   <label>Weight meaning (optional) <input name="weight_meaning" maxlength="200" placeholder="For example: per dumbbell" value="{{ item.weight_meaning if item else '' }}"></label>
 </div>
 <div data-fields="time">

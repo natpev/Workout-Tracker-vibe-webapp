@@ -3,7 +3,7 @@
    Audit records retain before/after values without editing original rows. #}
 {% extends 'base.html' %}
 {% block content %}
-<h2>{{ workout.routine_name }} — saved workout</h2>
+<h1>{{ workout.routine_name }} — saved workout</h1>
 <p>Occurred: {{ workout.workout_date }} · {{ workout.workout_time or 'Time unknown' }} · {{ workout.timezone }}</p>
 {% if workout.occurred_at %}<p>Known occurrence in UTC: {{ workout.occurred_at }}</p>{% endif %}
 <p>Entered/completed in the system: {{ workout.entered_at }}</p>

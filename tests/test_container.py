@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase5-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase6-review.
 """
 
 import hashlib
@@ -48,7 +48,7 @@ def start_container(root, *, writable=False):
         "--user", f"{os.getuid()}:{os.getgid()}",
         "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase5-review",
+        "workout-tracker:phase6-review",
     ).stdout.strip()
 
 
@@ -297,7 +297,7 @@ def test_dedicated_scheduler_container_due_slot_and_restart(phase4_root):
     for _ in range(2):
         docker('run','--rm','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
                '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
-               '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase5-review','python','-m','workout_tracker','scheduler','--once')
+               '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase6-review','python','-m','workout_tracker','scheduler','--once')
     current=o.read_state(root)
     assert len(current['backups'])==1 and current['schedule']['result']=='Verified'
     assert next(iter(current['backups'].values()))['source']=='automatic'
@@ -313,7 +313,7 @@ def test_scheduler_long_running_service_needs_no_browser_and_stops_cleanly(phase
         o.write_state(root,state)
     container=docker('run','-d','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
                      '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
-                     '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase5-review','python','-m','workout_tracker','scheduler').stdout.strip()
+                     '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase6-review','python','-m','workout_tracker','scheduler').stdout.strip()
     try:
         deadline=time.monotonic()+10
         while True:
@@ -388,7 +388,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
                 if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
                 time.sleep(.2)
             docker(*isolated,'exec','-T','web','python','-c',
-                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.5.0',schema_version=4)")
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.6.0',schema_version=4)")
             for identity in ids.values():
                 inspected=json.loads(docker('inspect',identity).stdout)[0]
                 assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'

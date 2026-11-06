@@ -131,3 +131,11 @@ def discard(person_id, session_id):
     if context['workout']['status'] != 'draft':
         raise workouts.RevisionConflict('Only an unfinished workout may be discarded.')
     return render_template('workout_discard.html', **context)
+
+
+@bp.post('/people/<person_id>/workouts/<session_id>/exit')
+def exit_workout(person_id,session_id):
+    """Save current validated input atomically, preserving the draft before leaving it."""
+    with connection(write=True) as db:
+        workouts.update(db,person_id,session_id,request.form)
+    return redirect(url_for('manage.dashboard',person_id=person_id,exited=session_id),code=303)

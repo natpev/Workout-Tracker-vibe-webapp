@@ -8,7 +8,7 @@ from uuid import uuid4
 from flask import Blueprint,current_app,render_template,request,redirect,url_for,abort
 
 from . import operations as o,maintenance as m,diagnostics as d,scheduler
-from .storage import storage_lock,_inspect_unlocked,StorageError
+from .storage import storage_lock,_inspect_unlocked,StorageError,database_session
 from .views import protect_forms
 
 bp=Blueprint('settings',__name__)
@@ -34,7 +34,12 @@ def index():
             details={'schema_version':'Unavailable'};database_ok=False
     successes=[row for row in state['backups'].values() if row['status']=='verified']
     latest=max((row['verified_at'] for row in successes),default=None)
-    return render_template('settings.html',last_backup=latest,schema=details['schema_version'],database_ok=database_ok,state=state,operation_id=uuid4().hex)
+    person=None
+    if request.args.get('person_id'):
+        from .catalog import person as owned_person
+        with database_session(root_value()) as db:
+            person=owned_person(db,request.args['person_id'],archived=True)
+    return render_template('settings.html',person=person,last_backup=latest,schema=details['schema_version'],database_ok=database_ok,state=state,operation_id=uuid4().hex)
 
 
 @bp.post('/settings/backup')
@@ -79,3 +84,11 @@ def logs():
     previous_args=request.args.to_dict();previous_args['page']=max(1,page-1)
     return render_template('logs.html',rows=rows,filters=request.args,levels=d.LEVELS,categories=d.CATEGORIES,
                            page=page,more=more,next_args=next_args,previous_args=previous_args)
+
+
+@bp.post('/settings/people/<person_id>/accent')
+def accent(person_id):
+    """CSRF-protected preference save affects only this person's presentation."""
+    from .preferences import set_color
+    set_color(root_value(),person_id,request.form.get('accent'))
+    return redirect(url_for('settings.index',person_id=person_id),code=303)

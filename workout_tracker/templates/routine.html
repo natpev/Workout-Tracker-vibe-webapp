@@ -4,7 +4,7 @@
 {% extends 'base.html' %}
 {% from 'macros.html' import security, configuration with context %}
 {% block content %}
-<h2>{{ routine.name }}</h2>
+<h1>{{ routine.name }}</h1>
 {% if workout_enabled %}<section><h3>Workout</h3>
 {% if active_draft %}<p>You have an unfinished workout.</p><a href="{{ url_for('workout.resume', person_id=person.id, session_id=active_draft.id) }}">Resume or discard unfinished workout</a>{% endif %}
 <form method="post" action="{{ url_for('workout.start', person_id=person.id, routine_id=routine.id) }}">{{ security() }}<button>Start workout</button></form></section>{% endif %}

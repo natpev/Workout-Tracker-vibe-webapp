@@ -3,7 +3,7 @@
    accessible table retaining skipped rows; no CDN, cloud service or JavaScript. #}
 {% extends 'base.html' %}
 {% block content %}
-<h2>Exercise progress</h2>
+<h1>Exercise progress</h1>
 <form method="get"><label for="progress-exercise">Exercise</label><select id="progress-exercise" name="exercise"><option value="">All exercises (separate charts)</option>{% for id,name in exercises.items() %}<option value="{{ id }}" {% if filters.get('exercise')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select><div class="duration"><label>From date <input type="date" name="from" value="{{ filters.get('from','') }}"></label><label>To date <input type="date" name="to" value="{{ filters.get('to','') }}"></label></div><button>Update progress</button></form>
 {% for chart in series %}<section class="progress-series" data-kind="{{ chart.kind }}">
 <h3>{{ chart.name }} — {{ 'Weight (lb)' if chart.kind=='weight' else 'Time (minutes:seconds)' }}{% if chart.meaning %} · {{ chart.meaning }}{% endif %}</h3>

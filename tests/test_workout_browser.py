@@ -54,8 +54,9 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     page.get_by_label('Today’s weight (lb)').fill('40.99')
     page.get_by_label('Increase weight next time',exact=True).check()
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('40.9')
-    expect(page.locator('#save-status')).to_contain_text('Saved on server')
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
     expect(page.locator('#workout-progress')).to_have_attribute('value','1')
+    page.get_by_text('More',exact=True).click()
     page.get_by_text('Workout overview',exact=True).click()
     expect(page.locator('[data-entry-state]').first).to_have_text('40.9 lb')
     page.reload()
@@ -65,17 +66,18 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     expect(page.get_by_label('Today’s minutes')).to_have_value('')
     expect(page.locator('#workout-progress')).to_have_attribute('value','1')
     page.get_by_label('Today’s minutes').fill('1')
-    expect(page.locator('#save-status')).to_contain_text('Not saved:')
+    expect(page.locator('#save-error')).to_contain_text('Not saved:')
     page.get_by_label('Today’s seconds').fill('5')
-    expect(page.locator('#save-status')).to_contain_text('Saved on server')
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
     expect(page.locator('#workout-progress')).to_have_attribute('value','2')
+    page.get_by_text('More',exact=True).click()
     page.select_option('#exercise-jump','0')
     expect(page.get_by_role('heading',name='Bench',exact=True)).to_be_visible()
+    page.get_by_text('More',exact=True).click()
     page.select_option('#exercise-jump','1')
     expect(page.get_by_role('heading',name='Plank',exact=True)).to_be_visible()
-    for theme in ('light','dark','auto'):
-        page.select_option('#theme',theme);page.reload()
-        expect(page.locator('#theme')).to_have_value(theme)
+    # Appearance now lives in Settings; no selector competes with workout controls.
+    expect(page.locator('#theme')).to_have_count(0)
     for width in (320,768,1280):
         page.set_viewport_size({'width':width,'height':800})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
@@ -92,8 +94,8 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     page.goto(routine_path)
     page.get_by_role('button',name='Start workout',exact=True).click()
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('')
-    expect(page.get_by_text('Previous recommendation: Increase weight next time.',exact=True)).to_be_visible()
-    expect(page.get_by_text('Previous comparable session:',exact=False)).to_contain_text('40.9 lb')
+    expect(page.get_by_text('Increase ↑',exact=True)).to_be_visible()
+    expect(page.get_by_text('Previous session:',exact=False)).to_contain_text('40.9 lb')
 
 
 def test_discard_cancel_ok_and_all_skipped_confirmation(workout_page):
@@ -101,15 +103,18 @@ def test_discard_cancel_ok_and_all_skipped_confirmation(workout_page):
     page,routine_path,root=workout_page;expect=pw.expect
     page.get_by_role('link',name='Next',exact=True).click()
     expect(page.locator('#workout-progress')).to_have_attribute('value','0')
+    page.get_by_text('More',exact=True).click()
     page.get_by_role('link',name='Discard Workout',exact=True).click()
     expect(page.get_by_role('dialog')).to_be_visible()
     expect(page.get_by_role('heading',name='Are you sure?',exact=True)).to_be_visible()
     expect(page.get_by_role('button',name='OK',exact=True)).to_be_disabled()
     page.keyboard.press('Escape')
     expect(page.get_by_role('heading',name='Plank',exact=True)).to_be_visible()
+    page.get_by_text('More',exact=True).click()
     page.get_by_role('link',name='Discard Workout',exact=True).click()
     page.get_by_role('link',name='Cancel',exact=True).click()
     expect(page.get_by_role('heading',name='Plank',exact=True)).to_be_visible()
+    page.get_by_text('More',exact=True).click()
     page.get_by_role('link',name='Discard Workout',exact=True).click()
     page.get_by_role('checkbox').check()
     expect(page.get_by_role('button',name='OK',exact=True)).to_be_enabled()
@@ -133,7 +138,7 @@ def test_offline_failure_and_concurrent_tab_conflict(workout_page):
     other=page.context.new_page();other.on('dialog',lambda dialog:dialog.accept());other.goto(page.url)
     page.route('**/draft',lambda route:route.abort())
     page.get_by_label('Today’s weight (lb)').fill('41')
-    expect(page.locator('#save-status')).to_contain_text('Not saved:')
+    expect(page.locator('#save-error')).to_contain_text('Not saved:')
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('41')
     with database_session(root) as db:
         assert db.execute("SELECT actual_weight_tenths_lb FROM workout_entries WHERE measurement_type='weight'").fetchone()[0]==400
@@ -141,7 +146,7 @@ def test_offline_failure_and_concurrent_tab_conflict(workout_page):
     page.get_by_label('Today’s weight (lb)').fill('42.56')
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('42.5')
     other.get_by_label('Today’s weight (lb)').fill('99')
-    expect(other.locator('#save-status')).to_contain_text('changed in another tab')
+    expect(other.locator('#save-error')).to_contain_text('changed in another tab')
     expect(other.get_by_label('Today’s weight (lb)')).to_have_value('99')
     other.reload()
     expect(other.get_by_label('Today’s weight (lb)')).to_have_value('42.5')
@@ -174,7 +179,7 @@ def test_typing_during_held_acknowledgment_serializes_saves(workout_page):
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('42.56')
     route,response=held[0];route.fulfill(response=response)
     expect(page.get_by_label('Today’s weight (lb)')).to_have_value('42.5')
-    expect(page.locator('#save-status')).to_contain_text('Saved on server')
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
     with database_session(root) as db:
         assert db.execute("SELECT actual_weight_tenths_lb FROM workout_entries WHERE measurement_type='weight'").fetchone()[0]==425
         assert db.execute('SELECT revision FROM workout_sessions').fetchone()[0]==2

@@ -39,7 +39,7 @@ def test_start_resume_autosave_restart_cursor_and_atomic_finish(phase3_app,phase
     person,other,routine_path,path=start(client,phase3_root)
     page=client.get(path)
     assert b'name="weight"' in page.data
-    assert b'Previous comparable session: No previous performance' in page.data
+    assert b'Previous session:' in page.data and b'No previous performance' in page.data
     assert client.get(path.replace(person,other)).status_code==404
     retry=client.post(routine_path+'/start',data=fields(client.get(routine_path)))
     assert retry.location==path+'/resume'

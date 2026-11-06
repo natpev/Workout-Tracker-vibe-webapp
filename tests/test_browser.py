@@ -20,10 +20,9 @@ playwright = pytest.importorskip("playwright.sync_api", reason="Install requirem
 
 
 @pytest.fixture
-def browser_page(tmp_path):
+def browser_page(phase2_root):
     """Serve a disposable application and reliably close its browser and server."""
-    root = tmp_path / "browser-storage"
-    initialize_storage(root)
+    root = phase2_root
     server = make_server("127.0.0.1", 0, create_app({"WORKOUT_DATA_ROOT": root}))
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -49,21 +48,21 @@ def test_theme_persistence_auto_responsiveness_and_local_assets(browser_page):
     errors = []
     page.on("request", lambda request: requests.append(request.url))
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(address)
+    page.goto(address + "/settings")
     assert page.locator("#theme").input_value() == "auto"
-    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(242, 245, 244)"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(243, 245, 250)"
     page.emulate_media(color_scheme="dark")
-    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(20, 32, 28)"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(17, 21, 31)"
     page.select_option("#theme", "light")
     page.reload()
     assert page.locator("#theme").input_value() == "light"
-    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(242, 245, 244)"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(243, 245, 250)"
     page.select_option("#theme", "dark")
     page.reload()
     assert page.locator("#theme").input_value() == "dark"
     page.select_option("#theme", "auto")
     page.emulate_media(color_scheme="light")
-    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(242, 245, 244)"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(243, 245, 250)"
     page.keyboard.press("Tab")
     page.locator("#theme").focus()
     assert page.locator("#theme").evaluate("element => element === document.activeElement")
@@ -78,7 +77,7 @@ def test_theme_persistence_auto_responsiveness_and_local_assets(browser_page):
 def test_storage_denied_and_invalid_saved_theme(browser_page):
     """Blocked browser storage remains usable; an unknown stored value uses Auto."""
     page, address = browser_page
-    page.goto(address)
+    page.goto(address + "/settings")
     page.evaluate("localStorage.setItem('workout-theme', 'invalid')")
     page.reload()
     assert page.locator("#theme").input_value() == "auto"
@@ -149,10 +148,12 @@ def test_management_workflow_modes_order_copy_and_phone_layout(management_page):
     for width in (320, 768, 1280):
         page.set_viewport_size({"width": width, "height": 800})
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    editor_url=page.url
+    page.goto(address+'/settings')
     page.select_option("#theme", "dark")
     page.reload()
     expect(page.locator("#theme")).to_have_value("dark")
-    page.get_by_role("link", name="Switch person", exact=True).click()
+    page.goto(address+'/people')
     page.get_by_label("Name", exact=True).fill("Sam")
     page.get_by_role("button", name="Add person", exact=True).click()
     page.get_by_label("Source routine", exact=True).select_option(label="Alex / Strength")
@@ -160,6 +161,7 @@ def test_management_workflow_modes_order_copy_and_phone_layout(management_page):
     page.get_by_role("button", name="Copy routine", exact=True).click()
     expect(page.get_by_role("heading", name="Independent", exact=True)).to_be_visible()
     expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
+    page.get_by_role("button",name="Open navigation",exact=True).click()
     page.get_by_role("link", name="Exercise names", exact=True).click()
     rename_form = page.locator("form").filter(has=page.locator('input[name="name"][value="Bench"]'))
     rename_form.get_by_label("Exercise name", exact=True).fill("Copy bench")

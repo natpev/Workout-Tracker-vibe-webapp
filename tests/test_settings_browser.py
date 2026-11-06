@@ -37,8 +37,10 @@ def test_backup_restore_confirmation_delete_themes_and_responsive(settings_page)
     page.get_by_role('button',name='Backup Now',exact=True).click()
     expect(page.locator('#backup-status')).to_have_text('verified')
     backup_url=page.url
+    page.goto(base+'/settings')
     for theme in ('light','dark','auto'):
         page.select_option('#theme',theme);page.reload();expect(page.locator('#theme')).to_have_value(theme)
+    page.goto(backup_url)
     for width in (320,768,1280):
         page.set_viewport_size({'width':width,'height':800});assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.get_by_label('I understand this selects an earlier dataset and preserves the current database separately',exact=True).check()
@@ -75,4 +77,4 @@ def test_schedule_persistence_log_filters_and_error_details(settings_page):
     expect(page.locator('.log-entry')).to_have_count(1)
     page.get_by_text('Error details',exact=True).click()
     expect(page.get_by_text('Operation failed. Inspect protected server logs for technical frames.',exact=True)).to_be_visible()
-    assert 'hidden' not in page.content() and str(root) not in page.content()
+    assert 'csrf_token=hidden' not in page.content() and '/secret/database' not in page.content() and str(root) not in page.content()

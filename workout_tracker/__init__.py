@@ -15,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 
 
 def create_app(test_config=None):
@@ -63,6 +63,19 @@ def create_app(test_config=None):
             emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker stopped")
     if not app.testing:
         atexit.register(shutdown_event)
+
+    @app.context_processor
+    def appearance_helpers():
+        """Read appearance lazily once per request; corrupt preferences never block recovery UI."""
+        from flask import g
+        from . import preferences
+        def accent_for(identity):
+            """Return a safe CSS palette name, not arbitrary browser-supplied CSS."""
+            if not hasattr(g, 'person_colors'):
+                try: g.person_colors=preferences.colors(app.config['WORKOUT_DATA_ROOT'])
+                except StorageError: g.person_colors={}
+            return g.person_colors.get(identity,'blue')
+        return dict(accent_for=accent_for,accent_palette=preferences.PALETTE)
 
     @app.errorhandler(ValidationError)
     def invalid_form(error):

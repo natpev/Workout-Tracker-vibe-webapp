@@ -61,8 +61,9 @@
             if (element.dataset.entryState === data.entry_id) element.textContent = data.measurement_display;
           });
           document.getElementById("workout-progress").value = data.completed;
-          document.getElementById("progress-text").textContent = `${data.completed} / ${data.total}`;
-          document.getElementById("all-skipped-confirmation").hidden = data.completed !== 0;
+          document.getElementById("progress-text").textContent = `${data.completed} / ${data.total} done`;
+          if (data.completed !== 0) document.getElementById("all-skipped-confirmation").hidden = true;
+          document.getElementById("confirmed-at").textContent = data.updated_at;
           if (sequence === sentSequence) {
             for (const name of ["weight", "minutes", "seconds"]) {
               const input = form.elements.namedItem(name);
@@ -70,13 +71,19 @@
             }
             form.elements.namedItem("increase").checked = data.increase;
             dirty = false;
-            status.textContent = `Saved on server. Last confirmed: ${data.updated_at}`;
+            status.textContent = "✓ Saved";
+            status.dataset.state = "saved";
+            document.getElementById("save-error").hidden = true;
           } else {
             status.textContent = "Saving newer changes…";
           }
           return true;
         } catch (error) {
-          status.textContent = `Not saved: ${error.message} Your input is still visible; earlier confirmed saves are retained.`;
+          status.textContent = "Save failed";
+          status.dataset.state = "error";
+          const detail = document.getElementById("save-error");
+          detail.hidden = false;
+          detail.textContent = `Not saved: ${error.message} Your input is still visible; earlier confirmed saves are retained. Stay here and retry Save draft, or reload after copying unsaved input.`;
           return false;
         }
       })();
@@ -94,7 +101,7 @@
       // Mark unsaved immediately, not only once the debounce request begins.
       dirty = true;
       sequence += 1;
-      status.textContent = conflict ? "Not saved: changed in another tab. Reload before saving; your input is still visible." : "Unsaved changes…";
+      status.textContent = conflict ? "Save failed" : "Unsaved";
       clearTimeout(timer);
       timer = setTimeout(() => { void flush(); }, 300);
     });
@@ -119,7 +126,7 @@
       submitting = false;
     }
   });
-  document.querySelectorAll("[data-workout-nav]").forEach((link) => {
+  document.querySelectorAll("[data-workout-nav],[data-workout-leave]").forEach((link) => {
     link.addEventListener("click", async (event) => {
       event.preventDefault();
       if (submitting) return;

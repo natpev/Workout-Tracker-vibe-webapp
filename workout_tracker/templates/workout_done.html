@@ -1,9 +1,9 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-   Flask reads a single finalized snapshot as confirmation, not a history browser.
-   There are no correction, deletion, chart or backdating actions in this phase. #}
+   Flask reads a finalized snapshot/effective corrections for confirmation.
+   Completed/discarded status releases this tab’s workout navigation focus. #}
 {% extends 'base.html' %}
 {% block content %}<section>
-<h2>{{ 'Workout saved' if workout.status == 'completed' else 'Workout discarded' }}</h2>
+<h1>{{ 'Workout saved' if workout.status == 'completed' else 'Workout discarded' }}</h1>
 <p>{{ workout.routine_name }} · {{ workout.workout_date }} · {{ workout.timezone }}</p>
 {% if workout.status == 'completed' %}<p>Your complete workout was saved successfully, including skipped exercises.</p>
 <ol>{% for row in entries %}<li>{{ row.name }} — {{ display(row) }}{% if row.increase_next_time == 1 %} · Increase {{ 'weight' if row.measurement_type == 'weight' else 'duration' }} next time{% endif %}</li>{% endfor %}</ol>{% endif %}
