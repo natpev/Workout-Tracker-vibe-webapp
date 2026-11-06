@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from .schema import PHASE2_TABLES
 from .workout_schema import WORKOUT_TABLES, WORKOUT_OBJECTS
+from .history_schema import HISTORY_TABLES, HISTORY_OBJECTS
 from .storage import StorageError, _inspect_unlocked, _sync_directory, storage_lock, load_signing_key
 
 
@@ -35,10 +36,17 @@ def _upgrade_candidate(connection, target_version=2):
             for statement in PHASE2_TABLES.values():
                 connection.execute(statement)
             connection.execute("INSERT INTO schema_migrations VALUES (2, 'people_and_routines')")
-        if target_version == 3:
+        if current < 3 and target_version >= 3:
             for statement in WORKOUT_OBJECTS.values():
                 connection.execute(statement)
             connection.execute("INSERT INTO schema_migrations VALUES (3, 'workout_tracking')")
+        if target_version == 4:
+            for statement in HISTORY_OBJECTS.values():
+                connection.execute(statement)
+            # Original completed rows are not touched; the registry only links
+            # them for future correction ownership. Counts are checked below.
+            connection.execute("INSERT INTO workout_registry(id,person_id,live_session_id) SELECT id,person_id,id FROM workout_sessions WHERE status='completed'")
+            connection.execute("INSERT INTO schema_migrations VALUES (4, 'history_and_corrections')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -64,7 +72,7 @@ def migrate_storage(value, target_version=2):
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -95,6 +103,8 @@ def migrate_storage(value, target_version=2):
                 existing = ["storage_metadata", "schema_migrations"]
                 if source["schema_version"] >= 2:
                     existing += list(PHASE2_TABLES)
+                if source["schema_version"] >= 3:
+                    existing += list(WORKOUT_TABLES)
                 for name in existing:
                     before = source_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
                     after = target_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
@@ -102,7 +112,13 @@ def migrate_storage(value, target_version=2):
                         after = [row for row in after if row[0] <= source["schema_version"]]
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
-                added = list(WORKOUT_TABLES) if target_version == 3 else []
+                added = list(WORKOUT_TABLES) if source["schema_version"] < 3 and target_version >= 3 else []
+                if target_version == 4:
+                    added += [name for name in HISTORY_TABLES if name != 'workout_registry']
+                    links = target_connection.execute("SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry ORDER BY id").fetchall()
+                    expected_links = target_connection.execute("SELECT id,person_id,id,NULL FROM workout_sessions WHERE status='completed' ORDER BY id").fetchall()
+                    if links != expected_links:
+                        raise StorageError("Completed-workout registry consistency failed.")
                 if source["schema_version"] == 1:
                     added += list(PHASE2_TABLES)
                 for name in added:
@@ -160,5 +176,5 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")

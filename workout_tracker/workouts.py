@@ -225,6 +225,9 @@ def previous(db, person_id, parent, entry):
     cross-person comparisons. An immediately previous skip and last performed
     result are kept separate; previous values never become today's defaults.
     """
+    if db.execute('PRAGMA user_version').fetchone()[0] >= 4:
+        from .history import previous_comparable
+        return previous_comparable(db, person_id, parent, entry)
     rows = db.execute("SELECT e.*,s.workout_date,s.started_at FROM workout_entries e "
                       "JOIN workout_sessions s ON s.id=e.session_id WHERE e.person_id=? AND e.exercise_id=? "
                       "AND e.measurement_type=? AND e.unit IS ? AND e.weight_meaning=? AND s.status='completed' "

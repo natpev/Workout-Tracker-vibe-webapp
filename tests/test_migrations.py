@@ -208,3 +208,69 @@ def test_schema3_failure_retains_populated_original(phase2_root,fault):
     assert source.read_bytes()==original
     assert (root/'config'/'active.json').read_bytes()==selection
     assert inspect_storage(root)['schema_version']==2
+
+
+def test_schema4_migration_preserves_completed_and_active_workouts(phase3_root):
+    """All original rows/NULLs and the schema-3 file survive; registry links completed only."""
+    from workout_tracker import catalog as c, workouts as w
+    from workout_tracker.storage import database_session
+    root=phase3_root
+    with database_session(root,write=True) as db:
+        person=c.create_person(db,'Migration fixture');routine=c.create_routine(db,person,'Source')
+        c.add_entry(db,person,routine,dict(name='Weight',measurement_type='weight',target_sets='3',target_reps='12'))
+        c.add_entry(db,person,routine,dict(name='Time',measurement_type='time',target_sets='3',minutes='0',seconds='45'))
+        identity,_=w.start(db,person,routine,'UTC');entry=w.entries(db,person,identity)[0]
+        w.finish(db,person,identity,dict(revision='0',entry_id=entry['id'],current_position='0',weight='0'))
+        draft,_=w.start(db,person,routine,'UTC')
+        before={name:[tuple(row) for row in db.execute(f'SELECT * FROM {name} ORDER BY id')] for name in ('people','exercises','routines','routine_exercises','workout_sessions','workout_entries')}
+    original=root/'data'/json.loads((root/'config'/'active.json').read_text())['database']
+    content=original.read_bytes();modified=original.stat().st_mtime_ns
+    assert migrate_storage(root,target_version=4)=={'changed':True,'schema_version':4}
+    assert original.read_bytes()==content and original.stat().st_mtime_ns==modified
+    with database_session(root,minimum_version=4) as db:
+        for name,rows in before.items():
+            assert [tuple(row) for row in db.execute(f'SELECT * FROM {name} ORDER BY id')]==rows
+        assert [tuple(row) for row in db.execute('SELECT id,person_id,live_session_id FROM workout_registry')]==[(identity,person,identity)]
+        assert w.active(db,person)['id']==draft
+        assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+        assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
+    before_files=tree_bytes(root)
+    assert migrate_storage(root,target_version=4)['changed'] is False
+    assert tree_bytes(root)==before_files
+
+
+@pytest.mark.parametrize('fault',['ddl','data-change','activation','post-switch'])
+def test_schema4_failure_keeps_selected_schema3(phase3_root,fault):
+    """Candidate failure and activation rollback never overwrite or select over schema 3."""
+    from workout_tracker import migrations, catalog as c
+    from workout_tracker.storage import database_session
+    root=phase3_root
+    with database_session(root,write=True) as db:
+        c.create_person(db,'Must survive')
+    selection=(root/'config'/'active.json').read_bytes()
+    original=root/'data'/json.loads(selection)['database'];content=original.read_bytes()
+    upgrade=migrations._upgrade_candidate;sync=migrations._sync_directory;count=0
+
+    def change_data(connection,target):
+        """Change copied logical data while leaving its structural schema valid."""
+        upgrade(connection,target)
+        connection.execute("UPDATE people SET name='wrong'");connection.commit()
+
+    def fail_sync(path):
+        """Fail after activation once; rollback can then sync the original selection."""
+        nonlocal count
+        if path==root/'config':
+            count+=1
+            if count==2: raise OSError('simulated durability error')
+        sync(path)
+
+    patches={
+        'ddl':patch.object(migrations,'_upgrade_candidate',side_effect=sqlite3.OperationalError('DDL')),
+        'data-change':patch.object(migrations,'_upgrade_candidate',side_effect=change_data),
+        'activation':patch.object(migrations.os,'replace',side_effect=OSError('activation')),
+        'post-switch':patch.object(migrations,'_sync_directory',side_effect=fail_sync),
+    }
+    with patches[fault],pytest.raises(StorageError): migrate_storage(root,target_version=4)
+    assert original.read_bytes()==content
+    assert (root/'config'/'active.json').read_bytes()==selection
+    assert inspect_storage(root)['schema_version']==3

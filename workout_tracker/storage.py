@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from .schema import PHASE2_TABLES
 from .workout_schema import WORKOUT_OBJECTS
+from .history_schema import HISTORY_OBJECTS
 
 SCHEMA_VERSION = 1  # Explicit first install starts at the original foundation schema.
 APPLICATION_ID = 0x5754524B
@@ -109,7 +110,7 @@ def _inspect_unlocked(value, *, selection=None):
         filename = manifest["database"]
         if not isinstance(filename, str) or not (
             filename == f"schema-1-{storage_id}.sqlite3" or
-            re.fullmatch(rf"schema-[23]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+            re.fullmatch(rf"schema-[234]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = root / "data" / filename
@@ -134,7 +135,7 @@ def _inspect_unlocked(value, *, selection=None):
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (1, 2, 3):
+            if version not in (1, 2, 3, 4):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -145,15 +146,17 @@ def _inspect_unlocked(value, *, selection=None):
                 "SELECT name, sql FROM sqlite_schema WHERE substr(name, 1, 7) != 'sqlite_'"
             ))
             expected = TABLES if version == 1 else TABLES | PHASE2_TABLES
-            if version == 3:
+            if version >= 3:
                 expected |= WORKOUT_OBJECTS
+            if version == 4:
+                expected |= HISTORY_OBJECTS
             if not filename.startswith(f"schema-{version}-"):
                 raise StorageError("The selected filename and schema version disagree.")
             if objects != expected:
                 raise StorageError("The database schema does not match this release.")
             if connection.execute("SELECT * FROM storage_metadata").fetchall() != [(1, storage_id)]:
                 raise StorageError("The database identity does not match its manifest.")
-            migrations = [(1, "foundation")] + ([(2, "people_and_routines")] if version >= 2 else []) + ([(3, "workout_tracking")] if version == 3 else [])
+            migrations = [(1, "foundation")] + ([(2, "people_and_routines")] if version >= 2 else []) + ([(3, "workout_tracking")] if version >= 3 else []) + ([(4, "history_and_corrections")] if version == 4 else [])
             if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
         finally:

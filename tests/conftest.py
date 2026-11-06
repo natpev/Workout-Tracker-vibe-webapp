@@ -44,3 +44,16 @@ def phase3_root(phase2_root):
 def phase3_app(phase3_root):
     """Use an explicit DST-aware test zone, never household configuration/data."""
     return create_app({'WORKOUT_DATA_ROOT': phase3_root, 'WORKOUT_TIMEZONE': 'America/Indiana/Indianapolis', 'TESTING': True})
+
+
+@pytest.fixture
+def phase4_root(phase3_root):
+    """Upgrade a disposable schema 3 through a separate verified schema-4 candidate."""
+    migrate_storage(phase3_root,target_version=4)
+    return phase3_root
+
+
+@pytest.fixture
+def phase4_app(phase4_root):
+    """Run Phase 4 with explicit synthetic storage and an IANA test timezone."""
+    return create_app({'WORKOUT_DATA_ROOT':phase4_root,'WORKOUT_TIMEZONE':'America/Indiana/Indianapolis','TESTING':True})
