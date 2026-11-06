@@ -1,0 +1,35 @@
+<!-- SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+     Flask renders this foundation page with an application version. Local CSS
+     and JavaScript provide responsive themes; no workout data is read/written. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workout Tracker — Foundation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Workout Tracker</h1>
+      <p class="disclosure">SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.</p>
+      <section aria-labelledby="status-heading">
+        <h2 id="status-heading">Foundation ready for review</h2>
+        <p>Workout tracking is not available yet. This phase provides the application shell and storage safeguards.</p>
+        <p>Application version {{ version }}</p>
+      </section>
+      <section aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading">Appearance</h2>
+        <label for="theme">Theme for this browser</label>
+        <select id="theme">
+          <option value="auto">Auto (device setting)</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <p id="theme-status" role="status"></p>
+        <noscript>Auto theme follows your device. Enable JavaScript to choose a browser override.</noscript>
+      </section>
+    </main>
+  </body>
+</html>

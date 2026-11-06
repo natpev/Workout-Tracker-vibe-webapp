@@ -1,0 +1,8 @@
+# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# Docker excludes local configuration and all files except runtime sources.
+**
+!requirements.txt
+!workout_tracker/
+!workout_tracker/**
+**/__pycache__/
+**/*.pyc

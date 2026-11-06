@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED PROJECT.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Planning/design; **do not implement until approved.**  
+**Project status:** Architecture approved; Phase 1 (Foundation and Storage Safeguards) authorized on a separate branch. Stop for review before Phase 2. No deployment or real workout data is authorized.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -24,6 +24,7 @@
 - **Copy from user:** select a different user and a routine, create an independent copy of the routine definition. No persistent link between copies; no copied logged weights, increase flags, or workout history.
 - **Duplicate own routine:** same independence behavior for a copy within one user.
 - Modifying/deleting a routine must never rewrite or remove already completed workout history.
+- Maintain permanent, person-owned exercise identities; historical snapshots survive edits/removal. Optional exercise notes are included. Archive users who have workout history.
 
 ## 3. Everyday workflow: agreed behavior
 
@@ -41,11 +42,12 @@
 ### Weight and skipped-exercise semantics (important)
 
 - The current weight input initially starts **blank**; previous weight is visible for reference but is **not silently prefilled**. This prevents accidentally treating a skipped exercise as performed.
+- Weight defaults to pounds and supports decimal values. Explicit zero is valid and counts as an entered weight; it is never treated as NULL. Exact decimal precision remains to be chosen before workout storage implementation.
 - When the user finishes/saves, **each exercise from the session's routine snapshot gets a saved workout-entry record**, even if its weight was never entered.
 - If skipped, the database weight must be true SQL **`NULL`**. `NULL` ≠ `0` and ≠ the previous weight; a skipped exercise must **not be omitted** from the saved workout.
 - A blank weight does not count toward the workout progress bar. Progress means **number of exercises with entered weights / total exercises**. Navigating to an exercise does not mark it done.
 - Tables display skipped entries clearly as **Skipped** or an em dash; charts omit/gap skipped weights rather than plotting zero.
-- The system should distinguish "skipped in most recent session" from "last non-NULL weight actually performed" so it doesn't misleadingly present an old weight as a new completed performance. Exact label format may be decided during implementation review.
+- Show the previous session's weight and increase indicator. If that session skipped the exercise, show that fact plus the last successfully performed weight, including an explicitly entered zero.
 - Increase-next-time note applies to a performed exercise; do not invent a new increase recommendation when its saved weight is NULL.
 
 ### Weight meaning and historical integrity
@@ -54,6 +56,7 @@
 - Keep a **snapshot** of exercise names, order, target sets/reps and related prescribed routine information in every saved session; changes to routines never alter old sessions.
 - A user's previous weights/increase flags must be drawn only from that user's logged exercise history; copied routine ownership must not leak values from another person.
 - Prevent accidental duplicate workouts if Finish & Save is tapped twice or retried.
+- Allow one active draft per user. Allow completing an entirely skipped workout only after confirmation.
 
 ## 4. Manual historical entry and history
 
@@ -62,6 +65,7 @@
 - Enter the same one weight per exercise (or leave skipped exercises NULL), optional increase flags, and preserve a consistent historical date.
 - Provide a history view with past sessions by date/person/routine, drill-down exercise records, and an exercise selector plus date-range filters.
 - Show weight-over-time charts, a table of weights/sets/reps/increase flags, and simple personal records. User-specific data only.
+- Allow corrections to previously saved workouts with confirmation and validation. Preserve routine snapshots except for deliberate validated corrections; correction fields/audit detail remain to be specified before that phase. Deletion of completed workouts is not approved.
 
 ## 5. Screen designs and styling
 
@@ -97,11 +101,11 @@
 ## 6. Data model (conceptual, not final SQL)
 
 - **Users** — identity/display name.
-- **Exercises** — reusable names/metadata. Whether global or user-owned is an open implementation choice; ownership and history must remain independent.
+- **Exercises** — permanent person-owned identities and reusable names/metadata, independent of historical snapshots.
 - **Routines** — owner, name, status and ordering.
 - **Routine exercises** — ordered exercise references, prescribed sets/reps, optional notes/equipment labels.
 - **Workout sessions** — person, started/finished timestamps, date, selected routine identification, draft/completed/discarded status.
-- **Workout entries** — ordered per-exercise immutable snapshot (name, sets/reps, equipment/weight meaning), nullable **weight**, nullable/non-applicable increase flag, optional notes.
+- **Workout entries** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), nullable **weight**, nullable/non-applicable increase flag, optional notes. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
 - **Schema version** — SQLite user schema version recorded separately from the Git/app release number.
 
@@ -138,7 +142,8 @@ These directories must be outside the Git repository and the ephemeral Docker im
 - Scheduler must avoid double execution across restarts/workers; on missed runs, at most one catch-up, not a burst. Date/time should be timezone aware, with documented behavior for daylight-saving transitions.
 - Never quietly overwrite or auto-delete backup files. Keep them indefinitely by default unless user later chooses explicit deletion.
 - On suspected source corruption, warn instead of labeling a corrupted copy as verified. Keep all previous valid backups intact.
-- Optional Restore UI: choose an older backup, show the archive/date, require explicit confirmation, validate selected file, preserve currently active DB separately, suspend writers, then switch safely. Never silently restore or destroy the current DB.
+- Required v1 Restore UI: choose an older backup, show the archive/date, require explicit confirmation, validate selected file, preserve currently active DB separately, suspend writers, then switch safely. Never overwrite a database during migration or restoration, and never silently restore or destroy the current DB.
+- Automatic backups are disabled until configured.
 - App-level backup/archive files primarily protect against corruption or app mistakes. **Proxmox clones/backups** handle machine-level failure; on-server copies are not off-site protection.
 
 ## 9. Settings and log viewer
@@ -160,23 +165,21 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 11. Open design / implementation decisions (not yet approved)
 
 - Exact server operating system, Proxmox VM/container layout, binding LAN interface/port, and on-host storage paths.
-- Whether weight units are always lb or configurable by user/exercise; exact wording of per-dumbbell vs total-barbell labels.
-- Whether an exercise library is globally shared by name or per user; historical ownership must always be isolated.
-- Whether workout-level or exercise-level free-text notes are desirable beyond the lightweight note fields shown in mockups.
-- Exact handling of a session where **every** exercise is skipped: save with warning, or require confirmation.
-- Whether to allow editing/deleting already completed historical sessions and what confirmation/audit behavior that requires.
-- How to show the previous performed weight when the immediately preceding workout skipped the exercise (recommended: label both “Last session: skipped” and “Last performed: X lb”).
-- Default automatic backup schedule and what to do if server startup occurs while active DB corruption is detected.
+- Decimal precision and limits; whether units beyond default pounds are configurable; per-dumbbell vs total-barbell labels.
+- Whether workout-level notes are needed in addition to approved optional exercise notes.
+- Exact fields and audit history for confirmed workout corrections; completed-workout deletion is not authorized.
+- Configured backup frequency/time and DST rules; scheduling starts disabled. On corruption, startup must refuse unsafe storage rather than replace it.
 - Restore confirmation wording, backup deletion UI, and whether restore of archived schema versions is exposed in v1.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Proposed implementation phases (planning only)
+## 12. Approved phased implementation (Phase 1 only currently authorized)
 
-1. **Foundation:** Flask skeleton, Docker Compose, example configuration, responsive theme, test harness, durable data paths.
-2. **Core workflow:** people, independent/copyable routines, drafts, one exercise at a time, skip=`NULL`, Finish & Save, discard dialog.
-3. **History:** charts/tables, manual past sessions, snapshot and copy-isolation tests.
-4. **Data safety:** schema-versioned upgrade/copy/validation, server-side manual/scheduled backups, safe restore, log viewer.
-5. **Hardening:** responsive/accessibility review, regression/integration tests, README/operator documentation, deployment steps.
+1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
+2. **People and routines:** person selection, permanent exercises, routine editing/ordering, independent copies; ownership and copy-isolation tests.
+3. **Workout workflow:** one draft per user, snapshots, decimal/zero/NULL semantics, previous values, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
+4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, snapshots and user isolation tests.
+5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests.
+6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.

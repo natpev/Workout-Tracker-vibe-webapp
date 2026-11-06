@@ -5,7 +5,7 @@ AGENTS.md — Workout Tracker
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current status: PLANNING ONLY. Do not build, deploy, run migrations, or modify real user data until explicitly authorized.
+• Current authorization: Phase 1 (Foundation and Storage Safeguards) only, on a separate Git branch with tests and review. Stop before Phase 2. Do not deploy or connect to real workout data. Broader architecture approval does not authorize later phases.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
 
@@ -45,6 +45,7 @@ Workout entry
 • Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered weights.
 • Discard Workout requires an explicit “Are you sure?” dialog, acknowledgment checkbox, Cancel, and OK disabled until acknowledgment. Cancel keeps the draft; confirmed discard affects only that unsaved/in-progress session, never saved history.
 • Allow manual entry of older workouts with a chosen past date; they belong in the same history and analytics as normal sessions.
+• Approved decisions: pounds by default with decimals; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 1.
 
 Interface and reporting
 

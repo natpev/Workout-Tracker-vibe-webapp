@@ -1,0 +1,34 @@
+# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# Proposed self-hosting configuration, not an instruction to deploy. Docker
+# supplies external host storage; Gunicorn only reads it during Phase 1.
+services:
+  web:
+    build:
+      context: .
+      secrets: [pip_ca]
+    user: "${WORKOUT_UID:-10001}:${WORKOUT_GID:-10001}"
+    environment:
+      WORKOUT_DATA_ROOT: /var/lib/workout-tracker
+      WORKOUT_TRUSTED_HOSTS: "${WORKOUT_TRUSTED_HOSTS:-localhost,127.0.0.1,[::1]}"
+    ports:
+      - "127.0.0.1:${WORKOUT_PORT:-8000}:8000"
+    volumes:
+      - type: bind
+        source: ${WORKOUT_DATA_ROOT:?Set an absolute external storage path}
+        target: /var/lib/workout-tracker
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+secrets:
+  pip_ca:
+    file: ${WORKOUT_BUILD_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}
