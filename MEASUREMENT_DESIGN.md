@@ -1,6 +1,6 @@
 # Weight and Time exercise design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Phase 3 implements workout entry, persistence and snapshots; history exploration and charts remain planned. Review and test before use.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Phase 4 adds history, local typed charts, historical completion and append-only effective corrections; original snapshots remain protected. Review and test before use.
 
 ## Current state and authorization
 
@@ -9,10 +9,10 @@ exercise definitions and the typed routine editor, plus the minimal safe
 schema-1 → schema-2 migration prerequisite. Phase 3 is reviewed, approved and
 merged into main, including typed workout entry, snapshots, server drafts,
 recovery, previous performance, atomic completion/discard and candidate schema 3.
-Phase 4 is next and requires separate authorization. This merge/cleanup task
-adds no functionality and begins no Phase 4 work. Charts, backdated
-entry, corrections, full backup/restore, scheduling and log viewing remain later
-phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
+Phase 4 only is now authorized and implemented for review on phase-4-history-charts:
+history, local SVG charts, independent historical completion and append-only
+correction revisions. Stop before merging or beginning Phase 5. Full backup/
+restore, scheduling and application log viewing remain later phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 
@@ -109,7 +109,7 @@ Required database constraints and service invariants:
   copies type/targets/notes only, never results or increase state.
 - Routine edits/removal never cascade into historical measurements or snapshots.
   Confirmed saved-workout corrections remain a separate validated action, not a
-  side effect of editing a routine. Exact correction fields/audit policy remain open.
+  side effect of editing a routine. Only actual values, increase flags and occurrence date/time can be corrected. Full before/after values, UTC correction timestamp and sequence are appended; immutable snapshots and prior corrections stay retained.
 
 Previous-value and chart queries must filter by person, permanent exercise ID,
 snapshotted measurement type, unit/weight meaning, and workout chronology. Never
@@ -127,7 +127,11 @@ Phase 2 implements an explicit candidate-only migration from metadata-only
 schema 1 to schema 2. Phase 3 extends this with explicit schema 1/2 → 3
 candidates. Original files remain unchanged. Existing metadata, people, exercise
 definitions and routine targets (including NULLs) are compared row-for-row; only
-new workout tables/index/triggers are added. Startup never migrates or initializes.
+new workout tables/index/triggers are added. Phase 4 extends the same explicit
+candidate path to schema 4, adding historical preparations/completions, registry
+links and append-only correction revisions. Every original schema-3 row, NULL
+and protection trigger is preserved; effective readers apply validated overlays.
+Startup never migrates or initializes.
 Future domain changes require separately reviewed candidates, not in-place changes.
 
 When a later authorized phase adds domain tables, determine the required schema
@@ -156,7 +160,7 @@ workouts; disclose this before any future recovery action.
 
 ## Future automated acceptance tests by phase
 
-Phase 2 routine tests and Phase 3 workout/persistence/migration tests are implemented. General history, backup and restore assertions remain future tests, not claimed as passing.
+Phase 2 routine tests and Phase 3 workout/persistence/migration tests are implemented. Phase 4 history/chart/manual/correction tests are also implemented. Backup and restore assertions remain future tests, not claimed as passing.
 Use disposable fixtures only, including corruption/migration/restore tests.
 
 | Phase | Required automated coverage |
@@ -168,21 +172,24 @@ Use disposable fixtures only, including corruption/migration/restore tests.
 
 ## Open decisions and validation history
 
-Before later phases, resolve time personal-record rules and editable correction
-fields/audit behavior, plus any future product-specific limits below the SQLite
-storage bounds. Phase 3 uses signed 64-bit integer storage and requires both
+Phase 4 statistics are highest logged weight and longest logged duration in
+the selected range. Corrections append only actual values/flags and occurrence;
+original identity/type/configuration stays immutable. Additional record metrics
+and product-specific limits below SQLite bounds remain future decisions. Phase 3 uses signed 64-bit integer storage and requires both
 duration parts or neither; partial input is a clear validation error. Weight precision/truncation/storage,
 valid zero weight, minimum-one-second actual time, empty-as-NULL semantics and
 People-screen switching are final decisions, not open questions. Every skipped
 exercise must retain its own snapshot entry with NULL measurements; never
 substitute zero or previous performance, and preserve tracking type and values.
-These rules are now implemented in authorized Phase 3, with no Phase 4 work.
+These rules remain in effect through Phase 4, with no Phase 5 work.
 
 Phase 2 validation remains recorded in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md).
 Current Phase 3 evidence is in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md), including
 workout entry, NULL/zero semantics, truncation, concurrent writes, network faults,
-restart recovery, candidate migration and browser/container regressions. General
-history/backup assertions still await their authorized phases.
+restart recovery, candidate migration and browser/container regressions. Current
+Phase 4 evidence is in [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md): effective chronology,
+typed chart separation, independent historical entry, audit/concurrency and
+schema-3 preservation. Backup/restore assertions still await Phase 5.
 
 Historical design-only branch (`a5f7c35`): 37 existing foundation tests passed;
 documentation links, disclosures and whitespace checks passed. No application

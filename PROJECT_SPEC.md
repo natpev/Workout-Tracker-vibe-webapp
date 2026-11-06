@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–3 and Weight/Time design are reviewed, approved and merged into main with all implementation history preserved. Phase 4 is next but not authorized. This finalization task changes status documentation, verifies regressions, fast-forwards main and removes only the fully merged Phase 3 branch; no functionality changes, deployment or real workout data access are authorized.
-**Current scope:** existing management plus workout start/resume, immutable entry snapshots, autosaved drafts, exact typed measurements, previous performance, revision conflicts, atomic Finish & Save, confirmed discard, and safe schema-3 migration. Charts, backdated entry, saved-workout corrections, full backup/restore, scheduling and log viewing remain later phases.
+**Project status:** Phases 1–3 and Weight/Time design are approved and merged. Phase 4 only is authorized and implemented for review on phase-4-history-charts. Do not merge/delete it or begin Phase 5 without approval. No deployment or real workout data access is authorized.
+**Current scope:** existing management/tracking plus per-person completed history, occurrence-based filters, local typed charts, historical completion independent of active drafts, append-only corrections/audit and safe candidate schema 4. Full backup/restore, scheduling and persistent application log viewing remain Phase 5.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -63,11 +63,11 @@
 ## 4. Manual historical entry and history
 
 - Manually enter workouts performed before app installation, selecting the user and any past calendar date.
-- Permit selection of an existing routine or manual exercise composition if the old routine no longer matches current ones. Store historical exercise snapshots rather than overwriting current routines.
+- Choose a routine and prepare independent historical snapshots. If an old prescription differs, create or duplicate/configure a separate routine first using the existing editor; this supports manual composition without changing the routine used by active workouts. Store snapshots rather than overwriting current routines.
 - Enter the same one weight or duration per exercise, according to its snapshotted type (or leave skipped exercises NULL), optional increase flags, and preserve a consistent historical date.
 - Provide a history view with past sessions by date/person/routine, drill-down exercise records, and an exercise selector plus date-range filters.
 - Show separate weight/duration progression charts and tables of measurements, sets, target reps or duration, and increase flags. Weight axes use pounds; duration axes use time labels backed by integer seconds. Never combine incompatible units on one numeric series. Personal records must use the matching type and unit. User-specific data only.
-- Allow corrections to previously saved workouts with confirmation and validation. Preserve routine snapshots except for deliberate validated corrections; correction fields/audit detail remain to be specified before that phase. Deletion of completed workouts is not approved.
+- Allow corrections to previously saved workouts with confirmation and validation. Preserve routine snapshots except for deliberate validated corrections; Phase 4 appends complete before/after effective actual values and occurrence, with correction timestamp, sequential revision, confirmation and stale-submission rejection; original completed records remain immutable. Deletion of completed workouts is not approved.
 
 ## 5. Screen designs and styling
 
@@ -102,14 +102,14 @@
 - Theme options: **Auto** (follow phone/computer appearance, the default), **Light**, **Dark**, with a manual override stored for that device/browser rather than changing the theme unexpectedly on another device.
 - Phone primarily for workout entry; PC primarily for routine editing, history tables and charts, but both should remain usable everywhere.
 
-## 6. Data model (Phase 3 schema 3 implemented)
+## 6. Data model (schema 4 adds history without modifying schema-3 objects)
 
 - **Users (`people`)** — permanent UUID, display name, archive flag. Phase 2 always archives rather than deletes people, preserving records whether or not history exists.
 - **Exercises (`exercises`)** — permanent person-owned UUIDs, names and archive status, independent of future historical snapshots. Renaming a reused identity updates this person’s routine displays; independent copies receive new identities.
 - **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Delete removes from active lists by archiving, never reuses an identity.
 - **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite foreign keys enforce matching ownership. Type is selected on the routine exercise, not inferred from its name.
 - **Workout sessions (`workout_sessions`)** — permanent ID, person/routine ownership, routine-name snapshot, UTC started/updated/finished/discarded timestamps, workout date, IANA timezone, draft/completed/discarded status, revision, snapshot entry count and current position. A unique partial index permits only one draft per person.
-- **Workout entries (`workout_entries`)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots. Completed/discarded entry updates and entry deletion are blocked by schema-3 triggers; confirmed corrections remain Phase 4 work and are not exposed now.
+- **Workout entries (`workout_entries`)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots. Completed/discarded entry updates and entry deletion are blocked by schema-3 triggers; Phase 4 corrections append separate revisions and never disable those triggers.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
 - **Schema version** — SQLite user schema version recorded separately from the Git/app release number.
 
@@ -169,21 +169,21 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 11. Open design / implementation decisions (not yet approved)
 
 - Exact server operating system, Proxmox VM/container layout, binding LAN interface/port, and on-host storage paths.
-- Time personal-record rules and any future product-specific upper bound. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, require both minute/second parts, reject zero, and treat two blank parts as SQL NULL.
+- Statistics are highest logged weight or longest logged duration in the selected date range, with separated exercise/type/unit/meaning. Any additional personal-record definitions and future product-specific upper bound remain undecided. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, require both minute/second parts, reject zero, and treat two blank parts as SQL NULL.
 - Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
-- Exact fields and audit history for confirmed workout corrections; completed-workout deletion is not authorized.
+- Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
 - Configured backup frequency/time and DST rules; scheduling starts disabled. On corruption, startup must refuse unsafe storage rather than replace it.
 - Restore confirmation wording, backup deletion UI, and whether restore of archived schema versions is exposed in v1.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–3 approved and merged; Phase 4 next, not authorized)
+## 12. Phased plan (Phases 1–3 approved and merged; Phase 4 implemented for review)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
-4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
+4. **History (implemented for review):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
@@ -264,4 +264,46 @@ Discard uses “Are you sure?”, acknowledgment, disabled-until-checked OK, and
 Cancel/Escape preserving the draft. A confirmed discard changes only its active
 session status; completed history cannot be discarded or deleted. A singular
 saved-workout confirmation is included; general history exploration and charts
-remain Phase 4. See [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
+were added in Phase 4 through a shared effective-value read layer. The Phase 3
+record remains at [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
+
+## 15. Phase 4 history, manual completion and corrections
+
+Schema 4 adds immutable historical preparation/session/entry tables, a registry
+linking native and historical completed sessions, and append-only correction
+revisions. The original schema-3 tables/index/triggers remain byte-for-byte the
+same DDL. Existing completed sessions are linked in the new registry during
+candidate migration; new native completions register through an added trigger.
+All original rows including NULL/zero values are compared after copying. Registry
+links, integrity, foreign keys, exact DDL and migration records are validated
+before atomic activation. Startup never migrates or initializes automatically.
+
+Historical entry chooses a routine, actual past date and optional time. Prepare
+copies configuration into an immutable review form; Save validates all typed
+measurements and atomically creates a separate completed session/entries. A
+unique preparation ID prevents duplicate completion on repeated submission.
+No temporary live draft is created and the person's active draft is untouched.
+Store entered-at UTC separately from local occurrence date, optional clock time,
+UTC occurrence when known and original IANA zone. Unknown time remains NULL;
+within the same day date-only records sort before known-time records, with a
+stable entry-time/ID tiebreak. DST gaps are rejected; repeated times require an
+explicit earlier/later choice. Future occurrence values are rejected.
+
+Corrections require acknowledgment and the latest audit revision. Only actual
+measurements, increase flags and occurrence can change. Append one full before/
+after value state plus UTC correction timestamp; original native/historical
+rows and every audit revision are retained and immutable. Concurrent/stale
+forms receive 409. Every read path (history/detail/charts/statistics/native
+completion references/previous performance) overlays the latest effective values.
+Invalid correction payloads fail validation rather than silently becoming zero.
+
+History lists completed sources only, newest first by effective occurrence,
+with inclusive date filters plus routine/exercise identity filters. Discarded
+and active drafts are excluded. Archived/renamed/removed definitions do not
+remove snapshots or filter choices. Charts are locally rendered responsive SVG
+with accessible data lists, one series per exercise/type/unit/weight meaning.
+NULLs remain visible as Skipped but are never numerical points; explicit zero
+weight is plotted and included in maxima. Duration is plotted in seconds and
+labeled minutes:seconds, never multiplied by sets. Stats are accurately labeled
+highest logged weight/longest logged duration in the filtered range.
+See [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md) for evidence and limitations.

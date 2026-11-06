@@ -5,8 +5,8 @@ AGENTS.md — Workout Tracker
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Project status: Phases 1–3 and the Weight/Time design are reviewed, approved and merged into main. Phase 4 is next but requires separate authorization. Current task scope is status documentation, regression verification, fast-forward consolidation and cleanup of the fully merged Phase 3 branch only. Do not begin Phase 4, change functionality, deploy, or access real workout data.
-• Phase 2 remains intact. Phase 3 uses schema 3, created only through an explicit separate-candidate upgrade from schema 1/2; every original database remains unchanged. Follow MEASUREMENT_DESIGN.md and PHASE_3_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
+• Current authorization: Phase 4 only — per-person history/filtering, local Weight/Time charts/statistics, independent historical entry, append-only corrections/audit and safe candidate schema 4. Work on phase-4-history-charts from approved main. Stop for review; do not merge/delete this branch or begin Phase 5. No deployment, real workout data, backup scheduling, restore UI or persistent application log viewer is authorized.
+• Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
 
@@ -45,7 +45,7 @@ Workout entry
 • Finish & Save atomically saves the whole workout, including NULL entries, then completes the session. Avoid accidental double submission.
 • Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered measurements.
 • Discard Workout requires an explicit “Are you sure?” dialog, acknowledgment checkbox, Cancel, and OK disabled until acknowledgment. Cancel keeps the draft; confirmed discard affects only that unsaved/in-progress session, never saved history.
-• Manual entry of older workouts remains a Phase 4 requirement, not Phase 3 scope.
+• Phase 4 historical entry copies a chosen routine into a separate review snapshot, preserves unknown time as NULL, distinguishes occurrence from entry time, and atomically completes via an idempotent submission token without touching an active draft.
 • Phase 3 implemented measurement rules: pounds by default, at most one decimal place, extra digits truncated never rounded (40.99 → 40.9; 42.56 → 42.5; 40 → 40.0). SQLite stores integer tenths (40.9 lb = 409). Explicit zero is valid; empty weight is SQL NULL. Actual durations are integer seconds, minimum 1 second; zero is invalid and empty is SQL NULL. One actual duration per exercise regardless of sets. Every skipped exercise retains an entry with NULL actual measurements, never previous values or zero; tracking types and measurements belong in historical snapshots. Do not backport workout-entry behavior or schema changes into retained Phase 2 databases.
 • Approved decisions: pounds by default with one decimal place and truncation; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 2.
 
@@ -53,7 +53,7 @@ Interface and reporting
 
 • Simple uncluttered phone-first UI; rounded cards, round/oval pill buttons, large tap targets. Support Dark, Light, and Auto (device theme, default), with a per-browser/device override.
 • Screens: Home/user selection, Routine selection, single-exercise Workout entry + overview, Routine editor/copy, History/charts + historical entry, Settings.
-• Separate user-specific historical tables, separate exercise weight/duration progression charts, date/exercise filters, and basic personal records. Show skipped entries as skipped/blank, never as zero performance.
+• Per-person history supports date/routine/exercise filters and saved detail. Charts group permanent exercise ID, type, unit and weight meaning separately; local SVG and accessible data lists exclude NULL numeric points but retain zero. Statistics mean highest logged weight/longest logged duration in the selected range. History, charts and previous-performance references must all use effective corrected occurrence/measurements. Show skipped entries as skipped/blank, never as zero performance.
 
 Database protection — highest priority
 

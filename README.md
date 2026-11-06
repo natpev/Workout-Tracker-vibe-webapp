@@ -2,17 +2,16 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software; not audited or approved for production.
 
-Phase 3 implements starting workouts, one-exercise entry, snapshots, server
-save/resume, previous performance, atomic completion and confirmed discard.
-Phase 1/2 management remains intact. Phase 3 is reviewed, approved and merged
-into main. Phase 4 is next and requires separate authorization; no additional
-development is authorized by this merge/cleanup task.
-No charts, backdated entry, completed-workout editing, automatic backups,
-scheduling, restore UI or log viewer is included. Do not deploy or use real data.
+Phase 4 implements per-person workout history, local progress charts, independent
+historical entry and append-only corrections. Phases 1–3 remain approved and
+intact. Phase 4 is implemented for review on `phase-4-history-charts`; do not merge
+or delete it before approval. No Phase 5, backups/scheduling, restore interface,
+persistent application log viewer, deployment or real-data access is authorized.
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
 [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
-and limitations are in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
+and limitations are in [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md).
+[PHASE_3_REVIEW.md](PHASE_3_REVIEW.md) retains the prior implementation evidence.
 [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) and the earlier
 [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) are retained as historical records.
 
@@ -22,7 +21,9 @@ and limitations are in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
 - `storage.py`: external-path validation, explicit first install, schema verification and per-transaction locking. Every database connection enables foreign keys.
 - `schema.py`: exact schema-2 definitions; no performance tables.
 - `workout_schema.py`: schema-3 session/entry snapshots, one-draft index and immutable-finalized-record triggers.
-- `migrations.py`: explicit candidate-only upgrade from known schema 1/2 to target 2/3, with row-by-row original-data verification.
+- `history_schema.py`: additive schema-4 history, preparations, registry and append-only audit objects; no Phase 3 protection is removed.
+- `history.py`, `history_views.py`: shared effective values, chronology/filters, chart preparation, historical completion and deliberate corrections.
+- `migrations.py`: explicit candidate-only upgrade from known schema 1/2/3 to target 2/3/4, preserving every original row/NULL and verifying registry consistency.
 - `workouts.py`, `workout_views.py`, `static/workout.js`: exact measurements, server drafts, serialized autosave, revision conflicts and atomic finalization.
 - `catalog.py`: parameterized SQL and rules for people, identities, ordering, typed targets, and independent copies.
 - `views.py`: CSRF-protected forms, ownership checks and stale-routine conflict detection.
@@ -39,12 +40,12 @@ can reach this passwordless household app can choose another person.
 
 Requires Linux, Python 3.12+, local POSIX storage supporting SQLite, flock, hard
 links and directory syncing, and SQLite 3.37+ for STRICT tables. Dependencies and
-the Docker base-image digest are pinned. Phase 3 adds no third-party dependencies; timezone handling uses Python zoneinfo.
+the Docker base-image digest are pinned. Phase 4 adds no third-party dependencies or external chart resources; timezone handling uses Python zoneinfo.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests/test_foundation.py tests/test_migrations.py tests/test_catalog.py tests/test_management.py tests/test_workouts.py tests/test_workout_http.py
+.venv/bin/python -m pytest -q tests/test_foundation.py tests/test_migrations.py tests/test_catalog.py tests/test_management.py tests/test_workouts.py tests/test_workout_http.py tests/test_history.py tests/test_history_http.py
 ```
 
 For a **disposable local review**, explicitly create a new, nonexistent external
@@ -55,16 +56,17 @@ It creates schema 1 first; a separate explicit command copies/upgrades it.
 export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 .venv/bin/python -m workout_tracker init-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-new-storage
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
-.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 3
+.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 4
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
 .venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --threads 2 'workout_tracker:create_app()'
 ```
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.3.0`, and schema version `3`. Schema 1 still opens
+`status: ready`, app version `0.4.0`, and schema version `4`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
-recording. Startup never migrates these automatically. Stop workers before
+recording. Schema 3 supports tracking but history/corrections need an explicit
+target-4 upgrade. Startup never migrates these automatically. Stop workers before
 explicit upgrade, then restart them to reload configuration/signing keys.
 Missing/damaged/incompatible storage is an error, never permission to initialize
 another database or replace an existing one.
@@ -156,7 +158,62 @@ Discard Workout opens “Are you sure?” with an explicit warning and acknowled
 checkbox. OK stays disabled until checked. Cancel/Escape preserve the draft.
 Confirmed discard changes only that unfinished session's status, retains its
 snapshot, and never deletes completed history. Completed/discarded snapshots are
-read-only in this phase; correction workflows await Phase 4.
+immutable as original records. Schema-4 correction workflows append effective
+actual/date/time revisions rather than updating these snapshots.
+
+## History, progress and historical entry
+
+Each person's navigation has History and Progress charts links, also reachable
+directly from People. History lists completed native and historical sessions by
+actual effective workout date/time, newest first. Active/discarded drafts are
+excluded. Filter by inclusive date range, original routine identity or permanent
+exercise identity. Saved detail shows every original prescription in original
+order, notes, actual values, skips and increase flags. Renaming/archiving/removing
+routine definitions does not change history or remove its filter choices.
+
+Progress charts are locally rendered SVG with accessible data lists and no CDN,
+third-party services or new dependencies. Each permanent exercise/type/unit/
+weight-meaning combination gets its own series, so pounds never mix with seconds
+or incompatible weight meanings. NULL is excluded from numeric plotting; zero
+pounds remains a plotted result. Durations are raw seconds labeled minutes:seconds
+and never multiplied by sets. Statistics mean highest logged weight/longest
+logged duration **within the selected range**. They are not inferred strength or
+other performance claims. The expandable data list retains skipped rows.
+
+Enter historical workout from History, choose a routine and its past date and
+optional time, then review copied prescriptions and fill measurements before
+Save. To recreate a different old prescription, create or duplicate/configure a
+separate routine first in the existing routine editor. Preparation freezes its
+snapshot, so later routine edits do not change the review form. Historical
+completion uses separate tables and a unique preparation token, never a live
+draft. Repeated submissions return the same saved workout and do not overwrite
+measurements. All-skipped completion needs explicit confirmation. Historical
+form measurements are saved atomically on submission, not live-autosaved.
+
+Occurrence is separate from when entered into the system. Unknown time remains
+NULL and is labeled Time unknown; no midnight timestamp is invented. Within one
+date unknown-time records sort before known-time records, with entry-time/ID
+as deterministic tiebreaks. DST gaps are rejected; repeated-hour times require
+an earlier/later choice. Future occurrence values are rejected. Backdated entry
+and effective date corrections affect charts and previous-performance lookups,
+which use occurrence chronology rather than entry/correction time.
+
+## Correcting a saved workout and the audit
+
+Open a saved workout and choose Correct saved workout. Change actual values,
+increase flags and/or actual date/optional time, then explicitly acknowledge the
+correction. Names, identities, order, tracking type, targets, units/meaning and
+notes remain immutable snapshots. The application appends full before/after
+actual-value states, occurrence, correction timestamp and sequence; it never
+updates the original completed rows or disables the Phase 3 protection triggers.
+An all-skipped corrected workout also needs skipped-workout confirmation.
+
+History, chart statistics, saved confirmation and previous-performance reads all
+use the latest effective correction. Original saved values and every correction
+remain visible in the audit. Two stale forms cannot overwrite each other: a
+revision conflict returns 409 and requires reloading. This is a shared-household
+audit without authenticated author attribution, consistent with passwordless
+People selection. No completed-workout deletion is offered.
 
 ## Storage and explicit migration safety
 
@@ -164,7 +221,8 @@ read-only in this phase; correction workflows await Phase 4.
 external-storage/
   data/schema-1-<identity>.sqlite3              # unchanged original
   data/schema-2-<identity>-<candidate>.sqlite3  # retained Phase 2 original
-  data/schema-3-<identity>-<candidate>.sqlite3  # current workout schema
+  data/schema-3-<identity>-<candidate>.sqlite3  # retained original workout schema
+  data/schema-4-<identity>-<candidate>.sqlite3  # current history/correction schema
   config/active.json                          # active database selection
   config/session.key                         # private session signing material
   archives/selection-before-<candidate>.json   # original selection
@@ -175,22 +233,25 @@ external-storage/
 The CLI takes the same persistent-root lock used by all app connections. It
 refuses maintenance while a request holds a connection; stop workers and all
 external SQLite tools before migration. External tools do not follow our lock
-protocol. Known schema 1/2 can explicitly upgrade to 3; target 2 remains available
-for compatible Phase 2 tooling. The CLI defaults to target 3; its programmatic
+protocol. Known schema 1/2/3 can explicitly upgrade to 4; targets 2/3 remain
+available for compatible tooling. Select `--target-version 4` for this phase.
+The CLI keeps its target-3 default for backward compatibility; its programmatic
 helper keeps the existing target-2 default for backward-compatible callers.
 
 Migration opens the original read-only and creates a distinct candidate using
 SQLite's backup API. DDL changes only the candidate. Checks cover application
 identity, exact schema, integrity, foreign keys, schema/migration versions,
-equality of every pre-existing table row including NULLs, empty new tables, and
-original file hashes. New schema-3 table/index/trigger definitions are verified.
+equality of every pre-existing table row including NULLs, new historical/audit
+tables being empty, and original file hashes. The new registry must match exactly
+the existing completed native sessions. Exact tables/indexes/triggers and
+migration records are verified; all original Phase 3 protection DDL is retained.
 The candidate and selection files are synced before atomic manifest replacement.
 A post-switch sync failure attempts atomic restoration of the original selection;
 if that also fails, the CLI reports uncertainty and requires inspection. No
 original database is overwritten or removed. Previous versions stay in `data/`
 and their selection manifests in `archives/`; failed candidates stay for diagnosis.
 
-All three supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
+All four supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
 sidecars are refused **before** SQLite opens a source; there is no implicit
 recovery. Unknown, damaged, missing, symlinked or incompatible storage never
 becomes an empty replacement. A migration request matching the selected schema version is a
@@ -223,12 +284,12 @@ only. Storage/key permissions must allow the configured UID/GID; do not make
 private storage world-readable to fix ownership. No live home-server deployment
 is authorized. Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase3-review` with build secret
+For isolated image review, build `workout-tracker:phase4-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase3-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase4-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -237,7 +298,7 @@ own containers. Browser tests need Chromium and optional pinned dependencies:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-browser.txt
-.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py
+.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py
 ```
 
 Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set
