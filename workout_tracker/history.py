@@ -162,7 +162,7 @@ def audit(db, person_id, identity):
 
 def chronology(parent):
     """Order by occurrence, not entry time; unknown times sort before known times that day."""
-    clock=datetime.fromisoformat(parent['occurred_at']).astimezone(ZoneInfo(parent['timezone'])).strftime('%H:%M:%S.%f') if parent['occurred_at'] else ''
+    clock=datetime.fromisoformat(parent['occurred_at']).astimezone(timezone.utc).isoformat(timespec='microseconds') if parent['occurred_at'] else ''
     return parent['workout_date'],clock,parent['entered_at'],parent['id']
 
 
@@ -304,7 +304,10 @@ def correct(db, person_id, identity, values):
     if values.get('correction_revision')!=str(parent['correction_revision']):
         raise w.RevisionConflict('This workout was corrected in another page. Reload before applying changes.')
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),parent['timezone'],w.field(values,'fold'))
-    if day==parent['workout_date'] and clock==parent['workout_time']:
+    same_instant = (stamp is None and parent['occurred_at'] is None) or (stamp is not None and parent['occurred_at'] is not None and datetime.fromisoformat(stamp).replace(microsecond=0)==datetime.fromisoformat(parent['occurred_at']).replace(microsecond=0))
+    if day==parent['workout_date'] and clock==parent['workout_time'] and same_instant:
+        # Preserve native fractional seconds only when the chosen instant is
+        # unchanged. A repeated-hour fold change must retain its new UTC instant.
         stamp=parent['occurred_at']
     after=dict(workout_date=day,workout_time=clock,occurred_at=stamp,entries=entered_measurements(rows,values))
     before=value_state(parent,rows)

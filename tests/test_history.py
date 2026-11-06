@@ -233,3 +233,23 @@ def test_known_times_filters_and_archived_sources_keep_history(phase4_root):
         assert parent['routine_name']=='Mixed' and rows[0]['name']=='Bench'
         assert exercise in h.choices(db,a)[1] and r in h.choices(db,a)[0]
         assert len(h.chart_series(db,a,{}))==2
+
+
+def test_repeated_hour_order_and_fold_only_correction(phase4_root):
+    """Actual UTC order distinguishes repeated times; changing only fold is audited."""
+    with patch.object(w,'now',return_value=datetime(2026,11,6,12,tzinfo=timezone.utc)):
+        with database_session(phase4_root,write=True) as db:
+            a,_,r,_=seed(db)
+            late_form=h.prepare(db,a,r,dict(workout_date='2026-11-01',workout_time='01:30',fold='1'),'America/Indiana/Indianapolis')
+            late=h.complete_historical(db,a,late_form,{'weight_0':'40'})
+            early_form=h.prepare(db,a,r,dict(workout_date='2026-11-01',workout_time='01:30',fold='0'),'America/Indiana/Indianapolis')
+            early=h.complete_historical(db,a,early_form,{'weight_0':'40'})
+            assert [parent['id'] for parent,_ in h.all_completed(db,a)]==[late,early]
+            before=h.effective(db,a,early)[0]['occurred_at']
+            payload=correction_payload(db,a,early,fold='1')
+            assert h.correct(db,a,early,payload)==1
+            after=h.effective(db,a,early)[0]['occurred_at']
+            assert before!=after
+            assert datetime.fromisoformat(after).hour==6
+            assert h.audit(db,a,early)[0]['before']['occurred_at']==before
+            assert h.audit(db,a,early)[0]['after']['occurred_at']==after

@@ -51,4 +51,4 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .chart-point { fill: var(--text); stroke: var(--card); stroke-width: 1; }
 
 /* Larger SVG labels remain readable after viewBox scaling on narrow phones. */
-@media (max-width: 480px) { .progress-chart text { font-size: 28px; } }
+@media (max-width: 480px) { .progress-chart text { font-size: 36px; } }
