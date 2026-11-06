@@ -4,8 +4,9 @@
 
 Phase 3 implements starting workouts, one-exercise entry, snapshots, server
 save/resume, previous performance, atomic completion and confirmed discard.
-Phase 1/2 management remains intact. Phase 3 is authorized for implementation
-and review only: do not merge its branch or start Phase 4 without approval.
+Phase 1/2 management remains intact. Phase 3 is reviewed, approved and merged
+into main. Phase 4 is next and requires separate authorization; no additional
+development is authorized by this merge/cleanup task.
 No charts, backdated entry, completed-workout editing, automatic backups,
 scheduling, restore UI or log viewer is included. Do not deploy or use real data.
 
@@ -13,7 +14,7 @@ Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
 [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
 and limitations are in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
 [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) and the earlier
-[PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) is retained as a historical record.
+[PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) are retained as historical records.
 
 ## Architecture and data flow
 

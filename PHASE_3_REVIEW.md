@@ -2,12 +2,24 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is review software, not a production deployment.
 
-## Scope, base and review increments
+## Approval and merge status
+
+Phase 3 is reviewed, approved and merged into main by a fast-forward preserving
+all commits. Phase 4 is next but is not authorized or started. Finalization
+changes status documentation only: application code, database safeguards, tests,
+and interface behavior remain identical to approved commit `074dfb4`. The full
+automated suite passed again before the approval merge: **152 passed, 0 failed,
+0 skipped**, including 7 Chromium and 4 isolated Docker/Compose tests. The completed Phase 3 branch is removed only after verifying
+remote main contains every source commit. No deployment or real data access.
+
+## Original implementation base and review increments (historical)
 
 Branch `phase-3-workout-tracking` starts from verified approved main
 `29652faffad25fa539458540f1419100ea97f0ff`, containing Phases 1/2 and the
-Weight/Time design. Main is not changed; do not merge or delete this branch
-before review. No Phase 4 work, deployment or production data access occurred.
+Weight/Time design. Main was unchanged during implementation and the branch
+was retained for review. The subsequent approval authorizes its fast-forward
+merge and verified cleanup. No Phase 4 work, deployment or production data
+access occurred.
 
 - `dfe9745`: candidate-only schema 3 migration, session/entry snapshots,
   transactional workout services, measurement and migration tests.

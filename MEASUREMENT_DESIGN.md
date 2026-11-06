@@ -6,10 +6,11 @@
 
 Phase 1, this design and Phase 2 are reviewed and approved. Phase 2 implements people, permanent
 exercise definitions and the typed routine editor, plus the minimal safe
-schema-1 → schema-2 migration prerequisite. Phase 3 is now authorized and
-implements typed workout entry, snapshots, server drafts, recovery, previous
-performance, atomic completion and discard, plus separate-candidate schema 3.
-Stop for review without merging/deleting the Phase 3 branch. Charts, backdated
+schema-1 → schema-2 migration prerequisite. Phase 3 is reviewed, approved and
+merged into main, including typed workout entry, snapshots, server drafts,
+recovery, previous performance, atomic completion/discard and candidate schema 3.
+Phase 4 is next and requires separate authorization. This merge/cleanup task
+adds no functionality and begins no Phase 4 work. Charts, backdated
 entry, corrections, full backup/restore, scheduling and log viewing remain later
 phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
