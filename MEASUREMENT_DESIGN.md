@@ -13,15 +13,15 @@ Phase 4 is completed and approved for inclusion in main:
 history, local SVG charts, independent historical completion and append-only
 correction revisions. Phases 1–5 are completed and approved for main, including
 Phase 5 verified backups, deliberate restore, separate scheduling and persistent
-safe logs. No schema-5 change is needed. Phase 6 (installation, real-world testing
-and final polish) is next and requires separate authorization. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
+safe logs. No schema-5 change is needed. Phase 6 mobile UI/UX redesign is authorized and implemented for review on
+phase-6-mobile-ux-redesign; no merge or actual deployment is authorized. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 
 ## Interface and significant data flows
 
-User switching remains through the approved People screen. Do not redesign it
-or add browser-style tabs.
+User switching uses the approved Phase 6 People cards and action menus, with
+explicit workout exit before switching in an active tab. Do not add browser-style tabs.
 
 The routine editor provides a segmented **Weight / Time** selector with
 keyboard navigation, a programmatic selected state, and large touch targets.
@@ -213,3 +213,18 @@ migrates an older backup, and never changes original or backup files. Separate
 candidate activation shares the workout transaction lock. Browser form tokens
 include dataset generation to reject pre-restore submissions after a selection
 switch. External operation metadata and logs do not alter schema 4 or its triggers.
+
+
+## Phase 6 presentation and draft exit
+
+The compact workout interface retains one actual measurement per exercise, blank
+initial values, zero/NULL distinction, integer tenths truncation and integer time.
+Previous-performance lookup and correction overlays are unchanged. A compact
+Increase ↑ appears only when the performed previous session requested it; no
+placeholder recommendation is shown for skipped/non-increase entries.
+
+Exit Workout uses the same revision-checked measurement validator and one atomic
+transaction to preserve a resumable draft. Autosave/navigation/exit still wait for
+server acknowledgment, with visible failure and stale-tab protection. Person
+accent/theme changes are presentation only: private external preferences do not
+modify SQL, prescriptions, snapshots or audits and need no schema migration.

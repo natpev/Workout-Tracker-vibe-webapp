@@ -1,11 +1,11 @@
 AGENTS.md — Workout Tracker
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported. By explicit Phase 6 instruction, do not render the repeated visible banner in application pages; HTML/Jinja source headers retain it.
 
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current status: Phases 1–5 are completed, approved and merged. A narrow installation-documentation task is authorized: add and verify the README guide, make minor Compose reliability/configuration improvements, run disposable checks, and fast-forward merge/clean up its temporary branch. Full Phase 6 (real installation, real-world testing and final polish) still requires separate authorization. Do not deploy to the actual server, use real workout data, add cloud synchronization or authentication.
+• Current authorization: Phase 6 UI/UX redesign only on phase-6-mobile-ux-redesign, from approved main 2be4c7. Implement compact mobile workout controls, People cards/menus, deliberate save-and-exit, Settings-only themes and per-person accents; preserve Phases 1–5. Stop for review: do not merge/delete the branch, deploy, connect to the real server/data, change Compose networking/ports, add authentication or unrelated features.
 • Phases 1–4 remain intact. Phase 5 keeps schema 4 unchanged; operations settings/backup history/restore audit use private external atomic JSON and logs use private daily JSONL. The scheduler is a separate process, disabled until Settings explicitly enables it. All backup/restore/config writes coordinate with the existing storage-root lock. Log writes use a separate logs lock and must not prevent workout commits.
 • Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
@@ -31,7 +31,7 @@ Functional contract
 
 People, routines, exercises
 
-• Keep the approved Phase 2 user-switching implementation: users switch through the People screen. Do not redesign the selector or add browser-style tabs. No login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
+• Phase 6 replaces the original expanded People layout with person-selection cards and separate accessible action menus. Open app → People → routine selection → Start workout; editing is secondary. Do not automatically select a previous person or add account-style tabs. No login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
 • Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including sets and target reps (Weight) or target duration per set (Time), selected with a segmented Weight/Time control.
 • A routine may be copied from a different user or duplicated within the same user. The result is an independent snapshot, not a shared/live link. Do not copy weight/history/increase state.
 • Historical workouts must retain exercise name, order, measurement type, prescribed sets/reps or duration, and results even after routine editing or deletion.
@@ -42,6 +42,7 @@ Workout entry
 • One exercise is shown at a time, with sets × target reps or duration, previous matching measurement and previous increase next time flag for that person.
 • Enter exactly one applicable measurement per exercise (weight or duration, never one per set); no mandatory per-set or performed-reps entry. Today’s measurement starts blank; previous performance is display-only. Use type-specific increase labels. Store duration as integer seconds, independent of set count.
 • Offer an optional increase-next-time toggle, Back/Next, jump-to-exercise controls, a routine overview, and a progress bar counting non-NULL applicable measurements, not navigation position.
+• Active workout pages omit unrestricted person switching. More contains Exit Workout (validated save then retain draft), jump/overview/details and confirmed Discard. A per-tab workflow marker handles navigation/Back without blocking other browser sessions; server revisions and acknowledged saves remain authoritative. Native unload warnings explain unacknowledged-input risk.
 • A skipped exercise must be included in the saved session with true SQL NULL for the applicable measurement; both actual weight and duration are NULL when skipped. Never replace a blank weight with 0, an old weight, or a missing row. Charts must not interpret skipped entries as zero; label weight in pounds and duration as time, and separate the two types.
 • Finish & Save atomically saves the whole workout, including NULL entries, then completes the session. Avoid accidental double submission.
 • Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered measurements.
@@ -53,6 +54,7 @@ Workout entry
 Interface and reporting
 
 • Simple uncluttered phone-first UI; rounded cards, round/oval pill buttons, large tap targets. Support Dark, Light, and Auto (device theme, default), with a per-browser/device override.
+• Appearance controls live only in Settings; Auto/Light/Dark is browser-local. Each person has an allowlisted server-side accent in private config/person-preferences.json, written atomically under the root lock, with blue default and no SQLite schema change or startup initialization. Preferences are independent of SQLite backups/restores and require whole-tree protection.
 • Screens: Home/user selection, Routine selection, single-exercise Workout entry + overview, Routine editor/copy, History/charts + historical entry, Settings.
 • Per-person history supports date/routine/exercise filters and saved detail. Charts group permanent exercise ID, type, unit and weight meaning separately; local SVG and accessible data lists exclude NULL numeric points but retain zero. Statistics mean highest logged weight/longest logged duration in the selected range. History, charts and previous-performance references must all use effective corrected occurrence/measurements. Show skipped entries as skipped/blank, never as zero performance.
 

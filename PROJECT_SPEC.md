@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–5 and Weight/Time design are completed and approved for main. Phase 5 is merged. A narrow README installation-guide update and minor Compose configuration improvements are authorized, including disposable verification and merge; this does not authorize real deployment or full Phase 6. Phase 6 (installation, real-world testing and final polish) is next and requires separate authorization. No deployment or real workout data access is authorized.
+**Project status:** Phases 1–5 and the installation guide are approved and merged. Phase 6 UI/UX redesign only is authorized and implemented for review on phase-6-mobile-ux-redesign. Do not merge/delete the branch or deploy/use real data without approval. No Compose port/network changes are authorized.
 **Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -18,7 +18,7 @@
 
 ## 2. Users, routines, and exercise definitions
 
-- Keep the approved Phase 2 implementation: choose/switch users through the **People screen**, without passwords. Do not redesign user switching or add browser-style tabs.
+- Choose people through the Phase 6 **People cards** (existing people before Add person), without passwords or automatically selecting a prior person. Separate menus provide management/history/preferences; do not add browser-style account tabs.
 - Each person owns independent routines, workout drafts, history, weights, and increase flags.
 - Create, rename, edit, duplicate, reorder, and delete individual routines.
 - Within a routine, add/edit/remove/reorder exercises and choose **Weight** or **Time**, define sets for both, and configure target reps (Weight) or target minutes/seconds per set (Time). Optional exercise notes/instructions and equipment labels are desirable, but must not complicate basic logging.
@@ -72,7 +72,7 @@
 ## 5. Screen designs and styling
 
 ### Screen A — Home
-- User switching remains through the existing People screen, without browser-style tabs. Workout entry, History and Progress links are implemented; routine management and appearance keep their existing Phase 2 UI.
+- People is the opening screen: names/cards select routines directly, separate accessible hamburger disclosures offer management actions, and Add person follows existing people. Routine cards provide prominent Start workout and secondary Edit routine. Appearance is in Settings only.
 - Keep basic workout action obvious and minimize text-entry steps.
 
 ### Screen B — Workout selection
@@ -178,14 +178,14 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–5 completed and approved; Phase 6 next, not authorized)
+## 12. Phased plan (Phases 1–5 approved and merged; Phase 6 mobile UX implemented for review)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery (completed and approved):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
-6. **Installation, real-world testing and final polish (next, not authorized):** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
+6. **Mobile UI/UX redesign (implemented for review; no live deployment):** compact People/routine selection, tab-scoped workout focus/save-and-exit, compact one-exercise layout, Settings appearance, neutral themes and persistent person accents; actual screenshot and browser viewport testing. Further installation, real-world testing and final polish: responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 
@@ -349,3 +349,50 @@ with text/severity/category/date filters and 50-row pages. Retention defaults to
 and scheduler cycles. Logging cannot roll back database transactions. All services
 use non-root identities and external storage; the scheduler has no network/ports.
 See PHASE_5_REVIEW.md for tests, interruption semantics and operating limits.
+
+
+## 17. Phase 6 mobile UX and appearance
+
+Existing people are shown before Add person; tapping a name selects routines and
+a separate menu contains management/history/exercise/preference actions. Menus
+support disclosure state, keyboard focus, Escape, outside-click and focus dismissal.
+Routines offer Start workout without entering the editor. New browser sessions
+always open People rather than a remembered account.
+
+The compact workout screen shows routine, exercise/count, non-NULL progress,
+previous measurement, conditional Increase ↑, one actual input, current increase
+checkbox, Back/Next, then Save draft/Finish. More contains jump/overview/details,
+validated Exit Workout and confirmed Discard. No global person-switch link appears
+in an active workout. Exit atomically validates/saves current input, preserves its
+one draft and releases this tab for switching; Finish/Discard release it too.
+SessionStorage focus is tab-local, not authentication or a shared household lock.
+Browser Back/reload use server state; failed saves keep input visible, stale writes
+are rejected, and native unload warnings cover input not yet acknowledged. Another
+browser/session can work independently. No offline queue or hard-close guarantee
+for unacknowledged input is added.
+
+Saved status is compact (Saved/Saving/Save failed) and still changes only after
+server commit acknowledgments. Detailed timestamps, notes, original timezone and
+previous dates are retained under More. Previous measurement comparison/effective
+corrections are unchanged; only a performed previous increase request displays an
+indicator. Entirely skipped completion still requires explicit confirmation.
+
+The visible repeated AI banner is removed by explicit authorization; README,
+source headers and developer notes retain the full mandatory disclosure. Theme
+controls appear only in Settings, apply immediately and persist in browser storage.
+Dark surfaces are neutral navy/charcoal; light surfaces have restrained color.
+Each person independently selects Blue/Teal/Green/Purple/Orange/Red in Settings.
+Allowlisted light/dark palette pairs maintain primary-button contrast. Preferences
+persist across devices/restarts in private atomic config/person-preferences.json
+(version 1), under the existing storage-root lock and permanent person IDs. Missing
+file means blue without a startup write. No schema migration is introduced;
+schema 4, measurements, immutable rows/audits and backup/restore protections remain
+unchanged. SQLite backups do not include this external preference file; whole-tree
+host backups should preserve it. Corrupt preferences are never overwritten and
+read-only pages fall back to blue so recovery controls remain accessible.
+
+Phone test targets: 320×568, 375×667, 390×844, 430×932; tablet 768×1024;
+desktop 1280×900. Layout allows ordinary scrolling with enlarged text or a reduced
+keyboard viewport rather than clipping controls. Real Chromium screenshots and
+coverage/limits are documented in PHASE_6_UX_REVIEW.md. No real iPhone/Safari or
+production deployment is implied by emulated browser checks.

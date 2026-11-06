@@ -15,7 +15,7 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.5.0**. Current full-feature database schema:
+Current application version: **0.6.0**. Current full-feature database schema:
 **4**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
@@ -171,7 +171,7 @@ explicit secret override, so keep its output private.
 | `WORKOUT_BUILD_CA_BUNDLE` | Optional; `/etc/ssl/certs/ca-certificates.crt` | Path to an existing trusted host CA bundle, mounted as build secret `pip_ca`. Change for a different distro path or approved corporate proxy CA. It is not stored in image layers. Never disable TLS verification to fix build errors. |
 
 No other application installation variables are read by this release.
-`WORKOUT_CHROMIUM` and `WORKOUT_CONTAINER_TESTS` are optional **test-only** controls,
+`WORKOUT_CHROMIUM`, `WORKOUT_CONTAINER_TESTS` and `WORKOUT_UX_SCREENSHOTS` are optional **test-only** controls,
 covered below. The image fixes Python bytecode/unbuffered-output settings; they
 do not require `.env` entries. Backup schedules/log retention are configured in
 Settings, not through invented environment variables.
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.5.0" and d["schema_version"]==4'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.6.0" and d["schema_version"]==4'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.5.0`, `schema_version: 4`.
+Expected fields are `status: ready`, `app_version: 0.6.0`, `schema_version: 4`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -508,14 +508,16 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–5 are completed and approved for main. Phase 5 adds Settings, verified server-side
+Phases 1–5 and the installation guide are approved and merged. Phase 6 mobile
+UI/UX is implemented for review on `phase-6-mobile-ux-redesign`; do not merge,
+delete the branch or deploy before approval. Phase 5 provides verified server-side
 backups, deliberate candidate restores, a dedicated scheduler and persistent
-filtered logs. Phase 6 (installation, real-world testing and final polish) is next
-and requires separate authorization. No deployment, real
+filtered logs. The Phase 6 redesign preserves these features and schema 4. No deployment, real
 workout data, cloud synchronization, internet exposure or authentication is authorized.
 
-Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
-[MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
+Read [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md) for the current redesign,
+screenshots, tests and existing-installation update steps. Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
+[MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Earlier recovery implementation evidence
 and limitations are in [PHASE_5_REVIEW.md](PHASE_5_REVIEW.md).
 [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md) retains the approved history/correction record.
 [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md) retains the prior implementation evidence.
@@ -573,13 +575,45 @@ export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.5.0`, and schema version `4`. Schema 1 still opens
+`status: ready`, app version `0.6.0`, and schema version `4`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
 explicit upgrade, then restart them to reload configuration/signing keys.
 Missing/damaged/incompatible storage is an error, never permission to initialize
 another database or replace an existing one.
+
+## Phase 6 navigation and appearance
+
+Open app → choose a person → choose a routine → Start workout. Existing people
+precede Add person; their hamburger menus separate selection from management.
+Routine cards start workouts directly; Edit routine and Manage routines remain
+secondary. The compact header/selected-page pills replace crowded text links.
+
+Active workouts have no unrestricted person-switch control. More contains jump,
+overview, date/time/notes, **Exit Workout**, and confirmed Discard. Exit validates
+and saves current input before returning to routines, preserving the draft for
+Resume later. Finish/Discard also allow switching afterward. A per-tab marker
+assists Back/reload navigation without locking other browser sessions; this is
+workflow assistance, not authentication. Native unload warnings explain the risk
+of leaving unacknowledged input; no offline/hard-close persistence is claimed.
+
+Appearance now lives **only in Settings**. Auto/Light/Dark changes immediately and
+persists for that browser. Choose **Person appearance** from a person’s menu (or
+Settings while that person is selected) to save Blue, Teal, Green, Purple, Orange
+or Red across devices. Dark backgrounds are neutral charcoal/navy; accents color
+primary controls and progress. Person colors live in private external
+`config/person-preferences.json`, default blue when absent. No SQLite schema or
+migration change is required. Database backups do not include this file; protect
+the whole external tree separately. A corrupted preference file is preserved;
+read-only pages fall back to blue and writes report an error.
+
+The repeated visible AI banner is removed from pages; mandatory disclosures remain
+in this README, all developer notes and every supported source-file header.
+Browser review images are in [docs/phase-6](docs/phase-6). Tests save screenshots
+under `/tmp/workout-ux-screenshots` by default; set `WORKOUT_UX_SCREENSHOTS` to an
+absolute artifact directory when collecting review evidence. This variable does
+not affect production containers.
 
 ## People, exercise names, and routines
 
@@ -640,10 +674,10 @@ require the same person, permanent exercise identity, measurement type and
 unit/weight meaning. Drafts/discarded workouts are excluded from comparisons.
 
 Enter one measurement per exercise, independent of sets. Back/Next, the jump
-selector and expandable overview navigate without marking blank entries done.
+selector and expandable overview (inside More) navigate without marking blank entries done.
 Progress counts non-NULL actual values; explicit zero pounds counts. Save draft
 is available manually. With JavaScript, input automatically saves after a short
-debounce. The Saved indicator, progress and overview change only on a valid
+debounce. The compact ✓ Saved indicator, progress and overview change only on a valid
 post-commit acknowledgment. Values typed during a pending save are preserved and
 sent next; saved weights are normalized to one decimal place.
 
@@ -783,12 +817,12 @@ in the [installation guide](#3-configure-compose) above. The checks below are fo
 contributors using disposable fixtures, not a second installation procedure.
 Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase5-review` with build secret
+For isolated image review, build `workout-tracker:phase6-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase5-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase6-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -797,7 +831,7 @@ own containers. Browser tests need Chromium and optional pinned dependencies:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-browser.txt
-.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py tests/test_settings_browser.py
+.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py tests/test_settings_browser.py tests/test_mobile_ux_browser.py
 ```
 
 Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set

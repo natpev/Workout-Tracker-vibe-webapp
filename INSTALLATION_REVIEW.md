@@ -2,6 +2,9 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Documentation and disposable checks do not constitute a real-server deployment or an independent audit.
 
+> Historical record: this verifies the pre-redesign 0.5.0 installation. Current
+> mobile UX/version 0.6.0 evidence is in [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md).
+
 ## Authorized scope
 
 The documentation branch starts from approved main
