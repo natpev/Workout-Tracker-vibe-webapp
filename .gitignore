@@ -1,1 +1,33 @@
-hi
+# SHAMEFULLY VIBE-CODED / AI-GENERATED PROJECT. Review and test before use.
+# The real database and its copies must NEVER be committed to Git.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal
+*.db.bak
+*.backup
+*.log
+*.log.*
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+instance/
+data/
+backups/
+archives/
+logs/
+config/local/
+.DS_Store
