@@ -7,5 +7,6 @@
 <p>{{ workout.routine_name }} · {{ workout.workout_date }} · {{ workout.timezone }}</p>
 {% if workout.status == 'completed' %}<p>Your complete workout was saved successfully, including skipped exercises.</p>
 <ol>{% for row in entries %}<li>{{ row.name }} — {{ display(row) }}{% if row.increase_next_time == 1 %} · Increase {{ 'weight' if row.measurement_type == 'weight' else 'duration' }} next time{% endif %}</li>{% endfor %}</ol>{% endif %}
+{% if history_enabled and workout.status == 'completed' %}<p><a href="{{ url_for('history.detail',person_id=person.id,workout_id=workout.id) }}">View saved workout details</a></p>{% endif %}
 <a href="{{ url_for('manage.dashboard', person_id=person.id) }}">Return to routines</a>
 </section>{% endblock %}

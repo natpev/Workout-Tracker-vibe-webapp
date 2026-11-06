@@ -40,13 +40,16 @@ def page_context(person_id, session_id, message=None):
         owner = catalog.person(db, person_id, archived=True)
         parent = workouts.session(db, person_id, session_id)
         rows = workouts.entries(db, person_id, session_id)
+        if parent['status']=='completed' and db.execute('PRAGMA user_version').fetchone()[0]>=4:
+            from .history import effective
+            parent,rows=effective(db,person_id,session_id)
         requested = request.args.get('position', str(parent['current_position']))
         position = catalog.integer(requested, 'Exercise position', 0, len(rows) - 1)
         current = rows[position]
         prior, performed = workouts.previous(db, person_id, parent, current)
         return dict(person=owner, workout=parent, entries=rows, current=current, position=position,
                     previous=prior, last_performed=performed, completed=workouts.count_performed(rows),
-                    display=workouts.display_measurement, message=message,
+                    display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))
 
 

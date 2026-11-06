@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase3-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase4-review.
 """
 
 import hashlib
@@ -47,7 +47,7 @@ def start_container(root, *, writable=False):
         "--user", f"{os.getuid()}:{os.getgid()}",
         "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase3-review",
+        "workout-tracker:phase4-review",
     ).stdout.strip()
 
 
@@ -197,3 +197,45 @@ print(path)
             assert all(path.read_bytes()==content for path,content in originals.items())
         finally:
             docker('rm','-f',container)
+
+
+def test_history_correction_survives_container_replacement(phase4_root):
+    """Actual HTTP correction appends an audit row; effective charts persist after replacement."""
+    from workout_tracker import catalog as c, history as h
+    from workout_tracker.storage import database_session
+    with database_session(phase4_root,write=True) as db:
+        person=c.create_person(db,'History container fixture');routine=c.create_routine(db,person,'Past workout')
+        c.add_entry(db,person,routine,dict(name='Bench',measurement_type='weight',target_sets='3',target_reps='12'))
+        form=h.prepare(db,person,routine,dict(workout_date='2020-01-01',workout_time=''),'UTC')
+        identity=h.complete_historical(db,person,form,{'weight_0':'40.99'})
+    originals={path:path.read_bytes() for path in (phase4_root/'data').glob('schema-[123]-*.sqlite3')}
+    for iteration in range(2):
+        container=start_container(phase4_root,writable=True)
+        try:
+            deadline=time.monotonic()+15
+            while True:
+                probe=docker('exec',container,'python','-c',
+                    "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)",check=False)
+                if probe.returncode==0: break
+                if time.monotonic()>=deadline: pytest.fail('History container readiness failed: '+probe.stderr)
+                time.sleep(.2)
+            if iteration==0:
+                script=f"""
+import http.cookiejar,re,urllib.parse,urllib.request
+opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+base='http://127.0.0.1:8000'
+path='/people/{person}/history/{identity}/correct'
+page=opener.open(base+path).read().decode()
+fields=dict(re.findall(r'name="(csrf_token|correction_revision)" value="([^"]*)"',page))
+fields.update(workout_date='2021-02-03',workout_time='',weight_0='42.56',confirm='yes')
+page=opener.open(base+path,urllib.parse.urlencode(fields).encode()).read()
+assert b'42.5 lb' in page and b'Correction 1' in page
+"""
+                docker('exec',container,'python','-c',script)
+            docker('exec',container,'python','-c',
+                f"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000/people/{person}/progress').read(); assert b'42.5 lb' in page and b'<svg ' in page")
+            assert all(path.read_bytes()==content for path,content in originals.items())
+        finally: docker('rm','-f',container)
+    with database_session(phase4_root) as db:
+        assert db.execute('SELECT count(*) FROM workout_corrections').fetchone()[0]==1
+        assert db.execute('SELECT actual_weight_tenths_lb FROM historical_entries').fetchone()[0]==409

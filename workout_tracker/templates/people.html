@@ -8,6 +8,7 @@
 <section><h3>Add person</h3><form method="post">{{ security() }}<label>Name <input name="name" maxlength="100" required></label><button>Add person</button></form></section>
 {% for row in people %}
 <section>
+  <p><a href="{{ url_for('history.index',person_id=row.id) }}">History for {{ row.name }}</a> · <a href="{{ url_for('history.progress',person_id=row.id) }}">Progress for {{ row.name }}</a></p>
   <h3>{% if row.archived %}{{ row.name }} (archived){% else %}<a href="{{ url_for('manage.dashboard', person_id=row.id) }}">{{ row.name }}</a>{% endif %}</h3>
   <form method="post" action="{{ url_for('manage.manage_person', person_id=row.id) }}">{{ security() }}<input type="hidden" name="action" value="rename"><label>Rename {{ row.name }} <input name="name" value="{{ row.name }}" maxlength="100" required></label><button>Save name</button></form>
   <form method="post" action="{{ url_for('manage.manage_person', person_id=row.id) }}">{{ security() }}

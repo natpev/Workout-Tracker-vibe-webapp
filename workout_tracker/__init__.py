@@ -3,8 +3,9 @@
 
 Configuration selects external storage. Browser GET requests read readiness and
 render Jinja templates. Management and workout blueprints use CSRF-protected
-forms; only explicitly migrated schema 3 enables workout recording. Later
-history exploration and recovery interfaces remain absent.
+forms. Explicit schema 3 enables workout recording; schema 4 enables history,
+local charts, manual completion and append-only corrections. Phase 5 recovery
+interfaces remain absent.
 """
 
 import os
@@ -14,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
 
 
 def create_app(test_config=None):
@@ -23,7 +24,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         WORKOUT_DATA_ROOT=os.environ.get("WORKOUT_DATA_ROOT"),
         TRUSTED_HOSTS=os.environ.get("WORKOUT_TRUSTED_HOSTS", "localhost,127.0.0.1,[::1]").split(","),
-        MAX_CONTENT_LENGTH=16 * 1024,
+        MAX_CONTENT_LENGTH=512 * 1024,
         SECRET_KEY=os.environ.get("WORKOUT_SECRET_KEY"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
@@ -43,6 +44,8 @@ def create_app(test_config=None):
     from .workouts import configured_timezone
     app.config["WORKOUT_TIMEZONE"] = configured_timezone(app.config.get("WORKOUT_TIMEZONE") or os.environ.get("WORKOUT_TIMEZONE"))
     app.register_blueprint(workout_bp)
+    from .history_views import bp as history_bp
+    app.register_blueprint(history_bp)
 
     @app.errorhandler(ValidationError)
     def invalid_form(error):

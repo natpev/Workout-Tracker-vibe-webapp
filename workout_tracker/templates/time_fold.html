@@ -1,0 +1,4 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Historical/correction forms use this optional DST repeated-hour disambiguator.
+   The server rejects nonexistent times and requires a choice for ambiguous ones. #}
+<label for="time-fold">Repeated-hour choice (only when clocks go back)</label><select id="time-fold" name="fold"><option value="">Not applicable / choose if requested</option><option value="0" {% if fold|default('')=='0' %}selected{% endif %}>Earlier occurrence</option><option value="1" {% if fold|default('')=='1' %}selected{% endif %}>Later occurrence</option></select>

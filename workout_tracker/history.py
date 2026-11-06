@@ -67,7 +67,7 @@ def occurrence(day, clock, zone, fold=''):
     if ambiguous and fold not in ('0','1'):
         raise c.ValidationError('This time occurred twice. Choose the earlier or later occurrence.')
     stamp=naive.replace(tzinfo=z,fold=int(fold) if ambiguous else 0)
-    if stamp>w.now().astimezone(z):
+    if stamp.astimezone(timezone.utc)>w.now().astimezone(timezone.utc):
         raise c.ValidationError('Workout time cannot be in the future.')
     return day,stamp.strftime('%H:%M:%S'),stamp.astimezone(timezone.utc).isoformat()
 
@@ -229,10 +229,10 @@ def chart_series(db, person_id, values):
         low=min(p['xday'] for p in points);high=max(p['xday'] for p in points)
         top=max(p['raw'] for p in points) or 1
         for point in points:
-            point['x']=60+(point['xday']-low)/(high-low or 1)*600
+            point['x']=130+(point['xday']-low)/(high-low or 1)*530
             point['y']=220-point['raw']/top*180
         series['line']=' '.join(f"{p['x']:.2f},{p['y']:.2f}" for p in points)
-        series['top_label']=points[0]['label'] if len(points)==1 else w.display_measurement({
+        series['top_label']=w.display_measurement({
             'actual_weight_tenths_lb':top if series['kind']=='weight' else None,
             'actual_duration_seconds':top if series['kind']=='time' else None})
     return list(groups.values())
@@ -328,7 +328,7 @@ def previous_comparable(db, person_id, parent, entry):
                 continue
         elif (workout['workout_date'],'')>=cutoff:
             continue
-        for row in rows:
+        for row in reversed(rows):
             if all(row[key]==entry[key] for key in ('exercise_id','measurement_type','unit','weight_meaning')):
                 matches.append(dict(row,workout_date=workout['workout_date']))
     return (matches[0] if matches else None,next((row for row in matches if w.count_performed([row])),None))

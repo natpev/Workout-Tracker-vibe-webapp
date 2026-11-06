@@ -257,7 +257,7 @@ def inspect_storage(value):
 
 @contextmanager
 def database_session(value, *, write=False, minimum_version=2):
-    """Routes/services use one validated schema-2/3 connection per transaction.
+    """Routes/services use one validated schema-2/3/4 connection per transaction.
 
     Browser -> route -> service -> this connection. A write takes an exclusive
     root lock before SQLite BEGIN IMMEDIATE; migration cannot pass it. No

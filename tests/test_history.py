@@ -160,3 +160,76 @@ def test_dates_unknown_time_dst_validation_and_backdated_reference(phase4_root):
     early=h.occurrence('2026-11-01','01:30','America/Indiana/Indianapolis','0')
     late=h.occurrence('2026-11-01','01:30','America/Indiana/Indianapolis','1')
     assert early[2]!=late[2]
+
+
+def test_atomic_manual_failure_and_concurrent_corrections(phase4_root):
+    """Failed insertion rolls back every row; two stale correction forms cannot both win."""
+    from concurrent.futures import ThreadPoolExecutor
+    from uuid import UUID
+    from workout_tracker.storage import StorageError
+    with database_session(phase4_root,write=True) as db:
+        a,_,r,_=seed(db)
+        form=h.prepare(db,a,r,dict(workout_date='2020-01-01',workout_time=''),'UTC')
+    with pytest.raises(StorageError):
+        with database_session(phase4_root,write=True) as db:
+            # A duplicate synthetic entry ID fails only after parent/first entry
+            # insertion, proving the whole write rolls back, including registry.
+            with patch.object(h,'uuid4',return_value=UUID(int=1)):
+                h.complete_historical(db,a,form,{'weight_0':'40'})
+    with database_session(phase4_root,write=True) as db:
+        assert db.execute('SELECT count(*) FROM historical_workouts').fetchone()[0]==0
+        assert db.execute('SELECT count(*) FROM workout_registry').fetchone()[0]==0
+        identity=h.complete_historical(db,a,form,{'weight_0':'40'})
+        payload=correction_payload(db,a,identity,weight_0='42.56')
+
+    def apply(_):
+        """Use separate locked connections like independent browser workers."""
+        try:
+            with database_session(phase4_root,write=True) as db:
+                h.correct(db,a,identity,payload)
+            return 'saved'
+        except w.RevisionConflict:
+            return 'conflict'
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(apply,range(2)))==['conflict','saved']
+    with database_session(phase4_root) as db:
+        assert db.execute('SELECT count(*) FROM workout_corrections').fetchone()[0]==1
+        assert h.effective(db,a,identity)[1][0]['actual_weight_tenths_lb']==425
+
+
+def test_corrected_date_changes_previous_performance_reference(phase4_root):
+    """Effective occurrence, not entry/correction time, determines comparison eligibility."""
+    with database_session(phase4_root,write=True) as db:
+        a,_,r,_=seed(db)
+        with patch.object(w,'now',return_value=datetime(2021,6,1,12,tzinfo=timezone.utc)):
+            draft,_=w.start(db,a,r,'UTC')
+        identity,_=manual(db,a,r,'2022-01-01',weight_0='50')
+        parent=w.session(db,a,draft);entry=w.entries(db,a,draft)[0]
+        assert w.previous(db,a,parent,entry)==(None,None)
+        h.correct(db,a,identity,correction_payload(db,a,identity,workout_date='2020-01-01'))
+        assert w.previous(db,a,parent,entry)[0]['actual_weight_tenths_lb']==500
+        h.correct(db,a,identity,correction_payload(db,a,identity,workout_date='2023-01-01'))
+        assert w.previous(db,a,parent,entry)==(None,None)
+
+
+def test_known_times_filters_and_archived_sources_keep_history(phase4_root):
+    """History orders actual times and retains snapshots after every definition is archived."""
+    with database_session(phase4_root,write=True) as db:
+        a,_,r,_=seed(db)
+        ids=[]
+        for clock in ('17:30','08:30',''):
+            form=h.prepare(db,a,r,dict(workout_date='2020-01-01',workout_time=clock),'UTC')
+            ids.append(h.complete_historical(db,a,form,{'weight_0':'0'}))
+        assert [parent['id'] for parent,_ in h.all_completed(db,a)]==[ids[0],ids[1],ids[2]]
+        exercise=h.effective(db,a,ids[0])[1][0]['exercise_id']
+        assert len(h.listing(db,a,{'routine':r,'exercise':exercise}))==3
+        assert h.listing(db,a,{'exercise':'another-person-exercise'})==[]
+        db.execute('UPDATE routines SET archived=1 WHERE id=?',(r,))
+        c.update_definition(db,a,exercise,'Changed name','rename')
+        c.update_definition(db,a,exercise,None,'archive')
+        c.update_person(db,a,None,'archive')
+        parent,rows=h.effective(db,a,ids[0])
+        assert parent['routine_name']=='Mixed' and rows[0]['name']=='Bench'
+        assert exercise in h.choices(db,a)[1] and r in h.choices(db,a)[0]
+        assert len(h.chart_series(db,a,{}))==2

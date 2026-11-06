@@ -1,0 +1,18 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Forms post only actual values/flags plus date/time for deliberate corrections.
+   Server-owned prepared snapshots preserve identities/types/targets and notes. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<h2>{{ 'Correct saved workout' if correction else 'Review historical workout' }}</h2>
+<p>{{ workout.routine_name }} · {{ workout.timezone }}</p>
+<form method="post">{{ security() }}
+{% if correction %}<input type="hidden" name="correction_revision" value="{{ workout.correction_revision }}"><p>Only actual measurements, increase flags and workout date/time can change. Original snapshots and previous values remain in the audit.</p><label>Workout date <input type="date" name="workout_date" value="{{ workout.workout_date }}" required></label><label>Workout time (optional) <input type="time" step="1" name="workout_time" value="{{ workout.workout_time or '' }}"></label>{% include 'time_fold.html' %}
+{% else %}<p>Occurred: {{ workout.workout_date }} · {{ workout.workout_time or 'Time unknown' }}. Review each exercise before saving. Blank means skipped; previous values are never filled in.</p>{% endif %}
+{% for row in entries %}<section><h3>{{ row.name }}</h3><p>{% if row.measurement_type=='weight' %}{{ row.target_sets }} sets × {{ row.target_reps }} reps · pounds{% if row.weight_meaning %} · {{ row.weight_meaning }}{% endif %}{% else %}{{ row.target_sets }} sets × {{ row.target_duration_seconds // 60 }} min {{ row.target_duration_seconds % 60 }} sec{% endif %}</p>{% if row.notes %}<p>{{ row.notes }}</p>{% endif %}
+{% if row.measurement_type=='weight' %}<label>Weight for {{ row.name }} (lb) <input name="weight_{{ loop.index0 }}" type="text" inputmode="decimal" maxlength="100" value="{% if correction and row.actual_weight_tenths_lb is not none %}{{ row.actual_weight_tenths_lb // 10 }}.{{ row.actual_weight_tenths_lb % 10 }}{% endif %}"></label>
+{% else %}<div class="duration"><label>Minutes for {{ row.name }} <input name="minutes_{{ loop.index0 }}" type="text" inputmode="numeric" maxlength="100" value="{% if correction and row.actual_duration_seconds is not none %}{{ row.actual_duration_seconds // 60 }}{% endif %}"></label><label>Seconds for {{ row.name }} <input name="seconds_{{ loop.index0 }}" type="text" inputmode="numeric" maxlength="2" value="{% if correction and row.actual_duration_seconds is not none %}{{ row.actual_duration_seconds % 60 }}{% endif %}"></label></div>{% endif %}
+<label class="acknowledge"><input type="checkbox" name="increase_{{ loop.index0 }}" value="1" {% if correction and row.increase_next_time==1 %}checked{% endif %}> Increase {{ 'weight' if row.measurement_type=='weight' else 'duration' }} next time for {{ row.name }}</label></section>{% endfor %}
+<label class="acknowledge"><input type="checkbox" name="confirm_all_skipped" value="yes"> Confirm saving an entirely skipped workout, if all measurements are blank</label>
+{% if correction %}<label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> I confirm these corrections and understand original records are retained</label><button>Apply correction</button>{% else %}<button>Save historical workout</button>{% endif %}
+</form>{% endblock %}

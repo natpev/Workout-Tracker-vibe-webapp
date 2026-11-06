@@ -1,5 +1,5 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-"""Explicit schema-1/2 -> schema-2/3 candidate migration called only by the CLI.
+"""Explicit schema-1/2/3 -> schema-2/3/4 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -66,7 +66,7 @@ def _write_manifest(path, selection):
 def migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schema 1/2 sources may upgrade to target 2/3. A matching target
+    Known schema 1/2/3 sources may upgrade to target 2/3/4. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """

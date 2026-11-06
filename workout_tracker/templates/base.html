@@ -15,7 +15,7 @@
 <main>
   <header><h1>Workout Tracker</h1><a href="{{ url_for('manage.people') }}">People</a></header>
   <p class="disclosure">SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.</p>
-  {% if person is defined %}<nav aria-label="Selected person"><strong>{{ person.name }}</strong> · <a href="{{ url_for('manage.dashboard', person_id=person.id) }}">Routines</a> · <a href="{{ url_for('manage.exercises', person_id=person.id) }}">Exercise names</a> · <a href="{{ url_for('manage.people') }}">Switch person</a></nav>{% endif %}
+  {% if person is defined %}<nav aria-label="Selected person"><strong>{{ person.name }}</strong> · <a href="{{ url_for('manage.dashboard', person_id=person.id) }}">Routines</a> · <a href="{{ url_for('history.index', person_id=person.id) }}">History</a> · <a href="{{ url_for('history.progress', person_id=person.id) }}">Progress charts</a> · <a href="{{ url_for('manage.exercises', person_id=person.id) }}">Exercise names</a> · <a href="{{ url_for('manage.people') }}">Switch person</a></nav>{% endif %}
   {% block content %}{% endblock %}
   <section aria-labelledby="appearance-heading">
     <h2 id="appearance-heading">Appearance</h2>
