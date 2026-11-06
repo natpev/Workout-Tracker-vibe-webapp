@@ -1,0 +1,27 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Renders one owned routine and typed items. Forms post CSRF and revision tokens
+   to Flask; catalog validates ownership and writes one locked transaction. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security, configuration with context %}
+{% block content %}
+<h2>{{ routine.name }}</h2>
+<section><h3>Routine settings</h3>
+<form method="post">{{ security(revision) }}<input type="hidden" name="action" value="rename"><label>Routine name <input name="name" value="{{ routine.name }}" required maxlength="100"></label><button>Rename routine</button></form>
+<form method="post" class="actions">{{ security(revision) }}<input type="hidden" name="action" value="move"><button name="direction" value="up">Move routine up</button><button name="direction" value="down">Move routine down</button></form>
+</section>
+<h3>Exercises in order</h3>
+{% for row in entries %}<section>
+<h4><a href="{{ url_for('manage.edit_entry', person_id=person.id, routine_id=routine.id, entry_id=row.id) }}">{{ row.name }}</a></h4>
+<p>{% if row.measurement_type == 'weight' %}Weight · {{ row.target_sets }} sets × {{ row.target_reps }} reps · pounds{% else %}Time · {{ row.target_sets }} sets × {{ row.target_duration_seconds // 60 }} min {{ row.target_duration_seconds % 60 }} sec{% endif %}</p>
+{% if row.notes %}<p>{{ row.notes }}</p>{% endif %}
+<form method="post" class="actions" action="{{ url_for('manage.edit_entry', person_id=person.id, routine_id=routine.id, entry_id=row.id) }}">{{ security(revision) }}<input type="hidden" name="action" value="move"><button name="direction" value="up" aria-label="Move {{ row.name }} up">↑ Up</button><button name="direction" value="down" aria-label="Move {{ row.name }} down">↓ Down</button></form>
+</section>{% else %}<p>This routine has no exercises yet.</p>{% endfor %}
+<section><h3>Add exercise</h3>
+<form method="post" data-configuration>{{ security(revision) }}<input type="hidden" name="action" value="add">
+<label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id"><option value="">Create a new exercise name</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }}</option>{% endfor %}</select>
+<label>New exercise name (when not reusing) <input name="name" maxlength="100"></label>
+{{ configuration() }}<button>Add exercise</button>
+</form></section>
+<section><h3>Duplicate routine</h3><form method="post">{{ security(revision) }}<input type="hidden" name="action" value="duplicate"><label>Copy name <input name="name" maxlength="100" required></label><button>Duplicate routine</button></form></section>
+<section><h3>Delete routine</h3><p>Removes this routine from the active list and preserves its permanent identity. It does not delete workout history.</p><form method="post">{{ security(revision) }}<label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> Confirm removal of this routine</label><button name="action" value="delete">Delete routine</button></form></section>
+{% endblock %}

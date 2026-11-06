@@ -1,22 +1,25 @@
 # Weight and Time exercise design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This document specifies future work; it is not an implemented or tested workout feature.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Routine configuration is implemented in Phase 2; workout results and history remain planned. Review and test before use.
 
 ## Current state and authorization
 
-Inspection of Phase 1 commit `ed42a24` found a Flask shell, themes, metadata-only
-SQLite schema 1, and storage safeguards. There is no routine editor, workout
-entry, exercise table, or workout history. This feature request therefore
-updates documentation and design only. Application source, schema version,
-dependencies, and existing tests remain unchanged. Phase 2 and later still
-require authorization; neither deployment nor real-data access is authorized.
-
-This branch builds on the Phase 1 review branch. Review its documentation changes
-against `phase-1-foundation` to avoid mixing them with the earlier implementation.
+Phase 1, this design and Phase 2 are reviewed and approved. Phase 2 implements people, permanent
+exercise definitions and the typed routine editor, plus the minimal safe
+schema-1 → schema-2 migration prerequisite. Current authorization is finalization,
+testing, consolidation and completed-branch cleanup only; Phase 3 is not authorized.
+Workout entry, measurement results, snapshots/history, charts, full backup and
+restore interfaces, and scheduling are not implemented. No deployment or
+production data access is authorized. See PHASE_2_REVIEW.md for current evidence.
+The validation record at the end describing the earlier documentation branch
+is historical, not the current implementation result.
 
 ## Interface and significant data flows
 
-The routine editor will provide a segmented **Weight / Time** selector with
+User switching remains through the approved People screen. Do not redesign it
+or add browser-style tabs.
+
+The routine editor provides a segmented **Weight / Time** selector with
 keyboard navigation, a programmatic selected state, and large touch targets.
 Both types configure a positive integer set count using rounded plus/minus
 buttons or a numeric input. Weight configures positive target reps per set;
@@ -37,14 +40,16 @@ creates per-set result fields. A recorded duration is not multiplied by sets.
 No live stopwatch or timer is requested by this feature.
 
 Browser → Flask validation → draft service → SQLite transaction: normalize a
-blank measurement to SQL NULL, decimal pounds to the agreed exact weight
-representation, and entered minutes/seconds to integer seconds. Never use a
+blank measurement to SQL NULL, decimal pounds to integer tenths with digits
+beyond the first decimal place truncated (never rounded), and entered minutes/seconds to integer seconds. Never use a
 truthiness check that turns valid zero weight into NULL. Treat a fully blank
 duration control as skipped; a partially entered control must be handled by an
 explicit validation rule, not silently converted into a skip. Require whole
 minutes and seconds, nonnegative minutes and seconds in 0–59; reject fractional
-seconds and invalid values. Exact zero-duration and partial-input rules remain
-open before implementation.
+seconds and invalid values. A nonblank actual duration must be at least 1
+second; zero is invalid, while fully empty remains SQL NULL. Partial-input
+layout/validation details remain open for Phase 3. Implement none of these
+actual-measurement rules as Phase 2 workout-entry functionality.
 
 Show previous matching weight/duration and its increase recommendation. When the
 previous matching session was skipped, show that fact and the last performed
@@ -61,7 +66,7 @@ from numeric performance summaries and charts. Explicit zero weight is valid.
 All screens retain mobile-first rounded cards, oval buttons, large inputs, and
 Auto/Light/Dark themes. No external assets or third-party service is required.
 
-## Proposed schema additions, not executable SQL
+## Schema design (routine configuration implemented; results remain planned)
 
 Type belongs to the routine's exercise configuration and is copied into each
 session entry. Permanent exercise identities remain person-owned. A type edit
@@ -71,20 +76,25 @@ History queries use the entry's type, not the routine's current type.
 | Planned record | Fields relevant to this feature |
 | --- | --- |
 | Routine exercise | `exercise_id`, `measurement_type` (`weight`/`time`), `target_sets`, `target_reps`, `target_duration_seconds`, optional exercise notes and weight-meaning metadata. |
-| Session entry snapshot | Permanent exercise ID, name/order, measurement type, target sets, target reps or duration seconds, unit/weight meaning, optional notes, actual weight, `actual_duration_seconds`, nullable increase flag. |
+| Session entry snapshot | Permanent exercise ID, name/order, measurement type, target sets, target reps or duration seconds, unit/weight meaning, optional notes, nullable integer `actual_weight_tenths_lb`, nullable integer `actual_duration_seconds`, nullable increase flag. |
 
 Use separate nullable actual columns for weight and duration. Do not overload a
 single number whose unit depends on a mutable routine record. Weight uses the
-previously proposed exact scaled-integer representation; its decimal precision
-must be decided before implementation. Duration is a STRICT SQLite INTEGER in
-seconds; target duration is also an integer in seconds.
+approved integer-tenths representation (`actual_weight_tenths_lb`). Retain at
+most one decimal place by truncating extra digits, never rounding. Examples:
+40.99 → 40.9 → stored 409; 42.56 → 42.5 → stored 425; 40 → displayed 40.0 →
+stored 400. Explicit zero stores 0 and displays 0.0; empty input is SQL NULL.
+Use exact decimal parsing, not binary floating-point rounding. Duration is a
+STRICT SQLite INTEGER in seconds, minimum 1 for a non-NULL actual measurement;
+zero is invalid and empty is SQL NULL. Target duration also uses integer seconds.
+These result columns are Phase 3 design only; schema 2 stays unchanged.
 
 Required database constraints and service invariants:
 
 - Weight: positive target sets/reps, target duration NULL, actual duration NULL;
-  actual weight may be NULL, zero, or a valid nonnegative decimal representation.
+  actual weight may be NULL or a nonnegative integer number of tenths of a pound, including valid zero.
 - Time: positive target sets/duration, target reps NULL, actual weight NULL;
-  actual duration may be NULL or valid integer seconds under the approved limits.
+  actual duration may be NULL or integer seconds >= 1; zero is invalid.
 - Skip: both actual columns NULL, a retained entry row, and increase flag NULL.
 - Performed: exactly the type-appropriate actual column non-NULL, with a valid
   false/true increase flag. No second measurement may be stored on the same row.
@@ -108,10 +118,11 @@ duration must remain distinguishable in tables and charts.
 
 ## Schema compatibility, migration, and rollback
 
-This documentation change does not require or run a migration. Phase 1 schema 1
-has no domain measurements to convert; leave its version, accepted DDL, manifest,
-and startup behavior unchanged. Do not add columns in place or treat the design
-as permission to initialize another database.
+Phase 2 implements an explicit candidate-only migration from metadata-only
+schema 1 to schema 2. Its source remains unchanged, and startup still never
+migrates or initializes. Schema 2 adds configuration only; there are no actual
+measurements, NULL/zero results, or history records to transform. Future domain
+changes require separately reviewed migrations, never in-place alterations.
 
 When a later authorized phase adds domain tables, determine the required schema
 version explicitly. Normal startup must continue refusing unsupported versions;
@@ -139,31 +150,34 @@ workouts; disclose this before any future recovery action.
 
 ## Future automated acceptance tests by phase
 
-These are required future tests, not assertions already implemented or passing.
+Phase 2 routine tests are now implemented; workout/history/recovery assertions remain future tests, not claimed as passing.
 Use disposable fixtures only, including corruption/migration/restore tests.
 
 | Phase | Required automated coverage |
 | --- | --- |
 | 2 — Routine editor | Weight/Time selector using pointer/keyboard, sets for both types, reps vs minutes/seconds visibility, 3 × 12 reps and 3 × 45 seconds round trips, server-side type/target validation, inactive fields cleared, independent copies, user isolation, theme/mobile behavior. |
-| 3 — Workout entry | One actual measurement regardless of sets, blank defaults despite previous data, decimal pounds and explicit zero weight, integer-second conversion (1:05 → 65), invalid/partial duration input, SQL NULL skipped rows for both types, no recommendation on skips, matching previous/increase display, last performed after a skip, mixed-type progress denominator, all-skipped confirmation, draft resume/conflicts, idempotent save. |
+| 3 — Workout entry | One actual measurement regardless of sets, blank defaults despite previous data, 40.99 → 40.9/stored 409, 42.56 → 42.5/stored 425, 40 → 40.0/stored 400, truncation never rounding, explicit zero weight, integer-second conversion (1:05 → 65), actual duration 1 accepted/0 rejected/empty SQL NULL, invalid/partial duration input, SQL NULL skipped rows for both types, no recommendation on skips, matching previous/increase display, last performed after a skip, mixed-type progress denominator, all-skipped confirmation, draft resume/conflicts, idempotent save. |
 | 4 — History | Snapshots unchanged after type/target/name changes and removal; existing drafts stable; mixed-type histories separated; pounds/time labels; NULL gaps and excluded summaries; zero weight retained; chronological backdated entry; confirmed validated corrections; cross-user isolation. |
 | Domain schema introduction and Phase 5 — Compatibility/recovery | Supported source schemas only; schema-1 compatibility unchanged until an authorized migration exists; separate candidates; original unchanged on success/failure; failed activation rollback; integrity/foreign-key/logical checks; exact NULL and zero preservation; duration integer/type constraints; backup/restore round trips; no source overwrite or automatic startup migration. |
 
-## Open decisions and current validation
+## Open decisions and validation history
 
-Before implementing affected phases, resolve decimal precision/limits for
-weight; duration limits, zero-duration and partially entered control semantics;
-time personal-record rules; and editable correction fields/audit behavior.
-These do not block recording the requested feature design.
+Before implementing affected phases, resolve upper weight/duration limits,
+partially entered duration control behavior, time personal-record rules, and
+editable correction fields/audit behavior. Weight precision/truncation/storage,
+valid zero weight, minimum-one-second actual time, empty-as-NULL semantics and
+People-screen switching are final decisions, not open questions. Every skipped
+exercise must retain its own snapshot entry with NULL measurements; never
+substitute zero or previous performance, and preserve tracking type and values.
+Implementation belongs to Phase 3 after separate authorization.
 
-For this documentation branch, validate specification consistency and links,
-confirm application/tests/dependency/schema files are unchanged from Phase 1,
-and rerun the existing foundation suite with disposable storage. Typed exercise
-behavior and migration acceptance tests cannot execute until their approved
-phases implement those components. No feature runtime readiness is claimed.
+Current Phase 2 validation covers routine configuration, independent copies,
+integer-second targets, migration success/failure, source preservation, and
+browser/container behavior. See [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) for the
+99-test result and remaining limits. Workout entry/history/backup assertions
+still await their authorized phases.
 
-Validation performed on this documentation branch: existing foundation suite
-**37 passed, 0 failed, 0 skipped**; `git diff --check` passed. No new automated
-feature tests were added, because their application components do not exist.
-Browser/container suites were not rerun for documentation-only changes; their
-earlier Phase 1 results are recorded separately in PHASE_1_REVIEW.md.
+Historical design-only branch (`a5f7c35`): 37 existing foundation tests passed;
+documentation links, disclosures and whitespace checks passed. No application
+or schema changes were made in that earlier branch, so no typed runtime behavior
+was claimed then. Its approval led to the current Phase 2 implementation.

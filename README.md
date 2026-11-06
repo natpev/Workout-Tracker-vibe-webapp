@@ -2,137 +2,205 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software; not audited or approved for production.
 
-Phase 1 provides a Flask shell, browser themes, and SQLite storage safeguards.
-There are no people, routines, workout records, migrations, backups, restores, or
-scheduler yet. Do not use real workout data. Stop for review before Phase 2.
+Phase 2 implements people, permanent exercise definitions, and independently
+copyable Weight/Time routines. It includes only the safe migration prerequisite
+needed for this phase. Phase 2 is reviewed and approved; only documentation,
+regression verification, merge and branch cleanup are currently authorized.
+Phase 3 requires separate authorization. No workout logging,
+results, historical charts, automatic backups, scheduling, or restore UI exists.
+Do not deploy or connect to real workout data.
 
-Read [AGENTS.md](AGENTS.md) and the authoritative [PROJECT_SPEC.md](PROJECT_SPEC.md)
-before changes. [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md) describes approved
-future Weight/Time exercise support and its phase-by-phase acceptance tests.
-This is a design update only: no routine editor, workout entry, or typed
-measurement storage is implemented yet. [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) records scope and validation.
+Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
+[MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
+and limitations are in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md); the earlier
+[PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) is retained as a historical record.
 
 ## Architecture and data flow
 
-- `workout_tracker/__init__.py`: Flask factory, home screen, read-only readiness endpoint, local-resource browser protections.
-- `workout_tracker/storage.py`: external-path validation, explicitly requested first installation, read-only SQLite verification.
-- `workout_tracker/__main__.py`: operator commands. Browser requests cannot initialize storage.
-- `workout_tracker/templates/` and `static/`: responsive HTML/CSS and browser-local Auto/Light/Dark preference. No CDN, analytics, or external requests.
-- `tests/`: disposable storage tests, never household database tests.
+- `workout_tracker/__init__.py`: Flask factory, configuration, readiness, safe errors and browser protections.
+- `storage.py`: external-path validation, explicit first install, schema verification and per-transaction locking. Every database connection enables foreign keys.
+- `schema.py`: exact schema-2 definitions; no performance tables.
+- `migrations.py`: explicit schema-1 → schema-2 candidate-only upgrade and atomic selection.
+- `catalog.py`: parameterized SQL and rules for people, identities, ordering, typed targets, and independent copies.
+- `views.py`: CSRF-protected forms, ownership checks and stale-routine conflict detection.
+- `__main__.py`: operator initialization, verification and migration commands.
+- `templates/` and `static/`: server-rendered HTML, local responsive CSS, native segmented radios, and browser-local Auto/Light/Dark themes. No CDN or analytics.
+- `tests/`: temporary fixtures only; never point tests at household storage.
 
-Browser → Flask → storage verification → SQLite reads → readiness response.
-The home page has no database mutations. Application version `0.1.0` is separate
-from schema version `1`. Schema 1 contains identity and migration metadata only;
-domain tables belong to later phases. There is no automatic schema upgrade.
+Browser → Flask CSRF/ownership validation → catalog service → locked SQLite
+transaction → redirect to refreshed page. A failed operation rolls back as a
+whole. User selection is instant navigation, **not authentication**: anyone who
+can reach this passwordless household app can choose another person.
 
 ## Local development with disposable storage
 
-Requires Linux, Python 3.12+, Git, and a local filesystem supporting SQLite,
-hard links, and directory syncing. Python's SQLite must support STRICT tables
-(3.37+). Exact dependencies are pinned, including transitive runtime packages.
+Requires Linux, Python 3.12+, local POSIX storage supporting SQLite, flock, hard
+links and directory syncing, and SQLite 3.37+ for STRICT tables. Dependencies and
+the Docker base-image digest are pinned. There are no new Phase 2 dependencies.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q tests/test_foundation.py tests/test_migrations.py tests/test_catalog.py tests/test_management.py
 ```
 
-Browser checks require `.venv/bin/python -m pip install -r requirements-browser.txt`
-and Chromium (or `.venv/bin/python -m playwright install chromium`). Set
-`WORKOUT_CHROMIUM` to an executable path if it is not named `chromium` on PATH.
-Run `.venv/bin/python -m pytest -q tests/test_browser.py` with loopback socket
-access. Without the optional dependency, pytest reports browser checks skipped.
-The Docker checks are opt-in: after building image `workout-tracker:phase1-review`,
-run `WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py`.
-They use disposable bind mounts with no network or published ports and remove
-their own containers afterward. The tests require the local Docker socket.
-
-For a local shell review, choose a **new, nonexistent** directory outside the
-repository. These commands create only disposable foundation metadata. Do not
-point them at an existing data directory or a real database.
+For a **disposable local review**, explicitly create a new, nonexistent external
+path. Initialization refuses every existing directory, including empty ones.
+It creates schema 1 first; a separate explicit command copies/upgrades it.
 
 ```sh
-export WORKOUT_DATA_ROOT="$(mktemp -d)/phase1-storage"
+export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 .venv/bin/python -m workout_tracker init-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-new-storage
+.venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
+.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
 .venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --threads 2 'workout_tracker:create_app()'
 ```
 
-In another terminal, `curl --fail http://127.0.0.1:8000/health/ready` must report
-`status: ready`, application version, and schema version. Stop the server with
-Ctrl+C. Readiness means the Phase 1 shell and storage checks work; it does not
-mean workout logging or recovery is implemented.
+These commands are for synthetic review data only, not deployment permission.
+Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
+`status: ready`, app version `0.2.0`, and schema version `2`. Schema 1 still opens
+the foundation shell, but management requires explicit migration and reports 503
+until it is performed. Restart any schema-1 process after migration so it loads
+the newly provisioned signing key; an old process returns 503 rather than broken
+forms. Startup never initializes, migrates, repairs or replaces
+storage. Missing or corrupt storage must be investigated, not worked around by
+initializing another path.
 
-Initialization requires explicit confirmation and refuses **every existing
-directory**, including empty ones. If initialization is interrupted, inspect the
-retained directory; do not delete it or initialize elsewhere to conceal a lost
-database. For confirmed disposable fixtures only, choose a fresh test path.
+## People, exercise names, and routines
 
-## Configuration and persistent storage
+Keep the approved user-switching interface: create/select people through the
+People screen, without a redesigned selector or browser-style tabs; rename, archive or reactivate them there.
+Archiving always retains their IDs and records. Each person has independent
+routines and exercise definitions. Routine Delete removes it from active lists
+by archiving, preserving its identity; it does not delete exercise definitions.
 
-| Setting | Purpose |
-| --- | --- |
-| `WORKOUT_DATA_ROOT` | Required absolute external directory, never inside the checkout. No default that might silently create a database. |
-| `WORKOUT_TRUSTED_HOSTS` | Comma-separated accepted HTTP hostnames; default `localhost,127.0.0.1,[::1]`. This is host-header validation, not access control. |
-| `WORKOUT_PORT` | Compose host port, default 8000; published on loopback only. |
-| `WORKOUT_UID`, `WORKOUT_GID` | Compose process identity, default 10001; must have permission to read external storage. |
-| `WORKOUT_BUILD_CA_BUNDLE` | Optional Compose build CA bundle path; defaults to the system bundle. Never disable TLS verification. |
+Within a routine, create a new exercise name or reuse one owned by that person.
+The Exercise names page renames a permanent definition wherever that identity is
+reused; independent copied definitions are unaffected. Remove a definition from
+active routines before archiving it. There is no exercise-archive restore UI yet.
 
-Initialization creates private directories:
+Choose Weight or Time in the segmented control. Both use positive-integer sets.
+Weight configures reps and defaults to pounds; Time configures whole minutes and
+seconds. Three sets × 45 seconds stores a target of 45 seconds, not 135. Switching
+mode clears incompatible stored fields. Optional notes belong to the routine
+configuration. Numeric inputs provide the approved simple set controls.
+
+Configuration limits: sets 1–1000, reps 1–10000, target duration 1–359999 seconds
+(0–5999 minutes, 0–59 seconds); names 100 characters, notes 2000 and weight
+meaning 200. These bounds prevent invalid configuration, not define future
+actual-result precision. There are no actual weight/duration or increase-flag
+columns in Phase 2. Final Phase 3 rules are documented below; no workout-entry
+functionality or schema changes are introduced during Phase 2 finalization.
+
+Phase 3 must store pounds as **integer tenths**, truncate additional decimal
+digits **without rounding**, and display one decimal place: 40.99 → 40.9
+(stored 409), 42.56 → 42.5 (425), 40 → 40.0 (400). Explicit zero is valid
+(stored 0); empty weight is SQL NULL. Actual time is one duration per exercise
+regardless of set count, stored as integer seconds with minimum 1; zero is
+invalid and empty is SQL NULL. Every skipped exercise retains a saved entry
+with NULL measurements, never zero or prior results. Historical snapshots
+preserve tracking type and measurements even after routine edits. These are
+future implementation requirements, not current runtime capabilities.
+
+Use the routine's up/down controls to reorder routines or exercises. Duplicate
+within a person or use Copy a routine to copy between people. Every copy gets
+fresh routine/item/exercise identities and independent settings, with no workout
+history, results or increase state. Routine edit forms reject stale submissions
+with 409; reload before retrying if another page has changed the routine.
+
+## Storage and explicit migration safety
 
 ```text
 external-storage/
-  data/schema-1-<identity>.sqlite3
-  config/active.json
-  archives/
-  backups/
-  logs/
+  data/schema-1-<identity>.sqlite3              # unchanged original
+  data/schema-2-<identity>-<candidate>.sqlite3  # candidate/current schema 2
+  config/active.json                          # active database selection
+  config/session.key                         # private session signing material
+  archives/selection-before-<candidate>.json   # original selection
+  backups/                                   # reserved, not an implemented service
+  logs/                                      # reserved, not a persistent viewer
 ```
 
-The manifest selects a constrained database filename and matching identity.
-Startup refuses missing files, invalid manifests, symlinks, wrong identities,
-unsupported versions, unexpected schemas, failed integrity checks, or SQLite
-sidecars. It uses SQLite `mode=ro`, foreign keys, and query-only connections.
-Phase 1 uses rollback journals; WAL support and safe maintenance coordination
-must be implemented and tested before later writer/recovery phases.
+The CLI takes the same persistent-root lock used by all app connections. It
+refuses maintenance while a request holds a connection; stop workers and all
+external SQLite tools before migration. External tools do not follow our lock
+protocol. Only the known schema 1 can upgrade to 2.
 
-Containers never initialize storage. The Compose bind mount refuses to create a
-missing source path and is read-only in Phase 1. Replacing a container retains
-external files. Never mount the Docker socket into this application.
+Migration opens the original read-only and creates a distinct candidate using
+SQLite's backup API. DDL changes only the candidate. Checks cover application
+identity, exact schema, integrity, foreign keys, schema/migration versions,
+original metadata equality, empty new domain tables, and original file hashes.
+The candidate and selection files are synced before atomic manifest replacement.
+A post-switch sync failure attempts atomic restoration of the original selection;
+if that also fails, the CLI reports uncertainty and requires inspection. No
+original database is overwritten or removed. Previous versions stay in `data/`
+and their selection manifests in `archives/`; failed candidates stay for diagnosis.
 
-## Container review, updates, and rollback
+Both supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
+sidecars are refused **before** SQLite opens a source; there is no implicit
+recovery. Unknown, damaged, missing, symlinked or incompatible storage never
+becomes an empty replacement. A compatible schema-2 migration request is a
+read-only no-op. Ordinary compatible application updates just replace code/image
+and never trigger a copy, migration, or backup.
 
-`Dockerfile` and `compose.yaml` are provided for isolated development review,
-not permission to deploy. The image uses a non-root process; Compose uses a
-read-only root filesystem, drops capabilities, and publishes loopback only.
-Dependencies and the Python base image digest are pinned. Refresh these pins
-deliberately and rerun validation when updating them.
+Keep the generated `config/session.key` private (0600); explicit migration
+provisions it and startup only reads it. It signs CSRF session cookies, not user
+passwords. Losing it blocks normal configured startup rather than silently
+replacing it. An operator may supply private `WORKOUT_SECRET_KEY` explicitly
+instead; never commit key values or use a shared example key. Cookies are
+HttpOnly/SameSite=Lax; Secure is not enabled for the current loopback HTTP review.
 
-With the disposable `WORKOUT_DATA_ROOT` exported, `docker compose config --quiet`
-validates configuration. For isolated container tests, the system CA bundle is
-supplied as build secret `pip_ca`. Managed cloud environments must retain their
-configured proxy and CA trust. No public service is needed.
+## Configuration and container review
 
-An ordinary compatible application update must only replace application code
-or its image: it must not copy, migrate, back up, delete, or reinitialize storage.
-Unsupported schemas stop startup. Never work around that error by running
-initialization. Phase 1 supplies no migration or rollback execution command.
+| Setting | Purpose |
+| --- | --- |
+| `WORKOUT_DATA_ROOT` | Required absolute storage directory outside the checkout; no implicit default. |
+| `WORKOUT_TRUSTED_HOSTS` | Accepted hostnames, default `localhost,127.0.0.1,[::1]`; host-header validation, not authentication. |
+| `WORKOUT_SECRET_KEY` | Optional private operator-provided signing key; otherwise use the explicitly provisioned private file. |
+| `WORKOUT_PORT` | Compose host port, default 8000, loopback only. |
+| `WORKOUT_UID`, `WORKOUT_GID` | Compose process identity; match the owner of private storage. Defaults 10001. |
+| `WORKOUT_BUILD_CA_BUNDLE` | Build CA bundle, default system bundle. Keep TLS verification enabled. |
 
-## Backups, restore, logging, and troubleshooting
+The image uses a non-root process. Compose keeps its root filesystem read-only
+but its **external storage mount writable** for definition transactions. It
+refuses to create a missing host mount, drops capabilities, and publishes loopback
+only. Storage/key permissions must allow the configured UID/GID; do not make
+private storage world-readable to fix ownership. No live home-server deployment
+is authorized. Containers never initialize or migrate storage at startup.
 
-Backup creation, scheduling, archive switching, restore UI, persistent log
-viewing, and log retention are **not implemented** in Phase 1. Automatic backups
-will remain disabled until configured. Do not introduce household data before
-recovery features pass their dedicated tests. Future migrations/restores must
-use separate candidates, retain originals, and never overwrite databases.
-Rolling back to an older database cannot silently merge newer workouts.
+For isolated image review, build `workout-tracker:phase2-review` with build secret
+`pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
+must be preserved. Run container tests only against the local Docker daemon:
 
-Current startup errors go to the process console; readiness errors reveal no
-private filesystem paths. The `logs/` directory is reserved for later persistent
-logging. To troubleshoot, run the read-only `check-storage` command. Missing or
-unreadable storage, corruption, a sidecar, or incompatible metadata requires
-investigation; nothing is automatically repaired, restored, or replaced.
+```sh
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase2-review .
+WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
+```
 
-LAN-only user selection will not be authentication: reachable household users
-can view and alter shared data. Remote access, real-data use, and deployment need
-separate approval. Local backups will not protect against physical host loss.
+They use disposable fixtures, no network or published ports, and remove their
+own containers. Browser tests need Chromium and optional pinned dependencies:
+
+```sh
+.venv/bin/python -m pip install -r requirements-browser.txt
+.venv/bin/python -m pytest -q tests/test_browser.py
+```
+
+Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set
+`WORKOUT_CHROMIUM` to its executable if needed. Browser tests need loopback socket
+access. Without optional tools, their skipped status is distinct from a pass.
+
+## Backups, rollback, logs, and troubleshooting
+
+Complete backup/restore interfaces, scheduling and persistent log viewing remain
+Phase 5. Automatic backups are not active. Do not introduce real workout data.
+On-server copies will not protect against physical storage loss.
+
+Readiness verifies storage and returns a generic 503 when unavailable. Use the
+read-only `check-storage` command for operator diagnosis. Console logs report
+failures without raw form bodies or secrets; persistent `logs/` is reserved.
+No update purges retained data, schemas or logs. Incompatible code/schema pairs
+fail safely. Stop writers before any future rollback: selecting an older
+schema cannot merge newer records, and this phase supplies no restore command.
+A stopped-review code rollback to Phase 1 can read its preserved original only
+after deliberate manual recovery; never improvise a production selection change.

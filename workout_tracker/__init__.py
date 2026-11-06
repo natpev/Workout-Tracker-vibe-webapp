@@ -2,16 +2,18 @@
 """Flask application factory called by tests, Flask, and Gunicorn.
 
 Configuration selects external storage. Browser GET requests read readiness and
-render Jinja templates; Phase 1 has no data-changing HTTP endpoints or sessions.
+render Jinja templates. Phase 2 registers CSRF-protected management forms;
+workout recording and later recovery interfaces remain absent.
 """
 
 import os
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, redirect, url_for
+from werkzeug.exceptions import SecurityError
 
-from .storage import StorageError, inspect_storage
+from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 
 
 def create_app(test_config=None):
@@ -21,14 +23,53 @@ def create_app(test_config=None):
         WORKOUT_DATA_ROOT=os.environ.get("WORKOUT_DATA_ROOT"),
         TRUSTED_HOSTS=os.environ.get("WORKOUT_TRUSTED_HOSTS", "localhost,127.0.0.1,[::1]").split(","),
         MAX_CONTENT_LENGTH=16 * 1024,
+        SECRET_KEY=os.environ.get("WORKOUT_SECRET_KEY"),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+
     )
     if test_config:
         app.config.update(test_config)
-    inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+    initial = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+    if initial["schema_version"] == 2 and not app.config["SECRET_KEY"]:
+        # Signing keys are provisioned by explicit migration, never startup.
+        # Do not follow a key symlink or print its private bytes in an error.
+        app.config["SECRET_KEY"] = load_signing_key(app.config["WORKOUT_DATA_ROOT"])
+    from .views import bp
+    from .catalog import ValidationError, MissingRecord
+    app.register_blueprint(bp)
+
+    @app.errorhandler(ValidationError)
+    def invalid_form(error):
+        """Render actionable validation errors; no partial transaction commits."""
+        return render_template("error.html", message=str(error)), 400
+
+    @app.errorhandler(MissingRecord)
+    def missing_record(error):
+        """Hide records outside the requested ownership boundary."""
+        return render_template("error.html", message=str(error)), 404
+
+    @app.errorhandler(StorageError)
+    def unavailable_storage(error):
+        """Expose a safe operational message without filenames or SQL payloads."""
+        app.logger.error("Storage unavailable; request transaction not committed.")
+        return render_template("error.html", message="Storage unavailable. Check storage, complete any explicit upgrade, and restart the application before editing."), 503
+
+    @app.errorhandler(400)
+    @app.errorhandler(409)
+    def request_error(error):
+        """Present CSRF/conflict errors with status preserved and escaped text."""
+        if isinstance(error, SecurityError):
+            # An untrusted Host has no URL adapter; do not render navigation.
+            return "Invalid host header.", 400
+        return render_template("error.html", message=error.description), error.code
+
 
     @app.get("/")
     def home():
         """Render the foundation shell; it reads no workout or person records."""
+        if inspect_storage(app.config["WORKOUT_DATA_ROOT"])["schema_version"] == 2:
+            return redirect(url_for("manage.people"))
         return render_template("home.html", version=APP_VERSION)
 
     @app.get("/health/ready")
@@ -36,6 +77,8 @@ def create_app(test_config=None):
         """Recheck storage and return 503 on failure without leaking paths."""
         try:
             details = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+            if details["schema_version"] == 2 and not app.secret_key:
+                raise StorageError("Restart required after explicit migration.")
         except StorageError:
             app.logger.error("Storage readiness verification failed; writes remain unavailable.")
             return jsonify(status="unavailable"), 503

@@ -1,12 +1,12 @@
 AGENTS.md — Workout Tracker
 
-> **SHAMEFULLY VIBE-CODED PROJECT.** This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported.
 
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current authorization: Phase 1 (Foundation and Storage Safeguards) only, on a separate Git branch with tests and review. Stop before Phase 2. Do not deploy or connect to real workout data. Broader architecture approval does not authorize later phases.
-• Weight/Time feature request: editor/workout components are absent after Phase 1. Update architecture, schema design, specification, and future test requirements only; later-phase implementation still requires authorization. See MEASUREMENT_DESIGN.md.
+• Current status: Phase 1, Weight/Time design, and Phase 2 are reviewed and approved. Current authorization is documentation finalization, regression testing, history-preserving consolidation into main, and deletion of fully merged completed branches only. Stop after finalization; Phase 3 implementation requires separate authorization. No workout logging, charts, backup/scheduling interfaces, restore UI, deployment, or real workout data access is authorized.
+• Phase 2 implements the Weight/Time routine editor only; actual measurement entry and historical snapshots remain later phases. Follow MEASUREMENT_DESIGN.md and PHASE_2_REVIEW.md. The original schema-1 database must remain unchanged; explicit CLI migration creates and validates a separate schema-2 candidate.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
 
@@ -30,7 +30,7 @@ Functional contract
 
 People, routines, exercises
 
-• People are selected with simple tabs/selector; no login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
+• Keep the approved Phase 2 user-switching implementation: users switch through the People screen. Do not redesign the selector or add browser-style tabs. No login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
 • Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including sets and target reps (Weight) or target duration per set (Time), selected with a segmented Weight/Time control.
 • A routine may be copied from a different user or duplicated within the same user. The result is an independent snapshot, not a shared/live link. Do not copy weight/history/increase state.
 • Historical workouts must retain exercise name, order, measurement type, prescribed sets/reps or duration, and results even after routine editing or deletion.
@@ -46,7 +46,8 @@ Workout entry
 • Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered measurements.
 • Discard Workout requires an explicit “Are you sure?” dialog, acknowledgment checkbox, Cancel, and OK disabled until acknowledgment. Cancel keeps the draft; confirmed discard affects only that unsaved/in-progress session, never saved history.
 • Allow manual entry of older workouts with a chosen past date; they belong in the same history and analytics as normal sessions.
-• Approved decisions: pounds by default with decimals; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 1.
+• Phase 3 measurement rules (documentation only until Phase 3 is authorized): pounds by default, at most one decimal place, extra digits truncated never rounded (40.99 → 40.9; 42.56 → 42.5; 40 → 40.0). SQLite stores integer tenths (40.9 lb = 409). Explicit zero is valid; empty weight is SQL NULL. Actual durations are integer seconds, minimum 1 second; zero is invalid and empty is SQL NULL. One actual duration per exercise regardless of sets. Every skipped exercise retains an entry with NULL actual measurements, never previous values or zero; tracking types and measurements belong in historical snapshots. Do not add workout-entry behavior to Phase 2.
+• Approved decisions: pounds by default with one decimal place and truncation; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 2.
 
 Interface and reporting
 
