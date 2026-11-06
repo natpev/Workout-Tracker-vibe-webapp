@@ -38,8 +38,9 @@ def database_path(root):
 
 def snapshot(root):
     """Capture file names and bytes so unexpected copies or writes fail tests."""
+    # Phase 5 may append diagnostics; all database/config/archive bytes remain protected.
     return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in root.rglob("*") if path.is_file()}
+            for path in root.rglob("*") if path.is_file() and "logs" not in path.relative_to(root).parts}
 
 
 def test_explicit_confirmation_required(tmp_path):

@@ -63,7 +63,7 @@ def _write_manifest(path, selection):
         os.fsync(handle.fileno())
 
 
-def migrate_storage(value, target_version=2):
+def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
     Known schema 1/2/3 sources may upgrade to target 2/3/4. A matching target
@@ -178,3 +178,25 @@ def _validate_candidate(root, candidate, selection):
     details = _inspect_unlocked(root, selection=selection)
     if details["schema_version"] not in (2, 3, 4) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
+
+
+def migrate_storage(value, target_version=2):
+    """Record meaningful explicit upgrade outcomes, but keep matching-version no-ops read-only."""
+    # Read-only compatibility checks must retain their original no-write behavior.
+    from .storage import inspect_storage
+    from .diagnostics import emit
+    try:
+        compatible=inspect_storage(value)['schema_version']==target_version
+    except StorageError as error:
+        emit(value,'ERROR','Database','Explicit migration refused unsafe source storage',error=error)
+        raise
+    if compatible:
+        return _migrate_storage(value,target_version)
+    emit(value,'INFO','Database','Explicit candidate migration requested')
+    try:
+        result=_migrate_storage(value,target_version)
+    except Exception as error:
+        emit(value,'ERROR','Database','Candidate migration failed; inspect retained sources',error=error)
+        raise
+    emit(value,'INFO','Database','Candidate migration completed; original database preserved')
+    return result

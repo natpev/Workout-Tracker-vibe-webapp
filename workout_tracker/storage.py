@@ -82,7 +82,7 @@ def _unique_object(pairs):
     return result
 
 
-def _inspect_unlocked(value, *, selection=None):
+def _inspect_unlocked(value, *, selection=None, database_override=None):
     """Read and validate selected storage, returning its ID and schema version.
 
     Flask calls this before serving and for readiness checks. SQLite is opened
@@ -113,7 +113,7 @@ def _inspect_unlocked(value, *, selection=None):
             re.fullmatch(rf"schema-[234]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
-        database = root / "data" / filename
+        database = database_override if database_override is not None else root / "data" / filename
         _regular_file(database)
         # Both supported schemas use rollback journals. A sidecar means interrupted or foreign
         # storage: refuse it rather than recovering/modifying anything at startup.
@@ -240,6 +240,15 @@ def storage_lock(value, *, exclusive=False, nonblocking=False):
         if nonblocking:
             operation |= fcntl.LOCK_NB
         fcntl.flock(descriptor, operation)
+        if exclusive:
+            # A browser form is tied to the selected dataset. Check inside the
+            # root lock so a concurrent restore cannot slip between check/write.
+            from flask import has_request_context, g, abort
+            if has_request_context() and getattr(g, 'dataset_generation', None):
+                import hashlib
+                generation=hashlib.sha256((root/'config'/'active.json').read_bytes()).hexdigest()
+                if g.dataset_generation!=generation:
+                    abort(409,description='The selected database changed. Reload this page before editing.')
         yield root
     except (OSError, sqlite3.Error) as error:
         raise StorageError("Storage is unavailable or busy; no replacement was created.") from error

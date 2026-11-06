@@ -31,7 +31,8 @@ def legacy(tmp_path):
 
 def tree_bytes(root):
     """Record all persisted bytes to detect unexpected compatible-update writes."""
-    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    # Phase 5 may append diagnostics; all database/config/archive bytes remain protected.
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file() and "logs" not in p.relative_to(root).parts}
 
 
 def test_candidate_migration_preserves_original_and_metadata(legacy):
