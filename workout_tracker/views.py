@@ -9,7 +9,7 @@ Session cookies sign CSRF state; user selection remains passwordless navigation.
 import hashlib
 import secrets
 
-from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for, g
 
 from . import catalog
 from .storage import StorageError, database_session
@@ -21,7 +21,13 @@ def csrf_token():
     """Return a per-browser unguessable token stored in a signed session cookie."""
     if "csrf" not in session:
         session["csrf"] = secrets.token_urlsafe(32)
-    return session["csrf"]
+    # Bind forms to the current active selection; never silently apply a form
+    # rendered before restore to a newly selected dataset.
+    from .storage import storage_root, _regular_file
+    active=storage_root(current_app.config['WORKOUT_DATA_ROOT'])/'config'/'active.json'
+    _regular_file(active)
+    generation=hashlib.sha256(active.read_bytes()).hexdigest()
+    return session["csrf"]+'.'+generation
 
 
 @bp.before_request
@@ -32,10 +38,13 @@ def protect_forms():
         # so every worker loads the same provisioned key before serving forms.
         raise StorageError("Restart the application after explicit schema migration.")
     if request.method == "POST":
-        expected = session.get("csrf", "")
+        expected = csrf_token() if session.get("csrf") else ""
         provided = request.form.get("csrf_token", "")
         if not expected or not secrets.compare_digest(expected.encode(), provided.encode()):
-            abort(400, description="Form security token missing or expired. Reload the page and try again.")
+            from .diagnostics import emit
+            emit(current_app.config['WORKOUT_DATA_ROOT'],'WARNING','Security','Form security or dataset-generation check rejected a request')
+            abort(400, description="Form security token missing or expired, or database selection changed. Reload the page and try again.")
+        g.dataset_generation=provided.rsplit('.',1)[-1]
 
 
 @bp.app_context_processor

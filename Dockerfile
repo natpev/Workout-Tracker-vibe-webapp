@@ -17,4 +17,4 @@ RUN chmod -R a+rX /app && groupadd --gid 10001 tracker && useradd --uid 10001 --
 USER 10001:10001
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "2", "--access-logfile", "-", "workout_tracker:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "1", "--threads", "2", "--access-logfile", "-", "workout_tracker:create_app()"]

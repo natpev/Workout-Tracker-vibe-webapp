@@ -52,7 +52,7 @@ def configure(value,values):
     except (ValueError,ZoneInfoNotFoundError): raise ValidationError('Choose HH:MM and a valid installed IANA timezone.')
     retention=integer(values.get('retention_days'),'Log retention days',1,36500)
     with storage_lock(value,exclusive=True) as root:
-        _inspect_unlocked(root);state=o.read_state(root);old=state['schedule']
+        state=o.read_state(root);old=state['schedule']
         schedule=dict(old,enabled=enabled,days=days,time=clock,timezone=zone,revision=old['revision']+1,
                       anchor=o.now().astimezone(ZoneInfo(zone)).date().isoformat())
         schedule['next']=next_slot(schedule,o.now()) if enabled else None
@@ -64,7 +64,7 @@ def configure(value,values):
 def tick(value):
     """Claim at most one overdue run, skip backlog, and persist outcome before releasing lock."""
     with storage_lock(value,exclusive=True) as root:
-        _inspect_unlocked(root);state=o.read_state(root);schedule=state['schedule'];stamp=o.now()
+        state=o.read_state(root);schedule=state['schedule'];stamp=o.now()
         # The previous owner released this root lock (possibly by crashing).
         # Pending operations are not replayed: preserve evidence and make failure visible.
         changed=False

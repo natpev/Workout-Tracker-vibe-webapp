@@ -1,6 +1,6 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
 # Proposed self-hosting configuration, not an instruction to deploy. Docker
-# supplies external host storage; Phase 2 writes only routine/people definitions.
+# supplies external host storage for workouts, recovery metadata and diagnostics.
 services:
   web:
     build:
@@ -30,6 +30,26 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  scheduler:
+    build:
+      context: .
+      secrets: [pip_ca]
+    command: [python, -m, workout_tracker, scheduler]
+    network_mode: none
+    user: "${WORKOUT_UID:-10001}:${WORKOUT_GID:-10001}"
+    environment:
+      WORKOUT_DATA_ROOT: /var/lib/workout-tracker
+    volumes:
+      - type: bind
+        source: ${WORKOUT_DATA_ROOT:?Set an absolute external storage path}
+        target: /var/lib/workout-tracker
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
 secrets:
   pip_ca:
     file: ${WORKOUT_BUILD_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}

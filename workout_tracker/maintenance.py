@@ -11,6 +11,8 @@ import sqlite3
 import re
 from itertools import zip_longest
 from contextlib import contextmanager, closing
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 
 from . import operations as o
@@ -38,10 +40,41 @@ def logical_check(path,version):
     with connect(path) as db:
         if version>=3:
             for parent in db.execute('SELECT * FROM workout_sessions'):
+                started=datetime.fromisoformat(parent['started_at'])
+                if started.tzinfo is None or started.astimezone(ZoneInfo(parent['timezone'])).date().isoformat()!=parent['workout_date']:
+                    raise StorageError('Workout date/time consistency failed.')
                 positions=[row[0] for row in db.execute('SELECT position FROM workout_entries WHERE session_id=? ORDER BY position',(parent['id'],))]
                 if positions!=list(range(parent['entry_count'])):
                     raise StorageError('Workout snapshot count/order verification failed.')
         if version<4: return
+        # Preparation JSON is durable data too. Verify typed targets and owner
+        # references, and ensure saved historical prescriptions equal that form.
+        from . import catalog as c
+        fields=('exercise_id','name','position','measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')
+        for form in db.execute('SELECT * FROM historical_forms'):
+            snapshots=json.loads(form['snapshots_json'])
+            if not isinstance(snapshots,list) or not snapshots: raise StorageError('Prepared snapshot is empty or malformed.')
+            h.validate_state(form,[],dict(workout_date=form['workout_date'],workout_time=form['workout_time'],occurred_at=form['occurred_at'],entries=[]))
+            for index,row in enumerate(snapshots):
+                if type(row['position']) is not int or row['position']<0 or (index>0 and row['position']<=snapshots[index-1]['position']) or row['person_id']!=form['person_id'] or row['routine_id']!=form['routine_id']:
+                    raise StorageError('Prepared snapshot ownership/order failed.')
+                if not db.execute('SELECT 1 FROM exercises WHERE id=? AND person_id=?',(row['exercise_id'],form['person_id'])).fetchone():
+                    raise StorageError('Prepared exercise identity failed.')
+                values={k:str(row[k]) for k in ('target_sets','target_reps','measurement_type','weight_meaning','notes')}
+                duration=row['target_duration_seconds']
+                if duration is not None: values.update(minutes=str(duration//60),seconds=str(duration%60))
+                configured=c.configure(values)
+                if configured!=tuple(row[k] for k in ('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')):
+                    raise StorageError('Prepared target configuration failed.')
+            # Routine positions can have gaps after removals. Completion keeps
+            # their relative order but normalizes saved positions to 0..n-1.
+            saved=db.execute('SELECT * FROM historical_workouts WHERE form_id=?',(form['id'],)).fetchone()
+            if saved:
+                if any(saved[k]!=form[k] for k in ('person_id','routine_id','routine_name','timezone','workout_date','workout_time','occurred_at')):
+                    raise StorageError('Historical parent differs from its preparation.')
+                actual=db.execute('SELECT * FROM historical_entries WHERE session_id=? ORDER BY position',(saved['id'],)).fetchall()
+                if len(actual)!=len(snapshots) or any(tuple(a[k] for k in fields)!=tuple(dict(b,position=index)[k] for k in fields) for index,(a,b) in enumerate(zip(actual,snapshots))):
+                    raise StorageError('Historical prescriptions differ from their preparation.')
         expected={(r['id'],r['person_id'],r['id'],None) for r in db.execute("SELECT id,person_id FROM workout_sessions WHERE status='completed'")}
         expected|={(r['id'],r['person_id'],None,r['id']) for r in db.execute('SELECT id,person_id FROM historical_workouts')}
         actual={tuple(r) for r in db.execute('SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry')}

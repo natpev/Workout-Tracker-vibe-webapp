@@ -52,3 +52,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Larger SVG labels remain readable after viewBox scaling on narrow phones. */
 @media (max-width: 480px) { .progress-chart text { font-size: 36px; } }
+/* Wide backup tables scroll inside their card, preserving phone page width. */
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; vertical-align: top; padding: .6rem; border-bottom: 1px solid var(--border); }

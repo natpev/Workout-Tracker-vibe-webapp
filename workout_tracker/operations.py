@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from .storage import StorageError, _regular_file, _sync_directory, _unique_object
+from .storage import StorageError, _regular_file, _sync_directory, _unique_object, DIRECTORIES
 
 
 def now():
@@ -26,8 +26,16 @@ def defaults():
                 retention_days=30, backups={}, restores={})
 
 
+def layout(root):
+    """Refuse missing or linked subdirectories even when damaged SQLite prevents startup."""
+    for name in DIRECTORIES:
+        if (root/name).is_symlink() or not (root/name).is_dir():
+            raise StorageError('Persistent operations layout is incomplete or unsafe.')
+
+
 def read_state(root):
     """Load bounded, private operator metadata; fail closed on unexpected contents."""
+    layout(root)
     path=root/'config'/'operations.json'
     if not os.path.lexists(path):
         return defaults()
@@ -72,6 +80,7 @@ def read_state(root):
 
 def write_state(root,state):
     """Sync a separate JSON file before atomic publication; root lock serializes writers."""
+    layout(root)
     pending=root/'config'/f'operations-{uuid4().hex}.pending'
     descriptor=os.open(pending,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o600)
     with os.fdopen(descriptor,'w') as handle:

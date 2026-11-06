@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase4-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase5-review.
 """
 
 import hashlib
@@ -35,8 +35,9 @@ def docker(*arguments, check=True):
 
 def storage_bytes(root):
     """Hash files to detect any container-triggered copies, migrations or writes."""
+    # Phase 5 may append diagnostics; all database/config/archive bytes remain protected.
     return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in root.rglob("*") if path.is_file()}
+            for path in root.rglob("*") if path.is_file() and "logs" not in path.relative_to(root).parts}
 
 
 def start_container(root, *, writable=False):
@@ -47,7 +48,7 @@ def start_container(root, *, writable=False):
         "--user", f"{os.getuid()}:{os.getgid()}",
         "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase4-review",
+        "workout-tracker:phase5-review",
     ).stdout.strip()
 
 
@@ -110,6 +111,11 @@ def test_compose_configuration_is_loopback_and_external(tmp_path):
     # Compose omits false values in normalized output; absence also means false.
     assert service["volumes"][0]["bind"].get("create_host_path", False) is False
     assert service["read_only"] is True
+    scheduler=json.loads(result.stdout)['services']['scheduler']
+    assert scheduler['command']==['python','-m','workout_tracker','scheduler']
+    assert scheduler['network_mode']=='none' and scheduler['read_only'] is True
+    assert not scheduler.get('ports') and scheduler['user']==service['user']
+    assert scheduler['volumes'][0]['source']==service['volumes'][0]['source']
 
 
 def test_phase2_container_writes_persist_and_original_is_untouched(phase2_root):
@@ -239,3 +245,78 @@ assert b'42.5 lb' in page and b'Correction 1' in page
     with database_session(phase4_root) as db:
         assert db.execute('SELECT count(*) FROM workout_corrections').fetchone()[0]==1
         assert db.execute('SELECT actual_weight_tenths_lb FROM historical_entries').fetchone()[0]==409
+
+
+def test_phase5_backup_restore_metadata_and_logs_survive_replacement(phase4_root):
+    """Actual Gunicorn forms preserve backup/restore audit and logs outside the image."""
+    from workout_tracker import maintenance as m,operations as o
+    root=phase4_root
+    for iteration in range(2):
+        container=start_container(root,writable=True)
+        try:
+            deadline=time.monotonic()+15
+            while True:
+                probe=docker('exec',container,'python','-c',"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)",check=False)
+                if probe.returncode==0: break
+                if time.monotonic()>=deadline: pytest.fail('Phase 5 container readiness failed: '+probe.stderr)
+                time.sleep(.2)
+            if iteration==0:
+                script="""
+import http.cookiejar,re,urllib.parse,urllib.request
+opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+base='http://127.0.0.1:8000'
+page=opener.open(base+'/settings').read().decode()
+fields=dict(re.findall(r'name="(csrf_token|operation_id)" value="([^"]*)"',page))
+response=opener.open(base+'/settings/backup',urllib.parse.urlencode(fields).encode())
+path=urllib.parse.urlsplit(response.url).path;page=response.read().decode()
+assert 'id="backup-status">verified' in page
+fields=dict(re.findall(r'name="(csrf_token|operation_id)" value="([^"]*)"',page));fields.update(confirm='yes',confirmation='RESTORE')
+page=opener.open(base+path+'/restore',urllib.parse.urlencode(fields).encode()).read()
+assert b'succeeded' in page
+"""
+                docker('exec',container,'python','-c',script)
+            docker('exec',container,'python','-c',"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000/settings').read(); assert b'verified' in page and b'succeeded' in page; assert b'Restore completed' in urllib.request.urlopen('http://127.0.0.1:8000/settings/logs').read()")
+        finally: docker('rm','-f',container)
+    state=o.read_state(root);assert len(state['backups'])==len(state['restores'])==1
+    record=next(iter(state['backups'].values()));assert m.backup_path(root,record).exists()
+
+
+def test_dedicated_scheduler_container_due_slot_and_restart(phase4_root):
+    """Independent non-web containers share durable claims, producing one missed backup."""
+    from workout_tracker import operations as o
+    from workout_tracker.storage import storage_lock
+    root=phase4_root
+    with storage_lock(root,exclusive=True):
+        state=o.read_state(root);state['schedule'].update(enabled=True,anchor='2020-01-01',next='2020-01-01T02:00:00+00:00',revision=1)
+        o.write_state(root,state)
+    for _ in range(2):
+        docker('run','--rm','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
+               '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
+               '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase5-review','python','-m','workout_tracker','scheduler','--once')
+    current=o.read_state(root)
+    assert len(current['backups'])==1 and current['schedule']['result']=='Verified'
+    assert next(iter(current['backups'].values()))['source']=='automatic'
+
+
+def test_scheduler_long_running_service_needs_no_browser_and_stops_cleanly(phase4_root):
+    """Actual scheduler daemon claims a due slot without Gunicorn and logs orderly exit."""
+    from workout_tracker import operations as o
+    from workout_tracker.storage import storage_lock
+    root=phase4_root
+    with storage_lock(root,exclusive=True):
+        state=o.read_state(root);state['schedule'].update(enabled=True,anchor='2020-01-01',next='2020-01-01T02:00:00+00:00',revision=1)
+        o.write_state(root,state)
+    container=docker('run','-d','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
+                     '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
+                     '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase5-review','python','-m','workout_tracker','scheduler').stdout.strip()
+    try:
+        deadline=time.monotonic()+10
+        while True:
+            with storage_lock(root): current=o.read_state(root)
+            if current['schedule']['result']=='Verified': break
+            if time.monotonic()>=deadline: pytest.fail('Dedicated scheduler did not run its due backup')
+            time.sleep(.1)
+        assert len(current['backups'])==1
+        docker('stop','--time','5',container)
+        assert any('Scheduler process stopped' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
+    finally: docker('rm','-f',container)

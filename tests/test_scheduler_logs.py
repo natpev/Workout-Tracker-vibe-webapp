@@ -169,3 +169,18 @@ def test_corrupt_external_metadata_is_not_reinitialized(phase4_root):
     path=phase4_root/'config'/'operations.json';path.write_text('broken');path.chmod(0o600)
     with pytest.raises(StorageError): s.tick(phase4_root)
     assert path.read_text()=='broken'
+
+
+def test_due_backup_of_damaged_storage_records_failed_attempt(phase4_root,monkeypatch):
+    """A corrupt source is a visible failed automatic backup, never a replacement or silent skip."""
+    from workout_tracker.storage import _inspect_unlocked
+    root=phase4_root;clock(monkeypatch,'2026-01-01T09:00:00+00:00');s.configure(root,settings())
+    with storage_lock(root): original=_inspect_unlocked(root)['database']
+    original.write_bytes(b'corrupt active remains preserved')
+    clock(monkeypatch,'2026-01-01T11:00:00+00:00');s.tick(root)
+    current=state(root)
+    assert current['schedule']['result']=='Failed' and current['schedule']['last_attempt']==o.now().isoformat()
+    assert next(iter(current['backups'].values()))['status']=='failed'
+    assert original.read_bytes()==b'corrupt active remains preserved'
+    s.configure(root,settings(enabled=''))
+    assert state(root)['schedule']['enabled'] is False

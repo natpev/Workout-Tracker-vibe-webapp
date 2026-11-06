@@ -4,8 +4,8 @@
 Configuration selects external storage. Browser GET requests read readiness and
 render Jinja templates. Management and workout blueprints use CSRF-protected
 forms. Explicit schema 3 enables workout recording; schema 4 enables history,
-local charts, manual completion and append-only corrections. Phase 5 recovery
-interfaces remain absent.
+local charts, manual completion and append-only corrections. Phase 5 adds
+explicit recovery controls, external operations state and private diagnostics.
 """
 
 import os
@@ -15,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 
 
 def create_app(test_config=None):
@@ -32,7 +32,12 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
-    initial = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+    from .diagnostics import emit
+    try:
+        initial = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
+    except StorageError as error:
+        emit(app.config["WORKOUT_DATA_ROOT"], "ERROR", "Database", "Application startup refused unsafe storage", error=error)
+        raise
     if initial["schema_version"] >= 2 and not app.config["SECRET_KEY"]:
         # Signing keys are provisioned by explicit migration, never startup.
         # Do not follow a key symlink or print its private bytes in an error.
@@ -46,6 +51,18 @@ def create_app(test_config=None):
     app.register_blueprint(workout_bp)
     from .history_views import bp as history_bp
     app.register_blueprint(history_bp)
+    from .settings_views import bp as settings_bp
+    from .diagnostics import emit
+    app.register_blueprint(settings_bp)
+    emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker started")
+    import atexit
+    def shutdown_event():
+        """Record orderly process exit when the external tree still exists (not SIGKILL)."""
+        from pathlib import Path
+        if Path(app.config["WORKOUT_DATA_ROOT"]).is_dir():
+            emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker stopped")
+    if not app.testing:
+        atexit.register(shutdown_event)
 
     @app.errorhandler(ValidationError)
     def invalid_form(error):
@@ -60,6 +77,7 @@ def create_app(test_config=None):
     @app.errorhandler(StorageError)
     def unavailable_storage(error):
         """Expose a safe operational message without filenames or SQL payloads."""
+        emit(app.config["WORKOUT_DATA_ROOT"], "ERROR", "Database", "Storage verification failed; request transaction not committed", error=error)
         app.logger.error("Storage unavailable; request transaction not committed.")
         return render_template("error.html", message="Storage unavailable. Check storage, complete any explicit upgrade, and restart the application before editing."), 503
 
@@ -72,6 +90,18 @@ def create_app(test_config=None):
             return "Invalid host header.", 400
         return render_template("error.html", message=error.description), error.code
 
+
+    def log_exception(exc_info):
+        """Replace Flask's raw exception-text dump with bounded protected technical frames."""
+        emit(app.config["WORKOUT_DATA_ROOT"], "ERROR", "Application", "Unexpected request failure", error=exc_info[1])
+        app.logger.error("Unexpected request failure; inspect protected diagnostic event identifiers.")
+    app.log_exception=log_exception
+
+    @app.errorhandler(500)
+    def unexpected_error(error):
+        """Keep request bodies/tracebacks out of responses; protect technical frames on disk."""
+        emit(app.config["WORKOUT_DATA_ROOT"], "ERROR", "Application", "Unexpected application exception", error=getattr(error, "original_exception", error))
+        return render_template("error.html", message="Unexpected application error. Inspect Settings logs or contact the server operator."), 500
 
     @app.get("/")
     def home():
@@ -88,6 +118,7 @@ def create_app(test_config=None):
             if details["schema_version"] >= 2 and not app.secret_key:
                 raise StorageError("Restart required after explicit migration.")
         except StorageError:
+            emit(app.config["WORKOUT_DATA_ROOT"], "ERROR", "Database", "Storage readiness verification failed; writes remain unavailable")
             app.logger.error("Storage readiness verification failed; writes remain unavailable.")
             return jsonify(status="unavailable"), 503
         return jsonify(status="ready", app_version=APP_VERSION,

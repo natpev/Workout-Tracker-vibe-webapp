@@ -1,0 +1,22 @@
+<!-- SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+     Settings receives safe external metadata from Flask; forms require CSRF. -->
+{% extends 'base.html' %}{% block content %}
+<h2>Settings</h2>
+<section><h3>Database status</h3><p>{% if database_ok %}Selected database verified. Schema {{ schema }}.{% else %}Database unavailable or failed verification. No replacement was created. Existing backup history remains available for deliberate recovery.{% endif %}</p><p>Local backups stay on this server. They do not replace offsite or Proxmox backups.</p></section>
+<section><h3>Manual backups</h3><p>Last successful retained backup (UTC): {{ last_backup or 'None' }}</p><p>Creates and checks a separate copy. Wait for verification before closing this page.</p>
+<form method="post" action="{{ url_for('settings.backup') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="operation_id" value="{{ operation_id }}"><button>Backup Now</button></form></section>
+<section><h3>Automatic backups and log retention</h3><p>A separate scheduler process checks these settings without an open browser. Changes schedule the next future run; missed runs are handled once, without a burst.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label class="acknowledge"><input type="checkbox" name="enabled" value="yes" {% if state.schedule.enabled %}checked{% endif %}>Enable automatic backups</label>
+<label>Frequency in whole days<input name="days" type="number" min="1" max="3650" value="{{ state.schedule.days }}" required></label>
+<label>Backup time<input name="time" type="time" value="{{ state.schedule.time }}" required></label>
+<label>IANA timezone<input name="timezone" value="{{ state.schedule.timezone }}" required></label>
+<p>For repeated clock times, run at the earlier occurrence only. For skipped clock times, run at the first valid minute after the gap.</p>
+<label>Log retention in whole days<input name="retention_days" type="number" min="1" max="36500" value="{{ state.retention_days }}" required></label>
+<p>Retention deletes only old logs. Backups, database archives and workout records are never rotated.</p><button>Save settings</button></form>
+<dl><dt>Last automatic attempt (UTC)</dt><dd>{{ state.schedule.last_attempt or 'Never' }}</dd><dt>Last automatic success (UTC)</dt><dd>{{ state.schedule.last_success or 'Never' }}</dd><dt>Next scheduled backup (UTC)</dt><dd>{{ state.schedule.next or 'Disabled' }}</dd><dt>Last automatic result</dt><dd>{{ state.schedule.result }}</dd></dl></section>
+<section><h3>Backup history</h3><div class="table-scroll"><table><thead><tr><th>Created (UTC)</th><th>Source</th><th>Size</th><th>Schema</th><th>Verification</th><th>Details</th></tr></thead><tbody>
+{% for record in state.backups.values()|sort(attribute='created_at',reverse=true) %}<tr><td>{{ record.created_at }}</td><td>{{ record.source }}</td><td>{{ record.size }} bytes</td><td>{{ record.schema_version or 'Unknown' }}</td><td>{{ record.status }}{% if record.error %} — {{ record.error }}{% endif %}</td><td><a href="{{ url_for('settings.backup_detail',backup_id=record.id) }}">Inspect backup {{ loop.index }}</a></td></tr>{% else %}<tr><td colspan="6">No backup attempts yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<section><h3>Restore audit</h3>{% for record in state.restores.values()|sort(attribute='started_at',reverse=true) %}<p>{{ record.started_at }} · {{ record.id }} · {{ record.status }}{% if record.status=='in_progress' %} — An interrupted attempt requires operator inspection; it will not be replayed.{% endif %}{% if record.error %} · {{ record.error }}{% endif %}</p>{% else %}<p>No restores requested.</p>{% endfor %}</section>
+<section><h3>Application logs</h3><a class="pill" href="{{ url_for('settings.logs') }}">View logs</a></section>
+{% endblock %}

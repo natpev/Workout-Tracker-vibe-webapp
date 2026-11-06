@@ -42,15 +42,15 @@ def populated(root,count=2):
 
 def test_backup_exact_large_history_uniqueness_and_idempotence(phase4_root):
     """Every row/audit survives SQLite backup; duplicate tokens do not create copies."""
-    root=phase4_root;person,_,workout=populated(root,150);original=selected(root);before=original.read_bytes();mtime=original.stat().st_mtime_ns
+    root=phase4_root;person,_,workout=populated(root,1000);original=selected(root);before=original.read_bytes();mtime=original.stat().st_mtime_ns
     first=m.backup(root,token());second=m.backup(root,token())
     assert first['status']==second['status']=='verified' and first['filename']!=second['filename']
     assert m.backup(root,first['id'])==first
     assert len(list((root/'backups').glob('*.sqlite3')))==2
     with m.connect(m.backup_path(root,first)) as db:
-        assert db.execute('SELECT count(*) FROM historical_workouts').fetchone()[0]==150
-        assert db.execute('SELECT count(*) FROM historical_entries WHERE actual_weight_tenths_lb=0').fetchone()[0]==150
-        assert db.execute('SELECT count(*) FROM historical_entries WHERE actual_duration_seconds IS NULL').fetchone()[0]==300
+        assert db.execute('SELECT count(*) FROM historical_workouts').fetchone()[0]==1000
+        assert db.execute('SELECT count(*) FROM historical_entries WHERE actual_weight_tenths_lb=0').fetchone()[0]==1000
+        assert db.execute('SELECT count(*) FROM historical_entries WHERE actual_duration_seconds IS NULL').fetchone()[0]==2000
         assert h.effective(db,person,workout)[1][0]['actual_weight_tenths_lb']==409
     assert original.read_bytes()==before and original.stat().st_mtime_ns==mtime
 
@@ -93,7 +93,7 @@ def test_restore_preserves_both_sources_and_exact_audits(phase4_root):
     with m.connect(original) as db: assert w.session(db,person,draft)['status']=='draft'
 
 
-@pytest.mark.parametrize('failure',['corrupt','missing','schema','identity','symlink','sidecar','audit','count'])
+@pytest.mark.parametrize('failure',['corrupt','missing','schema','identity','symlink','sidecar','audit','count','preparation'])
 def test_restore_rejects_untrusted_backup(phase4_root,monkeypatch,failure):
     """Reject unsafe files and internally inconsistent histories even if a digest was changed."""
     root=phase4_root;populated(root);good=m.backup(root,token());path=m.backup_path(root,good)
@@ -102,7 +102,7 @@ def test_restore_rejects_untrusted_backup(phase4_root,monkeypatch,failure):
     elif failure=='symlink':
         path.unlink();path.symlink_to(selected(root))
     elif failure=='sidecar': path.with_name(path.name+'-wal').write_bytes(b'')
-    elif failure in ('schema','identity','audit','count'):
+    elif failure in ('schema','identity','audit','count','preparation'):
         with sqlite3.connect(path) as db:
             if failure=='schema': db.execute('PRAGMA user_version=999')
             elif failure=='identity': db.execute("UPDATE storage_metadata SET storage_id=?",('a'*32,))
@@ -110,6 +110,10 @@ def test_restore_rejects_untrusted_backup(phase4_root,monkeypatch,failure):
                 db.execute('DROP TRIGGER workout_corrections_update_protected');db.execute("UPDATE workout_corrections SET before_json='{}'")
                 from workout_tracker.history_schema import HISTORY_OBJECTS
                 db.execute(HISTORY_OBJECTS['workout_corrections_update_protected'])
+            elif failure=='preparation':
+                db.execute('DROP TRIGGER historical_forms_update_protected');db.execute("UPDATE historical_forms SET snapshots_json='broken'")
+                from workout_tracker.history_schema import HISTORY_OBJECTS
+                db.execute(HISTORY_OBJECTS['historical_forms_update_protected'])
             else:
                 db.execute('DROP TRIGGER historical_entries_delete_protected');db.execute('DELETE FROM historical_entries WHERE position=1')
                 from workout_tracker.history_schema import HISTORY_OBJECTS
@@ -248,3 +252,43 @@ def test_uncertain_restore_is_never_labeled_success(phase4_root,monkeypatch):
     monkeypatch.setattr(m,'activate',uncertain)
     result=m.restore(root,record['id'],token(),True)
     assert result['status']=='uncertain' and original.read_bytes()==before
+
+
+@pytest.mark.parametrize('failure',['missing','newer_schema','foreign_identity'])
+def test_restore_never_invents_missing_active_storage_or_downgrades(phase4_root,failure):
+    """Explicit recovery still requires an existing file/manifest and matching readable identity."""
+    root=phase4_root;good=m.backup(root,token());original=selected(root);manifest=(root/'config'/'active.json').read_bytes()
+    if failure=='missing': original.unlink()
+    else:
+        with sqlite3.connect(original) as db:
+            if failure=='newer_schema': db.execute('PRAGMA user_version=999')
+            else: db.execute('UPDATE storage_metadata SET storage_id=?',('b'*32,))
+    before=original.read_bytes() if original.exists() else None
+    assert m.restore(root,good['id'],token(),True)['status']=='failed'
+    assert (root/'config'/'active.json').read_bytes()==manifest
+    assert (original.read_bytes() if original.exists() else None)==before
+
+
+def test_explicit_offline_recovery_cli_when_startup_refuses_corruption(phase4_root):
+    """An operator can inspect IDs and deliberately recover without auto-repairing startup."""
+    from click.testing import CliRunner
+    from workout_tracker.__main__ import main
+    root=phase4_root;good=m.backup(root,token());original=selected(root);original.write_bytes(b'broken startup')
+    runner=CliRunner();listing=runner.invoke(main,['list-backups','--data-root',str(root)])
+    assert listing.exit_code==0 and good['id'] in listing.output
+    args=['restore-backup','--data-root',str(root),'--backup-id',good['id'],'--operation-id',token()]
+    assert runner.invoke(main,args).exit_code!=0 and original.read_bytes()==b'broken startup'
+    result=runner.invoke(main,args+['--confirm-restore'])
+    assert result.exit_code==0 and 'Verified restore candidate selected' in result.output
+    assert original.read_bytes()==b'broken startup' and selected(root)!=original
+
+
+def test_valid_historical_preparation_after_routine_removal_has_gapped_positions(phase4_root):
+    """Legacy preparations keep routine position gaps; saved snapshots normalize only order."""
+    root=phase4_root;person,routine,_=populated(root)
+    with database_session(root,write=True) as db:
+        db.execute('DELETE FROM routine_exercises WHERE routine_id=? AND position=0',(routine,))
+        form=h.prepare(db,person,routine,dict(workout_date='2020-02-01',workout_time=''),'UTC')
+        assert h.prepared(db,person,form)[1][0]['position']==1
+        h.complete_historical(db,person,form,dict(minutes_0='0',seconds_0='45'))
+    assert m.backup(root,token())['status']=='verified'

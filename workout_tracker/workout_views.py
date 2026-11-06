@@ -28,6 +28,9 @@ def connection(write=False):
 @bp.errorhandler(catalog.MissingRecord)
 def request_error(error):
     """Return useful API errors while keeping unsaved browser inputs visible."""
+    from .diagnostics import emit
+    if request.method=='POST':
+        emit(current_app.config['WORKOUT_DATA_ROOT'],'WARNING','Workout','Workout save/completion request rejected; transaction not committed',error=error)
     code = 404 if isinstance(error, catalog.MissingRecord) else 409 if isinstance(error, workouts.RevisionConflict) else 400
     if request.endpoint == 'workout.autosave':
         return jsonify(error=str(error)), code
@@ -110,6 +113,8 @@ def finish(person_id, session_id):
         with connection(write=True) as db:
             workouts.finish(db, person_id, session_id, request.form)
     except workouts.AllSkipped as error:
+        from .diagnostics import emit
+        emit(current_app.config['WORKOUT_DATA_ROOT'],'WARNING','Workout','Workout completion needs all-skipped confirmation')
         # The transaction rolled back. Previously committed draft values remain.
         return render_template('workout.html', **page_context(person_id, session_id, str(error))), 400
     return redirect(url_for('workout.show', person_id=person_id, session_id=session_id), code=303)
