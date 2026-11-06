@@ -3,16 +3,19 @@
 # supplies external host storage for workouts, recovery metadata and diagnostics.
 services:
   web:
+    image: workout-tracker:local
     build:
       context: .
       secrets: [pip_ca]
     user: "${WORKOUT_UID:-10001}:${WORKOUT_GID:-10001}"
     environment:
       WORKOUT_DATA_ROOT: /var/lib/workout-tracker
+      # Empty means use the private signing file provisioned by migration.
+      WORKOUT_SECRET_KEY: "${WORKOUT_SECRET_KEY:-}"
       WORKOUT_TIMEZONE: "${WORKOUT_TIMEZONE:-Etc/UTC}"
       WORKOUT_TRUSTED_HOSTS: "${WORKOUT_TRUSTED_HOSTS:-localhost,127.0.0.1,[::1]}"
     ports:
-      - "127.0.0.1:${WORKOUT_PORT:-8000}:8000"
+      - "${WORKOUT_BIND_ADDRESS:-127.0.0.1}:${WORKOUT_PORT:-8000}:8000"
     volumes:
       - type: bind
         source: ${WORKOUT_DATA_ROOT:?Set an absolute external storage path}
@@ -25,12 +28,15 @@ services:
       - /tmp
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    # Docker restarts an existing service after reboot unless deliberately stopped.
+    restart: unless-stopped
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
   scheduler:
+    image: workout-tracker:local
     build:
       context: .
       secrets: [pip_ca]

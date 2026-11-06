@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–5 and Weight/Time design are completed and approved for main. Phase 5 is approved for fast-forward merge and verified branch cleanup. Phase 6 (installation, real-world testing and final polish) is next and requires separate authorization. No deployment or real workout data access is authorized.
+**Project status:** Phases 1–5 and Weight/Time design are completed and approved for main. Phase 5 is merged. A narrow README installation-guide update and minor Compose configuration improvements are authorized, including disposable verification and merge; this does not authorize real deployment or full Phase 6. Phase 6 (installation, real-world testing and final polish) is next and requires separate authorization. No deployment or real workout data access is authorized.
 **Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 

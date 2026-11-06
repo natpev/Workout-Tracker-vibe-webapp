@@ -103,6 +103,7 @@ def test_compose_configuration_is_loopback_and_external(tmp_path):
     """Validate actual Compose interpolation without starting deployment services."""
     environment = os.environ.copy()
     environment["WORKOUT_DATA_ROOT"] = str(tmp_path / "external")
+    environment["WORKOUT_BIND_ADDRESS"] = "127.0.0.1"
     result = subprocess.run(["docker", "compose", "config", "--format", "json"],
                             env=environment, capture_output=True, text=True, check=True, timeout=15)
     service = json.loads(result.stdout)["services"]["web"]
@@ -111,7 +112,11 @@ def test_compose_configuration_is_loopback_and_external(tmp_path):
     # Compose omits false values in normalized output; absence also means false.
     assert service["volumes"][0]["bind"].get("create_host_path", False) is False
     assert service["read_only"] is True
+    assert service['image']=='workout-tracker:local'
+    assert service['restart']=='unless-stopped'
+    assert service['environment']['WORKOUT_SECRET_KEY']==environment.get('WORKOUT_SECRET_KEY','')
     scheduler=json.loads(result.stdout)['services']['scheduler']
+    assert scheduler['image']==service['image'] and scheduler['restart']=='unless-stopped'
     assert scheduler['command']==['python','-m','workout_tracker','scheduler']
     assert scheduler['network_mode']=='none' and scheduler['read_only'] is True
     assert not scheduler.get('ports') and scheduler['user']==service['user']
@@ -320,3 +325,95 @@ def test_scheduler_long_running_service_needs_no_browser_and_stops_cleanly(phase
         docker('stop','--time','5',container)
         assert any('Scheduler process stopped' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
     finally: docker('rm','-f',container)
+
+
+def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypatch):
+    """Exercise README's parent mount, schema-4 CLI and both real Compose services.
+
+    Paths are temporary. A test-only override removes ports and networking;
+    production bind addresses are checked separately without exposing anything.
+    """
+    from pathlib import Path
+    from uuid import uuid4
+    for name in ('WORKOUT_DATA_ROOT','WORKOUT_UID','WORKOUT_GID','WORKOUT_PORT',
+                 'WORKOUT_BIND_ADDRESS','WORKOUT_TIMEZONE','WORKOUT_TRUSTED_HOSTS',
+                 'WORKOUT_SECRET_KEY','WORKOUT_BUILD_CA_BUNDLE'):
+        monkeypatch.delenv(name,raising=False)
+    parent=tmp_path/'install-parent';parent.mkdir(mode=0o700)
+    root=parent/'storage';project='workout-doc-'+uuid4().hex[:12]
+    envfile=tmp_path/'install.env'
+    envfile.write_text(f'WORKOUT_DATA_ROOT={root}\nWORKOUT_UID={os.getuid()}\nWORKOUT_GID={os.getgid()}\nWORKOUT_PORT=8000\nWORKOUT_BIND_ADDRESS=127.0.0.1\nWORKOUT_TIMEZONE=America/Indiana/Indianapolis\nWORKOUT_TRUSTED_HOSTS=localhost,127.0.0.1,[::1]\nWORKOUT_BUILD_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt\n')
+    envfile.chmod(0o600)
+    override=tmp_path/'isolated.yaml'
+    override.write_text('# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\n# Test isolation only; no published services.\nservices:\n  web:\n    ports: !reset []\n    network_mode: none\n')
+    base=Path(__file__).resolve().parents[1]/'compose.yaml'
+    prefix=('compose','--project-name',project,'--env-file',str(envfile),'-f',str(base))
+    isolated=(*prefix,'-f',str(override))
+    bootstrap=('run','--rm','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL',
+               '--security-opt=no-new-privileges:true','--user',f'{os.getuid()}:{os.getgid()}',
+               '--mount',f'type=bind,src={parent},dst=/bootstrap','--entrypoint','python',
+               'workout-tracker:local','-m','workout_tracker','init-storage','--data-root','/bootstrap/storage','--confirm-new-storage')
+    try:
+        # The production .env interpolates loopback; an explicit LAN address only
+        # changes publishing/allowed hosts, not container identity or schema.
+        config=json.loads(docker(*prefix,'config','--format','json').stdout)
+        assert config['services']['web']['ports'][0]['host_ip']=='127.0.0.1'
+        envfile.write_text(envfile.read_text().replace('WORKOUT_BIND_ADDRESS=127.0.0.1','WORKOUT_BIND_ADDRESS=192.168.1.100').replace('WORKOUT_TRUSTED_HOSTS=localhost,127.0.0.1,[::1]','WORKOUT_TRUSTED_HOSTS=localhost,127.0.0.1,[::1],192.168.1.100'))
+        lan=json.loads(docker(*prefix,'config','--format','json').stdout)
+        assert lan['services']['web']['ports'][0]['host_ip']=='192.168.1.100'
+        assert '192.168.1.100' in lan['services']['web']['environment']['WORKOUT_TRUSTED_HOSTS']
+        # An explicit test value proves forwarding; no actual signing secret is printed.
+        envfile.write_text(envfile.read_text()+'WORKOUT_SECRET_KEY=fixture-only-forwarding-check\n')
+        assert json.loads(docker(*prefix,'config','--format','json').stdout)['services']['web']['environment']['WORKOUT_SECRET_KEY']=='fixture-only-forwarding-check'
+        envfile.write_text(envfile.read_text().replace('WORKOUT_SECRET_KEY=fixture-only-forwarding-check\n',''))
+        docker(*isolated,'config','--quiet')
+        docker(*isolated,'build')
+        assert not root.exists()
+        assert 'foundation storage initialized' in docker(*bootstrap).stdout
+        before=storage_bytes(root)
+        refused=docker(*bootstrap,check=False)
+        assert refused.returncode!=0 and storage_bytes(root)==before
+        docker(*isolated,'run','--rm','--no-deps','web','python','-m','workout_tracker','migrate-storage',
+               '--data-root','/var/lib/workout-tracker','--confirm-upgrade','--target-version','4')
+        checked=docker(*isolated,'run','--rm','--no-deps','web','python','-m','workout_tracker','check-storage','--data-root','/var/lib/workout-tracker')
+        assert 'schema version 4' in checked.stdout
+        assert root.stat().st_uid==os.getuid() and (root/'config'/'session.key').stat().st_mode & 0o777==0o600
+        for iteration in range(2):
+            docker(*isolated,'up','-d','--no-build')
+            ids={service:docker(*isolated,'ps','-q',service).stdout.strip() for service in ('web','scheduler')}
+            deadline=time.monotonic()+45
+            while True:
+                web=json.loads(docker('inspect',ids['web']).stdout)[0]
+                if web['State']['Health']['Status']=='healthy': break
+                if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
+                time.sleep(.2)
+            docker(*isolated,'exec','-T','web','python','-c',
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.5.0',schema_version=4)")
+            for identity in ids.values():
+                inspected=json.loads(docker('inspect',identity).stdout)[0]
+                assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'
+                assert inspected['Config']['User']==f'{os.getuid()}:{os.getgid()}'
+                assert inspected['HostConfig']['ReadonlyRootfs'] and inspected['HostConfig']['NetworkMode']=='none'
+                assert inspected['NetworkSettings']['Ports']=={}
+            if iteration==0:
+                # A browser-like synthetic write must survive the documented
+                # restart and stop/start without implicit DB migration/copy.
+                script="""
+import http.cookiejar,re,urllib.parse,urllib.request
+opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+base='http://127.0.0.1:8000'
+page=opener.open(base+'/people').read().decode()
+token=re.search(r'name="csrf_token" value="([^"]+)"',page).group(1)
+page=opener.open(base+'/people',urllib.parse.urlencode(dict(csrf_token=token,name='Installation fixture')).encode()).read()
+assert b'Installation fixture' in page
+"""
+                docker(*isolated,'exec','-T','web','python','-c',script)
+                retained=storage_bytes(root)
+                docker(*isolated,'restart')
+            else:
+                docker(*isolated,'exec','-T','web','python','-c',"import urllib.request; assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+                assert storage_bytes(root)==retained
+            docker(*isolated,'stop')
+        assert any('Scheduler process started' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
+    finally:
+        docker(*isolated,'down',check=False)
