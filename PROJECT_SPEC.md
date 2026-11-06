@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED PROJECT.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Architecture approved; Phase 1 (Foundation and Storage Safeguards) authorized on a separate branch. Stop for review before Phase 2. No deployment or real workout data is authorized.
-**Feature-design authorization:** Weight/Time support is approved for the future routine, workout, history, and recovery phases. Phase 1 is implemented; those components are absent. This request updates design/documentation only and does not authorize implementation of Phase 2 or later.
+**Project status:** Phase 1 and Weight/Time design approved; Phase 2 authorized and implemented for review. Stop before Phase 3. No deployment or real workout data is authorized.
+**Current scope:** people, permanent exercise definitions, typed routine configuration, and the minimal explicit candidate-only migration necessary for schema 2. Workout logging, snapshots/results, charts, automatic backups, restore UI, and scheduling remain later phases.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -102,14 +102,14 @@
 - Theme options: **Auto** (follow phone/computer appearance, the default), **Light**, **Dark**, with a manual override stored for that device/browser rather than changing the theme unexpectedly on another device.
 - Phone primarily for workout entry; PC primarily for routine editing, history tables and charts, but both should remain usable everywhere.
 
-## 6. Data model (conceptual, not final SQL)
+## 6. Data model (Phase 2 implemented; workout tables still conceptual)
 
-- **Users** — identity/display name.
-- **Exercises** — permanent person-owned identities and reusable names/metadata, independent of historical snapshots.
-- **Routines** — owner, name, status and ordering.
-- **Routine exercises** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/equipment labels. Type is selected on the routine exercise, not inferred from its name.
-- **Workout sessions** — person, started/finished timestamps, date, selected routine identification, draft/completed/discarded status.
-- **Workout entries** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable **weight** and integer **actual_duration_seconds**, snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
+- **Users (`people`)** — permanent UUID, display name, archive flag. Phase 2 always archives rather than deletes people, preserving records whether or not history exists.
+- **Exercises (`exercises`)** — permanent person-owned UUIDs, names and archive status, independent of future historical snapshots. Renaming a reused identity updates this person’s routine displays; independent copies receive new identities.
+- **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Delete removes from active lists by archiving, never reuses an identity.
+- **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite foreign keys enforce matching ownership. Type is selected on the routine exercise, not inferred from its name.
+- **Workout sessions (not implemented)** — person, started/finished timestamps, date, selected routine identification, draft/completed/discarded status.
+- **Workout entries (not implemented)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable **weight** and integer **actual_duration_seconds**, snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
 - **Schema version** — SQLite user schema version recorded separately from the Git/app release number.
 
@@ -178,13 +178,49 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Approved phased implementation (Phase 1 only currently authorized)
+## 12. Approved phased implementation (Phase 2 only currently authorized)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow:** one draft per user, type/target snapshots, one actual weight or duration per exercise, decimal-weight/zero-weight/NULL semantics, integer seconds, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
-5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. Do not run a schema migration for this documentation change.
+5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
+
+## 13. Phase 2 schema, validation, and maintenance
+
+Schema 1 remains readable as a foundation-only screen. Startup never upgrades it.
+`migrate-storage --confirm-upgrade` accepts only validated schema 1, uses SQLite's
+backup API with a read-only source, adds the four Phase 2 tables to a distinct
+candidate, verifies exact schema, integrity, foreign keys, metadata identity,
+migration records and unchanged original logical data, then atomically replaces
+only `config/active.json`. The original database stays unchanged under `data/`;
+its selection manifest is retained under `archives/`. Failed candidates remain
+for inspection and are never selected on validation failure. An already
+compatible schema-2 migration request is a read-only no-op.
+
+All application reads/writes and migration coordinate through a lock on the
+persistent root directory. Definition writes use an exclusive lock and SQLite
+transaction; migration refuses active connections. Stop all external database
+tools before maintenance; they do not participate in this protocol. Both
+schemas use rollback journals; WAL headers and sidecars are refused before
+SQLite is opened. No automatic recovery, initialization, or replacement occurs.
+
+The routine editor accepts sets 1–1000, reps 1–10000, and target duration 1–359999
+integer seconds (0–5999 whole minutes plus 0–59 seconds). Optional notes are at
+most 2000 characters and weight-meaning labels 200. These are configuration input
+limits, not decisions about future actual-measurement limits or precision.
+Switching mode clears incompatible stored fields. Native radio controls provide
+the segmented selector; numeric inputs configure sets/targets. Routines may be
+empty while being edited. An exercise definition cannot be archived while used
+by an active routine; remove it there first. Routine copying always creates new
+exercise identities, including duplication within the same person.
+
+Management POSTs require signed-session CSRF tokens, ownership checks, and server
+validation. Routine edit forms include a state fingerprint and reject stale
+writes. No password/authentication is added: household user switching is still
+navigation. Phase 2 has no actual weight column; future scaled integer weights
+will support decimals without conflating explicit zero and SQL NULL. See
+[PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) for the implementation/test record.

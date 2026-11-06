@@ -1,18 +1,17 @@
 # Weight and Time exercise design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This document specifies future work; it is not an implemented or tested workout feature.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Routine configuration is implemented in Phase 2; workout results and history remain planned. Review and test before use.
 
 ## Current state and authorization
 
-Inspection of Phase 1 commit `ed42a24` found a Flask shell, themes, metadata-only
-SQLite schema 1, and storage safeguards. There is no routine editor, workout
-entry, exercise table, or workout history. This feature request therefore
-updates documentation and design only. Application source, schema version,
-dependencies, and existing tests remain unchanged. Phase 2 and later still
-require authorization; neither deployment nor real-data access is authorized.
-
-This branch builds on the Phase 1 review branch. Review its documentation changes
-against `phase-1-foundation` to avoid mixing them with the earlier implementation.
+Phase 1 and this design are approved. Phase 2 now implements people, permanent
+exercise definitions and the typed routine editor, plus the minimal safe
+schema-1 → schema-2 migration prerequisite. Only that scope is authorized.
+Workout entry, measurement results, snapshots/history, charts, full backup and
+restore interfaces, and scheduling are not implemented. No deployment or
+production data access is authorized. See PHASE_2_REVIEW.md for current evidence.
+The validation record at the end describing the earlier documentation branch
+is historical, not the current implementation result.
 
 ## Interface and significant data flows
 
@@ -61,7 +60,7 @@ from numeric performance summaries and charts. Explicit zero weight is valid.
 All screens retain mobile-first rounded cards, oval buttons, large inputs, and
 Auto/Light/Dark themes. No external assets or third-party service is required.
 
-## Proposed schema additions, not executable SQL
+## Schema design (routine configuration implemented; results remain planned)
 
 Type belongs to the routine's exercise configuration and is copied into each
 session entry. Permanent exercise identities remain person-owned. A type edit
@@ -108,10 +107,11 @@ duration must remain distinguishable in tables and charts.
 
 ## Schema compatibility, migration, and rollback
 
-This documentation change does not require or run a migration. Phase 1 schema 1
-has no domain measurements to convert; leave its version, accepted DDL, manifest,
-and startup behavior unchanged. Do not add columns in place or treat the design
-as permission to initialize another database.
+Phase 2 implements an explicit candidate-only migration from metadata-only
+schema 1 to schema 2. Its source remains unchanged, and startup still never
+migrates or initializes. Schema 2 adds configuration only; there are no actual
+measurements, NULL/zero results, or history records to transform. Future domain
+changes require separately reviewed migrations, never in-place alterations.
 
 When a later authorized phase adds domain tables, determine the required schema
 version explicitly. Normal startup must continue refusing unsupported versions;
@@ -139,7 +139,7 @@ workouts; disclose this before any future recovery action.
 
 ## Future automated acceptance tests by phase
 
-These are required future tests, not assertions already implemented or passing.
+Phase 2 routine tests are now implemented; workout/history/recovery assertions remain future tests, not claimed as passing.
 Use disposable fixtures only, including corruption/migration/restore tests.
 
 | Phase | Required automated coverage |
@@ -149,21 +149,20 @@ Use disposable fixtures only, including corruption/migration/restore tests.
 | 4 — History | Snapshots unchanged after type/target/name changes and removal; existing drafts stable; mixed-type histories separated; pounds/time labels; NULL gaps and excluded summaries; zero weight retained; chronological backdated entry; confirmed validated corrections; cross-user isolation. |
 | Domain schema introduction and Phase 5 — Compatibility/recovery | Supported source schemas only; schema-1 compatibility unchanged until an authorized migration exists; separate candidates; original unchanged on success/failure; failed activation rollback; integrity/foreign-key/logical checks; exact NULL and zero preservation; duration integer/type constraints; backup/restore round trips; no source overwrite or automatic startup migration. |
 
-## Open decisions and current validation
+## Open decisions and validation history
 
 Before implementing affected phases, resolve decimal precision/limits for
 weight; duration limits, zero-duration and partially entered control semantics;
 time personal-record rules; and editable correction fields/audit behavior.
 These do not block recording the requested feature design.
 
-For this documentation branch, validate specification consistency and links,
-confirm application/tests/dependency/schema files are unchanged from Phase 1,
-and rerun the existing foundation suite with disposable storage. Typed exercise
-behavior and migration acceptance tests cannot execute until their approved
-phases implement those components. No feature runtime readiness is claimed.
+Current Phase 2 validation covers routine configuration, independent copies,
+integer-second targets, migration success/failure, source preservation, and
+browser/container behavior. See [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) for the
+99-test result and remaining limits. Workout entry/history/backup assertions
+still await their authorized phases.
 
-Validation performed on this documentation branch: existing foundation suite
-**37 passed, 0 failed, 0 skipped**; `git diff --check` passed. No new automated
-feature tests were added, because their application components do not exist.
-Browser/container suites were not rerun for documentation-only changes; their
-earlier Phase 1 results are recorded separately in PHASE_1_REVIEW.md.
+Historical design-only branch (`a5f7c35`): 37 existing foundation tests passed;
+documentation links, disclosures and whitespace checks passed. No application
+or schema changes were made in that earlier branch, so no typed runtime behavior
+was claimed then. Its approval led to the current Phase 2 implementation.
