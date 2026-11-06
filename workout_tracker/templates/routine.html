@@ -5,6 +5,9 @@
 {% from 'macros.html' import security, configuration with context %}
 {% block content %}
 <h2>{{ routine.name }}</h2>
+{% if workout_enabled %}<section><h3>Workout</h3>
+{% if active_draft %}<p>You have an unfinished workout.</p><a href="{{ url_for('workout.resume', person_id=person.id, session_id=active_draft.id) }}">Resume or discard unfinished workout</a>{% endif %}
+<form method="post" action="{{ url_for('workout.start', person_id=person.id, routine_id=routine.id) }}">{{ security() }}<button>Start workout</button></form></section>{% endif %}
 <section><h3>Routine settings</h3>
 <form method="post">{{ security(revision) }}<input type="hidden" name="action" value="rename"><label>Routine name <input name="name" value="{{ routine.name }}" required maxlength="100"></label><button>Rename routine</button></form>
 <form method="post" class="actions">{{ security(revision) }}<input type="hidden" name="action" value="move"><button name="direction" value="up">Move routine up</button><button name="direction" value="down">Move routine down</button></form>

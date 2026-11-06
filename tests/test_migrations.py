@@ -142,6 +142,8 @@ def test_explicit_cli_confirmation_and_success(legacy):
     result = runner.invoke(main, ["migrate-storage", "--data-root", str(root), "--confirm-upgrade"])
     assert result.exit_code == 0, result.output
     assert "original preserved" in result.output
+    assert "Schema 3 verified" in result.output
+    assert inspect_storage(root)["schema_version"] == 3
 
 
 def test_schema3_migration_preserves_populated_catalog_and_nulls(phase2_root):

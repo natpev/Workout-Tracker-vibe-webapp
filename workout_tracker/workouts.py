@@ -133,10 +133,10 @@ def start(db, person_id, routine_id, zone):
     explicit resume/discard. No routine edit can later change copied fields.
     """
     catalog.person(db, person_id)
+    routine = catalog.routine(db, person_id, routine_id)
     existing = active(db, person_id)
     if existing:
         return existing['id'], False
-    routine = catalog.routine(db, person_id, routine_id)
     rows = db.execute("SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id "
                       "WHERE re.routine_id=? ORDER BY re.position", (routine_id,)).fetchall()
     if not rows:

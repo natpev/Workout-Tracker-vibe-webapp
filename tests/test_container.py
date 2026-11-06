@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase2-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase3-review.
 """
 
 import hashlib
@@ -47,7 +47,7 @@ def start_container(root, *, writable=False):
         "--user", f"{os.getuid()}:{os.getgid()}",
         "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase2-review",
+        "workout-tracker:phase3-review",
     ).stdout.strip()
 
 
@@ -151,3 +151,49 @@ assert 'Container Fixture' in page
             assert original.read_bytes() == original_bytes
         finally:
             docker("rm", "-f", container)
+
+
+def test_schema3_draft_survives_container_replacement(phase3_root):
+    """Actual Gunicorn draft POST persists across isolated container replacement."""
+    from workout_tracker import catalog as c
+    from workout_tracker.storage import database_session
+    with database_session(phase3_root,write=True) as db:
+        person=c.create_person(db,'Workout container fixture')
+        routine=c.create_routine(db,person,'Fixture routine')
+        c.add_entry(db,person,routine,dict(name='Bench',measurement_type='weight',target_sets='3',target_reps='12'))
+    originals={p:p.read_bytes() for p in (phase3_root/'data').glob('schema-[12]-*.sqlite3')}
+    session_path=None
+    for iteration in range(2):
+        container=start_container(phase3_root,writable=True)
+        try:
+            deadline=time.monotonic()+15
+            while True:
+                probe=docker('exec',container,'python','-c',
+                    "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)",check=False)
+                if probe.returncode==0: break
+                if time.monotonic()>=deadline: pytest.fail('Schema 3 container readiness failed: '+probe.stderr)
+                time.sleep(.2)
+            if iteration==0:
+                script=f"""
+import http.cookiejar,json,re,urllib.parse,urllib.request
+opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+base='http://127.0.0.1:8000'
+routine='/people/{person}/routines/{routine}'
+page=opener.open(base+routine).read().decode()
+token=re.search(r'name="csrf_token" value="([^"]+)"',page).group(1)
+response=opener.open(base+routine+'/start',urllib.parse.urlencode({{'csrf_token':token}}).encode())
+path=urllib.parse.urlsplit(response.url).path
+page=response.read().decode()
+fields=dict(re.findall(r'name="(csrf_token|revision|entry_id|current_position)" value="([^"]*)"',page))
+fields.update(weight='40.99',increase='1')
+result=json.load(opener.open(base+path+'/draft',urllib.parse.urlencode(fields).encode()))
+assert result['weight']=='40.9' and result['completed']==1
+print(path)
+"""
+                session_path=docker('exec',container,'python','-c',script).stdout.strip()
+            else:
+                docker('exec',container,'python','-c',
+                    f"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000{session_path}').read(); assert b'value=\"40.9\"' in page; assert b'Increase weight next time' in page")
+            assert all(path.read_bytes()==content for path,content in originals.items())
+        finally:
+            docker('rm','-f',container)

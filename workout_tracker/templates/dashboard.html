@@ -5,6 +5,7 @@
 {% from 'macros.html' import security with context %}
 {% block content %}
 <h2>{{ person.name }}’s routines</h2>
+{% if active_draft %}<section><h3>Unfinished workout</h3><a href="{{ url_for('workout.resume', person_id=person.id, session_id=active_draft.id) }}">Resume or discard unfinished workout</a></section>{% endif %}
 {% for row in routines %}<section><h3><a href="{{ url_for('manage.edit_routine', person_id=person.id, routine_id=row.id) }}">{{ row.name }}</a></h3></section>{% else %}<p>No routines yet.</p>{% endfor %}
 <section><h3>Create routine</h3><form method="post">{{ security() }}<input type="hidden" name="action" value="create"><label>Routine name <input name="name" required maxlength="100"></label><button>Create routine</button></form></section>
 {% if sources %}<section><h3>Copy a routine</h3><p>The copy gets independent exercises and settings, with no history or recorded results.</p>

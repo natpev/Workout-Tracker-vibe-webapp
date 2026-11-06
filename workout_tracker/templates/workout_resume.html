@@ -1,0 +1,8 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Existing-draft choice uses immutable server state; links never replace data. #}
+{% extends 'base.html' %}
+{% block content %}<section><h2>Unfinished workout</h2>
+<p>{{ workout.routine_name }} · {{ workout.workout_date }}. Only one active draft is allowed for this person.</p>
+<p><a class="pill" href="{{ url_for('workout.show', person_id=person.id, session_id=workout.id) }}">Resume workout</a></p>
+<p><a class="pill" href="{{ url_for('workout.discard', person_id=person.id, session_id=workout.id) }}">Discard Workout</a></p>
+<p>To start another workout, explicitly discard this draft first.</p></section>{% endblock %}

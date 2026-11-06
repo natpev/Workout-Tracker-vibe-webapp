@@ -9,6 +9,7 @@ services:
     user: "${WORKOUT_UID:-10001}:${WORKOUT_GID:-10001}"
     environment:
       WORKOUT_DATA_ROOT: /var/lib/workout-tracker
+      WORKOUT_TIMEZONE: "${WORKOUT_TIMEZONE:-Etc/UTC}"
       WORKOUT_TRUSTED_HOSTS: "${WORKOUT_TRUSTED_HOSTS:-localhost,127.0.0.1,[::1]}"
     ports:
       - "127.0.0.1:${WORKOUT_PORT:-8000}:8000"

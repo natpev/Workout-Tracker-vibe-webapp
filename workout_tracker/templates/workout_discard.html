@@ -1,0 +1,16 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Confirmation dialog posts only acknowledgment and revision, never measurements.
+   Cancel navigates back without changing the saved draft. JS gates OK on consent. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<script src="{{ url_for('static', filename='workout.js') }}" defer></script>
+<dialog open id="discard-dialog" aria-labelledby="discard-heading">
+<h2 id="discard-heading">Are you sure?</h2>
+<p>This unfinished workout will be discarded. Completed workout history will not be deleted.</p>
+<form method="post">{{ security() }}<input type="hidden" name="revision" value="{{ workout.revision }}">
+<label class="acknowledge"><input id="discard-ack" type="checkbox" name="confirm" value="yes" required> I understand that this unfinished workout will be discarded.</label>
+<div class="actions"><a id="discard-cancel" class="pill" href="{{ url_for('workout.show', person_id=person.id, session_id=workout.id) }}">Cancel</a><button id="discard-ok" disabled>OK</button></div>
+</form><noscript>Enable JavaScript to acknowledge and confirm discard. Cancel keeps the draft.</noscript>
+</dialog>
+{% endblock %}

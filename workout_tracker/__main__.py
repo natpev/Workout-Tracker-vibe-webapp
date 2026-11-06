@@ -46,7 +46,7 @@ def check_storage(data_root):
 @click.option("--confirm-upgrade", is_flag=True)
 @click.option("--target-version", type=click.Choice(["2", "3"]), default="3", show_default=True)
 def migrate(data_root, confirm_upgrade, target_version):
-    """Explicitly copy and upgrade known schema 1, never the original database."""
+    """Copy and upgrade a known schema to the requested target, never the original."""
     from .migrations import migrate_storage
     if not confirm_upgrade:
         raise click.ClickException("Explicit --confirm-upgrade is required; no migration was performed.")

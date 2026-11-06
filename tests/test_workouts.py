@@ -176,3 +176,87 @@ def test_database_rejects_invalid_measurement_combinations(phase3_root,change):
         row=w.entries(db,a,identity)[0]
         with pytest.raises(sqlite3.IntegrityError):
             db.execute(f'UPDATE workout_entries SET {change} WHERE id=?',(row['id'],))
+
+
+def test_previous_history_never_mixes_tracking_types_or_users(phase3_root):
+    """Changing a routine's mode retains old snapshots but excludes incompatible reference values."""
+    with database_session(phase3_root,write=True) as db:
+        a,b,r,item=seed(db)
+        identity,_=w.start(db,a,r,'UTC')
+        payload=data(db,a,identity);payload.update(weight='0',increase='1')
+        w.finish(db,a,identity,payload)
+        c.update_entry(db,a,r,item,dict(measurement_type='time',target_sets='3',minutes='0',seconds='45'))
+        next_id,_=w.start(db,a,r,'UTC')
+        row=w.entries(db,a,next_id)[0]
+        assert w.previous(db,a,w.session(db,a,next_id),row)==(None,None)
+        payload=data(db,a,next_id);payload.update(minutes='0',seconds='1',increase='1')
+        w.finish(db,a,next_id,payload)
+        third,_=w.start(db,a,r,'UTC')
+        row=w.entries(db,a,third)[0]
+        prior,performed=w.previous(db,a,w.session(db,a,third),row)
+        assert w.display_measurement(prior)=='0:01' and performed['increase_next_time']==1
+        assert w.entries(db,a,identity)[0]['actual_weight_tenths_lb']==0
+        assert w.entries(db,a,identity)[0]['measurement_type']=='weight'
+        with pytest.raises(c.MissingRecord):
+            w.start(db,b,r,'UTC')
+
+
+def test_finish_failure_rolls_back_pending_input_and_completion(phase3_root):
+    """An error after changing a pending entry cannot partially complete or erase a save."""
+    with database_session(phase3_root,write=True) as db:
+        a,_,r,_=seed(db);identity,_=w.start(db,a,r,'UTC')
+        payload=data(db,a,identity);payload['weight']='40'
+        w.update(db,a,identity,payload)
+    original=w.entries;calls=0
+
+    def fail_after_update(*args):
+        """Raise on finish's post-update consistency read, after the pending SQL write."""
+        nonlocal calls
+        calls+=1
+        if calls==2:
+            raise c.ValidationError('simulated finish failure')
+        return original(*args)
+
+    with pytest.raises(c.ValidationError):
+        with database_session(phase3_root,write=True) as db:
+            payload=data(db,a,identity);payload['weight']='42.56'
+            with patch.object(w,'entries',side_effect=fail_after_update):
+                w.finish(db,a,identity,payload)
+    with database_session(phase3_root) as db:
+        assert w.entries(db,a,identity)[0]['actual_weight_tenths_lb']==400
+        assert w.session(db,a,identity)['status']=='draft'
+        assert w.session(db,a,identity)['revision']==1
+
+
+def test_real_concurrent_start_and_update_serialization(phase3_root):
+    """Independent connections serialize starts and reject one of two stale writes."""
+    from concurrent.futures import ThreadPoolExecutor
+    with database_session(phase3_root,write=True) as db:
+        a,_,r,_=seed(db)
+
+    def begin(_):
+        """Start through a separately locked connection like another worker."""
+        with database_session(phase3_root,write=True) as db:
+            return w.start(db,a,r,'UTC')
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        starts=list(pool.map(begin,range(2)))
+    assert starts[0][0]==starts[1][0]
+    assert sorted(result[1] for result in starts)==[False,True]
+    identity=starts[0][0]
+    with database_session(phase3_root) as db:
+        payload=data(db,a,identity);payload['weight']='1'
+
+    def write(_):
+        """Both submit revision zero; exactly one may commit."""
+        try:
+            with database_session(phase3_root,write=True) as db:
+                w.update(db,a,identity,payload)
+            return 'saved'
+        except w.RevisionConflict:
+            return 'conflict'
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(write,range(2)))==['conflict','saved']
+    with database_session(phase3_root) as db:
+        assert w.session(db,a,identity)['revision']==1

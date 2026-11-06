@@ -1,0 +1,51 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Flask renders one snapshotted exercise. workout.js posts current input and
+   revision to Flask; only committed saves update the visible Saved indicator. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<script src="{{ url_for('static', filename='workout.js') }}" defer></script>
+<h2>{{ workout.routine_name }}</h2>
+<p>{{ workout.workout_date }} · Started {{ local_started.strftime('%H:%M:%S %Z') }} · {{ workout.timezone }}</p>
+<label for="workout-progress">Workout progress <span id="progress-text">{{ completed }} / {{ entries|length }}</span></label>
+<progress id="workout-progress" value="{{ completed }}" max="{{ entries|length }}">{{ completed }} / {{ entries|length }}</progress>
+<p id="save-status" role="status" aria-live="polite">Saved on server. Last confirmed: {{ workout.updated_at }}</p>
+{% if message %}<p role="alert">{{ message }}</p>{% endif %}
+<section>
+  <h3>{{ current.name }}</h3><p>Exercise {{ position + 1 }} of {{ entries|length }}</p>
+  {% if current.measurement_type == 'weight' %}<p>{{ current.target_sets }} sets × {{ current.target_reps }} reps · pounds{% if current.weight_meaning %} · {{ current.weight_meaning }}{% endif %}</p>
+  {% else %}<p>{{ current.target_sets }} sets × {{ current.target_duration_seconds // 60 }} min {{ current.target_duration_seconds % 60 }} sec per set</p>{% endif %}
+  {% if current.notes %}<p>{{ current.notes }}</p>{% endif %}
+  <p>Previous comparable session: {{ display(previous) }}{% if previous %} ({{ previous.workout_date }}){% endif %}</p>
+  <p>Previous recommendation: {% if previous is none %}No previous recommendation{% elif previous.increase_next_time is none %}Not applicable (skipped){% elif previous.increase_next_time == 1 %}Increase {{ 'weight' if current.measurement_type == 'weight' else 'duration' }} next time.{% else %}No increase requested.{% endif %}</p>
+  {% if previous and previous.actual_weight_tenths_lb is none and previous.actual_duration_seconds is none %}<p>Last performed: {{ display(last_performed) }}{% if last_performed and last_performed.increase_next_time == 1 %} · Increase {{ 'weight' if current.measurement_type == 'weight' else 'duration' }} next time{% endif %}</p>{% endif %}
+  <form id="workout-form" method="post" action="{{ url_for('workout.save', person_id=person.id, session_id=workout.id) }}" data-autosave="{{ url_for('workout.autosave', person_id=person.id, session_id=workout.id) }}">
+    {{ security() }}
+    <input type="hidden" name="revision" value="{{ workout.revision }}">
+    <input type="hidden" name="entry_id" value="{{ current.id }}">
+    <input type="hidden" name="current_position" value="{{ position }}">
+    {% if current.measurement_type == 'weight' %}
+    <label>Today’s weight (lb) <input name="weight" inputmode="decimal" type="text" maxlength="100" autocomplete="off" value="{% if current.actual_weight_tenths_lb is not none %}{{ current.actual_weight_tenths_lb // 10 }}.{{ current.actual_weight_tenths_lb % 10 }}{% endif %}"></label>
+    <p>Leave blank to skip. Zero is valid. Extra decimals are truncated, never rounded.</p>
+    {% else %}
+    <div class="duration"><label>Today’s minutes <input name="minutes" inputmode="numeric" type="text" maxlength="100" autocomplete="off" value="{% if current.actual_duration_seconds is not none %}{{ current.actual_duration_seconds // 60 }}{% endif %}"></label>
+    <label>Today’s seconds <input name="seconds" inputmode="numeric" type="text" maxlength="2" autocomplete="off" value="{% if current.actual_duration_seconds is not none %}{{ current.actual_duration_seconds % 60 }}{% endif %}"></label></div>
+    <p>Enter both parts (use 0 minutes if needed). Seconds: 0–59. Minimum: 1 second. Leave both blank to skip. One duration for this exercise, not one per set.</p>
+    {% endif %}
+    <label class="acknowledge"><input type="checkbox" name="increase" value="1" {% if current.increase_next_time == 1 %}checked{% endif %}> Increase {{ 'weight' if current.measurement_type == 'weight' else 'duration' }} next time</label>
+    <div class="actions"><button type="submit">Save draft</button><button type="submit" formaction="{{ url_for('workout.finish', person_id=person.id, session_id=workout.id) }}">Finish &amp; Save</button></div>
+    <div id="all-skipped-confirmation" {% if completed %}hidden{% endif %}>
+      <label class="acknowledge"><input type="checkbox" name="confirm_all_skipped" value="yes"> Confirm saving an entirely skipped workout</label>
+    </div>
+  </form>
+  <nav class="actions" aria-label="Exercise navigation">
+    {% if position > 0 %}<a class="pill" data-workout-nav data-position="{{ position - 1 }}" href="{{ url_for('workout.show', person_id=person.id, session_id=workout.id, position=position-1) }}">Back</a>{% endif %}
+    {% if position + 1 < entries|length %}<a class="pill" data-workout-nav data-position="{{ position + 1 }}" href="{{ url_for('workout.show', person_id=person.id, session_id=workout.id, position=position+1) }}">Next</a>{% endif %}
+  </nav>
+</section>
+<label for="exercise-jump">Jump to exercise</label>
+<select id="exercise-jump">{% for row in entries %}<option value="{{ row.position }}" data-url="{{ url_for('workout.show', person_id=person.id, session_id=workout.id, position=row.position) }}" {% if row.position == position %}selected{% endif %}>{{ row.position+1 }}. {{ row.name }}</option>{% endfor %}</select>
+<details><summary>Workout overview</summary><ol>{% for row in entries %}<li><a data-workout-nav data-position="{{ row.position }}" href="{{ url_for('workout.show', person_id=person.id, session_id=workout.id, position=row.position) }}">{{ row.name }}</a>: <span data-entry-state="{{ row.id }}">{{ display(row) }}</span></li>{% endfor %}</ol></details>
+<p><a class="pill" href="{{ url_for('workout.discard', person_id=person.id, session_id=workout.id) }}">Discard Workout</a></p>
+<noscript>Automatic saving needs JavaScript. Use Save draft before navigating or leaving this page. Only server-confirmed values can be recovered.</noscript>
+{% endblock %}

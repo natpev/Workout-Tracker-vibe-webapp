@@ -2,8 +2,9 @@
 """Flask application factory called by tests, Flask, and Gunicorn.
 
 Configuration selects external storage. Browser GET requests read readiness and
-render Jinja templates. Phase 2 registers CSRF-protected management forms;
-workout recording and later recovery interfaces remain absent.
+render Jinja templates. Management and workout blueprints use CSRF-protected
+forms; only explicitly migrated schema 3 enables workout recording. Later
+history exploration and recovery interfaces remain absent.
 """
 
 import os
@@ -13,7 +14,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 
 
 def create_app(test_config=None):
@@ -31,13 +32,17 @@ def create_app(test_config=None):
     if test_config:
         app.config.update(test_config)
     initial = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
-    if initial["schema_version"] == 2 and not app.config["SECRET_KEY"]:
+    if initial["schema_version"] >= 2 and not app.config["SECRET_KEY"]:
         # Signing keys are provisioned by explicit migration, never startup.
         # Do not follow a key symlink or print its private bytes in an error.
         app.config["SECRET_KEY"] = load_signing_key(app.config["WORKOUT_DATA_ROOT"])
     from .views import bp
     from .catalog import ValidationError, MissingRecord
     app.register_blueprint(bp)
+    from .workout_views import bp as workout_bp
+    from .workouts import configured_timezone
+    app.config["WORKOUT_TIMEZONE"] = configured_timezone(app.config.get("WORKOUT_TIMEZONE") or os.environ.get("WORKOUT_TIMEZONE"))
+    app.register_blueprint(workout_bp)
 
     @app.errorhandler(ValidationError)
     def invalid_form(error):
@@ -68,7 +73,7 @@ def create_app(test_config=None):
     @app.get("/")
     def home():
         """Render the foundation shell; it reads no workout or person records."""
-        if inspect_storage(app.config["WORKOUT_DATA_ROOT"])["schema_version"] == 2:
+        if inspect_storage(app.config["WORKOUT_DATA_ROOT"])["schema_version"] >= 2:
             return redirect(url_for("manage.people"))
         return render_template("home.html", version=APP_VERSION)
 
@@ -77,7 +82,7 @@ def create_app(test_config=None):
         """Recheck storage and return 503 on failure without leaking paths."""
         try:
             details = inspect_storage(app.config["WORKOUT_DATA_ROOT"])
-            if details["schema_version"] == 2 and not app.secret_key:
+            if details["schema_version"] >= 2 and not app.secret_key:
                 raise StorageError("Restart required after explicit migration.")
         except StorageError:
             app.logger.error("Storage readiness verification failed; writes remain unavailable.")

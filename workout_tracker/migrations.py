@@ -1,5 +1,5 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-"""Explicit schema-1 -> schema-2 candidate migration called only by the CLI.
+"""Explicit schema-1/2 -> schema-2/3 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -25,7 +25,7 @@ def _digest(path):
 
 
 def _upgrade_candidate(connection, target_version=2):
-    """Apply Phase 2 DDL only to a brand-new copied database in one transaction."""
+    """Add the requested known schema only to a copied candidate in one transaction."""
     connection.execute("PRAGMA foreign_keys=ON")
     connection.execute("PRAGMA synchronous=FULL")
     connection.execute("BEGIN IMMEDIATE")
@@ -58,8 +58,8 @@ def _write_manifest(path, selection):
 def migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    This supports exactly the known metadata-only v1 schema. A compatible v2
-    invocation is a read-only no-op. The caller must stop external tools and
+    Known schema 1/2 sources may upgrade to target 2/3. A matching target
+    invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
@@ -161,4 +161,4 @@ def _validate_candidate(root, candidate, selection):
     """
     details = _inspect_unlocked(root, selection=selection)
     if details["schema_version"] not in (2, 3) or details["database"] != candidate:
-        raise StorageError("Candidate validation did not select schema 2.")
+        raise StorageError("Candidate schema validation failed.")

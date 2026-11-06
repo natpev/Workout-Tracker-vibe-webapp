@@ -4,7 +4,7 @@
 Explicit initialization creates a new external storage directory. Startup
 only reads existing storage. Phase 2 services use validated, locked connections
 to write definitions; only the separate migration module may change a schema.
-This module uses pathlib, SQLite, and POSIX file syncing, not a workout database.
+This module uses pathlib, SQLite and POSIX locking/syncing for configured storage.
 """
 
 import json
@@ -254,7 +254,7 @@ def inspect_storage(value):
 
 @contextmanager
 def database_session(value, *, write=False, minimum_version=2):
-    """Routes/services use one validated schema-2 connection per transaction.
+    """Routes/services use one validated schema-2/3 connection per transaction.
 
     Browser -> route -> service -> this connection. A write takes an exclusive
     root lock before SQLite BEGIN IMMEDIATE; migration cannot pass it. No

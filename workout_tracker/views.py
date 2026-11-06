@@ -110,13 +110,16 @@ def dashboard(person_id):
             else:
                 raise catalog.ValidationError("Choose create or copy.")
         else:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            from .workouts import active
+            draft = active(db, person_id) if version >= 3 else None
             routines = db.execute("SELECT * FROM routines WHERE person_id=? AND archived=0 ORDER BY position",
                                   (person_id,)).fetchall()
             sources = db.execute("SELECT r.*,p.name AS person_name FROM routines r JOIN people p ON r.person_id=p.id "
                                  "WHERE r.archived=0 AND p.archived=0 ORDER BY p.name,r.position").fetchall()
     if request.method == "POST":
         return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=identity), code=303)
-    return render_template("dashboard.html", person=selected, routines=routines, sources=sources)
+    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3)
 
 
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
@@ -169,12 +172,15 @@ def edit_routine(person_id, routine_id):
             definitions = db.execute("SELECT * FROM exercises WHERE person_id=? AND archived=0 ORDER BY name,id",
                                      (person_id,)).fetchall()
             revision = routine_token(db, person_id, routine_id)
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            from .workouts import active
+            draft = active(db, person_id) if version >= 3 else None
     if request.method == "POST":
         if action == "delete":
             return redirect(url_for("manage.dashboard", person_id=person_id), code=303)
         return redirect(return_to if action == "duplicate" else request.path, code=303)
     return render_template("routine.html", person=selected, routine=parent, entries=rows,
-                           exercises=definitions, revision=revision, item=None)
+                           exercises=definitions, revision=revision, item=None, workout_enabled=version >= 3, active_draft=draft)
 
 
 @bp.route("/people/<person_id>/routines/<routine_id>/items/<entry_id>", methods=["GET", "POST"])
