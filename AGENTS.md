@@ -5,7 +5,7 @@ AGENTS.md — Workout Tracker
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current authorization: Phase 4 only — per-person history/filtering, local Weight/Time charts/statistics, independent historical entry, append-only corrections/audit and safe candidate schema 4. Work on phase-4-history-charts from approved main. Stop for review; do not merge/delete this branch or begin Phase 5. No deployment, real workout data, backup scheduling, restore UI or persistent application log viewer is authorized.
+• Current status: Phases 1–4 are completed and approved. The approved Phase 4 merge uses a fast-forward into main, followed by verification and removal of the fully merged feature branch. Phase 5 is next but is not authorized. No additional development, deployment, real workout data, backup scheduling, restore UI or persistent application log viewer is authorized.
 • Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.

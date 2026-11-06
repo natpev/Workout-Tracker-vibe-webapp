@@ -6,8 +6,11 @@
 
 `phase-4-history-charts` starts from fetched main
 `52cba2a6415757dff98eb2509f72a6b91eea1c8d`, verified to include approved Phase 3.
-Main is not changed. Stop for review; do not merge or delete this branch before
-approval. No Phase 5, deployment or production database access is included.
+Phase 4 was reviewed and approved on November 6, 2026. The authorized completion
+workflow fast-forwards main after full regression testing, verifies remote
+containment and then deletes the fully merged feature branch. Phase 5 is next
+but requires separate authorization. No deployment or production database access
+is included.
 
 - `406b429`: candidate-only schema 4, immutable historical records, correction
   overlays, ownership/chronology services and migration/service tests.
@@ -15,7 +18,8 @@ approval. No Phase 5, deployment or production database access is included.
   container tests, effective legacy references and responsive chart styling.
 - `28f3d42`: repeated-hour UTC ordering/fold-only correction regression and
   readable phone chart labels.
-- Documentation and final test evidence follow in a separate commit.
+- `0ed5ba7`: implementation documentation and complete-suite validation.
+- Approval/status documentation is committed before the approved fast-forward.
 
 ## Implemented behavior and significant data flow
 
@@ -103,7 +107,7 @@ Final complete-suite command:
 WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q
 ```
 
-**175 passed in 49.71 seconds; no failures or skips**: 161 service/HTTP/storage
+Approval regression rerun on November 6, 2026: **175 passed in 49.94 seconds; no failures or skips**: 161 service/HTTP/storage
 tests, 9 Chromium browser tests and 5 Docker tests. All earlier Phase 1–3 tests
 remain included. The final Docker image was rebuilt from the tested source.
 Coverage includes original-byte/NULL preservation, failed candidate/activation

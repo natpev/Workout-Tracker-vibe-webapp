@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–3 and Weight/Time design are approved and merged. Phase 4 only is authorized and implemented for review on phase-4-history-charts. Do not merge/delete it or begin Phase 5 without approval. No deployment or real workout data access is authorized.
+**Project status:** Phases 1–4 and Weight/Time design are completed and approved for main. Phase 4 is approved for fast-forward merge and verified branch cleanup. Phase 5 is next and requires separate authorization. No deployment or real workout data access is authorized.
 **Current scope:** existing management/tracking plus per-person completed history, occurrence-based filters, local typed charts, historical completion independent of active drafts, append-only corrections/audit and safe candidate schema 4. Full backup/restore, scheduling and persistent application log viewing remain Phase 5.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -10,7 +10,7 @@
 
 - **Backend:** Python + Flask.
 - **Database:** SQLite (simple local file database).
-- **UI:** responsive HTML/CSS with minimal JavaScript; a charting library for exercise history.
+- **UI:** responsive HTML/CSS with minimal JavaScript; locally rendered SVG charts for exercise history.
 - **Packaging/hosting:** Docker Compose on a Linux home server, possibly hosted by Proxmox; no requirement for cloud services or public internet access.
 - **GitHub:** initially private repository. Codex may plan and implement code only after user approval; use reviewable changes.
 - **Access:** local home network only for v1. Architecture must permit later remote access with HTTPS/authentication, but not expose it now. Initial user switching is **not authentication**.
@@ -72,7 +72,7 @@
 ## 5. Screen designs and styling
 
 ### Screen A — Home
-- User switching remains through the existing People screen, without browser-style tabs. Start Workout and History & Progress remain future workflow actions; routine management and appearance keep their existing Phase 2 UI.
+- User switching remains through the existing People screen, without browser-style tabs. Workout entry, History and Progress links are implemented; routine management and appearance keep their existing Phase 2 UI.
 - Keep basic workout action obvious and minimize text-entry steps.
 
 ### Screen B — Workout selection
@@ -178,12 +178,12 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–3 approved and merged; Phase 4 implemented for review)
+## 12. Phased plan (Phases 1–4 completed and approved; Phase 5 next, not authorized)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
-4. **History (implemented for review):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
+4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 

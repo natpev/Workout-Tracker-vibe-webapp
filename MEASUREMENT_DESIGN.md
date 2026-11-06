@@ -9,9 +9,9 @@ exercise definitions and the typed routine editor, plus the minimal safe
 schema-1 → schema-2 migration prerequisite. Phase 3 is reviewed, approved and
 merged into main, including typed workout entry, snapshots, server drafts,
 recovery, previous performance, atomic completion/discard and candidate schema 3.
-Phase 4 only is now authorized and implemented for review on phase-4-history-charts:
+Phase 4 is completed and approved for inclusion in main:
 history, local SVG charts, independent historical completion and append-only
-correction revisions. Stop before merging or beginning Phase 5. Full backup/
+correction revisions. Phase 5 is next and requires separate authorization. Full backup/
 restore, scheduling and application log viewing remain later phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.

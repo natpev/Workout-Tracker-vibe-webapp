@@ -4,8 +4,8 @@
 
 Phase 4 implements per-person workout history, local progress charts, independent
 historical entry and append-only corrections. Phases 1–3 remain approved and
-intact. Phase 4 is implemented for review on `phase-4-history-charts`; do not merge
-or delete it before approval. No Phase 5, backups/scheduling, restore interface,
+intact. Phase 4 is completed and approved for inclusion in main. Phase 5 is next
+and requires separate authorization. No Phase 5, backups/scheduling, restore interface,
 persistent application log viewer, deployment or real-data access is authorized.
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
