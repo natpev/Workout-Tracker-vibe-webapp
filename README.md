@@ -2,17 +2,17 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software; not audited or approved for production.
 
-Phase 2 implements people, permanent exercise definitions, and independently
-copyable Weight/Time routines. It includes only the safe migration prerequisite
-needed for this phase. Phase 2 is reviewed and approved; only documentation,
-regression verification, merge and branch cleanup are currently authorized.
-Phase 3 requires separate authorization. No workout logging,
-results, historical charts, automatic backups, scheduling, or restore UI exists.
-Do not deploy or connect to real workout data.
+Phase 3 implements starting workouts, one-exercise entry, snapshots, server
+save/resume, previous performance, atomic completion and confirmed discard.
+Phase 1/2 management remains intact. Phase 3 is authorized for implementation
+and review only: do not merge its branch or start Phase 4 without approval.
+No charts, backdated entry, completed-workout editing, automatic backups,
+scheduling, restore UI or log viewer is included. Do not deploy or use real data.
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
 [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
-and limitations are in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md); the earlier
+and limitations are in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
+[PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) and the earlier
 [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) is retained as a historical record.
 
 ## Architecture and data flow
@@ -20,7 +20,9 @@ and limitations are in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md); the earlier
 - `workout_tracker/__init__.py`: Flask factory, configuration, readiness, safe errors and browser protections.
 - `storage.py`: external-path validation, explicit first install, schema verification and per-transaction locking. Every database connection enables foreign keys.
 - `schema.py`: exact schema-2 definitions; no performance tables.
-- `migrations.py`: explicit schema-1 → schema-2 candidate-only upgrade and atomic selection.
+- `workout_schema.py`: schema-3 session/entry snapshots, one-draft index and immutable-finalized-record triggers.
+- `migrations.py`: explicit candidate-only upgrade from known schema 1/2 to target 2/3, with row-by-row original-data verification.
+- `workouts.py`, `workout_views.py`, `static/workout.js`: exact measurements, server drafts, serialized autosave, revision conflicts and atomic finalization.
 - `catalog.py`: parameterized SQL and rules for people, identities, ordering, typed targets, and independent copies.
 - `views.py`: CSRF-protected forms, ownership checks and stale-routine conflict detection.
 - `__main__.py`: operator initialization, verification and migration commands.
@@ -36,12 +38,12 @@ can reach this passwordless household app can choose another person.
 
 Requires Linux, Python 3.12+, local POSIX storage supporting SQLite, flock, hard
 links and directory syncing, and SQLite 3.37+ for STRICT tables. Dependencies and
-the Docker base-image digest are pinned. There are no new Phase 2 dependencies.
+the Docker base-image digest are pinned. Phase 3 adds no third-party dependencies; timezone handling uses Python zoneinfo.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests/test_foundation.py tests/test_migrations.py tests/test_catalog.py tests/test_management.py
+.venv/bin/python -m pytest -q tests/test_foundation.py tests/test_migrations.py tests/test_catalog.py tests/test_management.py tests/test_workouts.py tests/test_workout_http.py
 ```
 
 For a **disposable local review**, explicitly create a new, nonexistent external
@@ -52,20 +54,19 @@ It creates schema 1 first; a separate explicit command copies/upgrades it.
 export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 .venv/bin/python -m workout_tracker init-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-new-storage
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
-.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade
+.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 3
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
 .venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --threads 2 'workout_tracker:create_app()'
 ```
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.2.0`, and schema version `2`. Schema 1 still opens
-the foundation shell, but management requires explicit migration and reports 503
-until it is performed. Restart any schema-1 process after migration so it loads
-the newly provisioned signing key; an old process returns 503 rather than broken
-forms. Startup never initializes, migrates, repairs or replaces
-storage. Missing or corrupt storage must be investigated, not worked around by
-initializing another path.
+`status: ready`, app version `0.3.0`, and schema version `3`. Schema 1 still opens
+the foundation shell; schema 2 supports existing management but not workout
+recording. Startup never migrates these automatically. Stop workers before
+explicit upgrade, then restart them to reload configuration/signing keys.
+Missing/damaged/incompatible storage is an error, never permission to initialize
+another database or replace an existing one.
 
 ## People, exercise names, and routines
 
@@ -88,20 +89,21 @@ configuration. Numeric inputs provide the approved simple set controls.
 
 Configuration limits: sets 1–1000, reps 1–10000, target duration 1–359999 seconds
 (0–5999 minutes, 0–59 seconds); names 100 characters, notes 2000 and weight
-meaning 200. These bounds prevent invalid configuration, not define future
-actual-result precision. There are no actual weight/duration or increase-flag
-columns in Phase 2. Final Phase 3 rules are documented below; no workout-entry
-functionality or schema changes are introduced during Phase 2 finalization.
+meaning 200. These are configuration bounds. Schema 3 adds separate actual
+measurement/flag columns without altering retained schema-2 files.
 
-Phase 3 must store pounds as **integer tenths**, truncate additional decimal
+Phase 3 stores pounds as **integer tenths**, truncate additional decimal
 digits **without rounding**, and display one decimal place: 40.99 → 40.9
 (stored 409), 42.56 → 42.5 (425), 40 → 40.0 (400). Explicit zero is valid
 (stored 0); empty weight is SQL NULL. Actual time is one duration per exercise
 regardless of set count, stored as integer seconds with minimum 1; zero is
 invalid and empty is SQL NULL. Every skipped exercise retains a saved entry
 with NULL measurements, never zero or prior results. Historical snapshots
-preserve tracking type and measurements even after routine edits. These are
-future implementation requirements, not current runtime capabilities.
+preserve tracking type and measurements even after routine edits. For performed
+durations both minute and second parts are required (use explicit 0 minutes);
+partial, negative, fractional or malformed values show a validation error. Actual
+measurements are bounded by SQLite signed 64-bit integers; input strings are
+limited to 100 characters. Previous values never prefill a new workout.
 
 Use the routine's up/down controls to reorder routines or exercises. Duplicate
 within a person or use Copy a routine to copy between people. Every copy gets
@@ -109,12 +111,59 @@ fresh routine/item/exercise identities and independent settings, with no workout
 history, results or increase state. Routine edit forms reject stale submissions
 with 409; reload before retrying if another page has changed the routine.
 
+## Start, save, resume, finish, and discard
+
+Choose a person through People, open their routine, and choose Start workout.
+An empty routine must first get exercises. Starting copies every configuration
+into a separate snapshot with blank actual values and records the local date,
+UTC timestamp and configured IANA zone. Only one active draft is allowed per
+person; another start offers Resume or explicit Discard, never replacement.
+Routine editing/removal cannot change this draft or a completed snapshot.
+
+One exercise appears at a time with target sets/reps or duration, optional notes,
+previous comparable performance and increase recommendation. If the previous
+session skipped it, the last performed result is shown separately. Comparisons
+require the same person, permanent exercise identity, measurement type and
+unit/weight meaning. Drafts/discarded workouts are excluded from comparisons.
+
+Enter one measurement per exercise, independent of sets. Back/Next, the jump
+selector and expandable overview navigate without marking blank entries done.
+Progress counts non-NULL actual values; explicit zero pounds counts. Save draft
+is available manually. With JavaScript, input automatically saves after a short
+debounce. The Saved indicator, progress and overview change only on a valid
+post-commit acknowledgment. Values typed during a pending save are preserved and
+sent next; saved weights are normalized to one decimal place.
+
+Navigation and Finish wait for pending saves. Validation/network errors leave
+input visible and preserve earlier committed values. A stale tab receives a
+conflict and cannot overwrite newer data; copy any unsaved text before reloading.
+An acknowledgment can be lost after the server committed: reload to inspect the
+persisted result rather than assuming a failed response means no commit.
+Server-confirmed drafts survive refresh, browser closure and application/container
+restart. Closing/force-killing a browser before acknowledgment cannot guarantee
+unsaved input persistence; a before-unload warning is provided. There is no
+offline client queue. Without JavaScript, use Save draft before navigating;
+autosave, jump interaction and the acknowledgment-gated discard UI require JS.
+
+Finish & Save validates current input again and commits the whole snapshot and
+completion status atomically. Skips keep their rows with SQL NULL values. An
+entirely skipped workout needs the additional confirmation checkbox. Repeated
+Finish requests return the same saved session without duplicate completion.
+The completion page shows this single saved workout; it is not a history browser.
+
+Discard Workout opens “Are you sure?” with an explicit warning and acknowledgment
+checkbox. OK stays disabled until checked. Cancel/Escape preserve the draft.
+Confirmed discard changes only that unfinished session's status, retains its
+snapshot, and never deletes completed history. Completed/discarded snapshots are
+read-only in this phase; correction workflows await Phase 4.
+
 ## Storage and explicit migration safety
 
 ```text
 external-storage/
   data/schema-1-<identity>.sqlite3              # unchanged original
-  data/schema-2-<identity>-<candidate>.sqlite3  # candidate/current schema 2
+  data/schema-2-<identity>-<candidate>.sqlite3  # retained Phase 2 original
+  data/schema-3-<identity>-<candidate>.sqlite3  # current workout schema
   config/active.json                          # active database selection
   config/session.key                         # private session signing material
   archives/selection-before-<candidate>.json   # original selection
@@ -125,22 +174,25 @@ external-storage/
 The CLI takes the same persistent-root lock used by all app connections. It
 refuses maintenance while a request holds a connection; stop workers and all
 external SQLite tools before migration. External tools do not follow our lock
-protocol. Only the known schema 1 can upgrade to 2.
+protocol. Known schema 1/2 can explicitly upgrade to 3; target 2 remains available
+for compatible Phase 2 tooling. The CLI defaults to target 3; its programmatic
+helper keeps the existing target-2 default for backward-compatible callers.
 
 Migration opens the original read-only and creates a distinct candidate using
 SQLite's backup API. DDL changes only the candidate. Checks cover application
 identity, exact schema, integrity, foreign keys, schema/migration versions,
-original metadata equality, empty new domain tables, and original file hashes.
+equality of every pre-existing table row including NULLs, empty new tables, and
+original file hashes. New schema-3 table/index/trigger definitions are verified.
 The candidate and selection files are synced before atomic manifest replacement.
 A post-switch sync failure attempts atomic restoration of the original selection;
 if that also fails, the CLI reports uncertainty and requires inspection. No
 original database is overwritten or removed. Previous versions stay in `data/`
 and their selection manifests in `archives/`; failed candidates stay for diagnosis.
 
-Both supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
+All three supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
 sidecars are refused **before** SQLite opens a source; there is no implicit
 recovery. Unknown, damaged, missing, symlinked or incompatible storage never
-becomes an empty replacement. A compatible schema-2 migration request is a
+becomes an empty replacement. A migration request matching the selected schema version is a
 read-only no-op. Ordinary compatible application updates just replace code/image
 and never trigger a copy, migration, or backup.
 
@@ -158,23 +210,24 @@ HttpOnly/SameSite=Lax; Secure is not enabled for the current loopback HTTP revie
 | `WORKOUT_DATA_ROOT` | Required absolute storage directory outside the checkout; no implicit default. |
 | `WORKOUT_TRUSTED_HOSTS` | Accepted hostnames, default `localhost,127.0.0.1,[::1]`; host-header validation, not authentication. |
 | `WORKOUT_SECRET_KEY` | Optional private operator-provided signing key; otherwise use the explicitly provisioned private file. |
+| `WORKOUT_TIMEZONE` | Installed IANA server-local zone for workout dates; defaults to server local, then UTC. Compose defaults explicitly to Etc/UTC; set your intended household zone before review. |
 | `WORKOUT_PORT` | Compose host port, default 8000, loopback only. |
 | `WORKOUT_UID`, `WORKOUT_GID` | Compose process identity; match the owner of private storage. Defaults 10001. |
 | `WORKOUT_BUILD_CA_BUNDLE` | Build CA bundle, default system bundle. Keep TLS verification enabled. |
 
 The image uses a non-root process. Compose keeps its root filesystem read-only
-but its **external storage mount writable** for definition transactions. It
+but its **external storage mount writable** for definition and workout transactions. It
 refuses to create a missing host mount, drops capabilities, and publishes loopback
 only. Storage/key permissions must allow the configured UID/GID; do not make
 private storage world-readable to fix ownership. No live home-server deployment
 is authorized. Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase2-review` with build secret
+For isolated image review, build `workout-tracker:phase3-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase2-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase3-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -183,7 +236,7 @@ own containers. Browser tests need Chromium and optional pinned dependencies:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-browser.txt
-.venv/bin/python -m pytest -q tests/test_browser.py
+.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py
 ```
 
 Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set

@@ -1,16 +1,17 @@
 # Weight and Time exercise design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Routine configuration is implemented in Phase 2; workout results and history remain planned. Review and test before use.
+> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Phase 3 implements workout entry, persistence and snapshots; history exploration and charts remain planned. Review and test before use.
 
 ## Current state and authorization
 
 Phase 1, this design and Phase 2 are reviewed and approved. Phase 2 implements people, permanent
 exercise definitions and the typed routine editor, plus the minimal safe
-schema-1 → schema-2 migration prerequisite. Current authorization is finalization,
-testing, consolidation and completed-branch cleanup only; Phase 3 is not authorized.
-Workout entry, measurement results, snapshots/history, charts, full backup and
-restore interfaces, and scheduling are not implemented. No deployment or
-production data access is authorized. See PHASE_2_REVIEW.md for current evidence.
+schema-1 → schema-2 migration prerequisite. Phase 3 is now authorized and
+implements typed workout entry, snapshots, server drafts, recovery, previous
+performance, atomic completion and discard, plus separate-candidate schema 3.
+Stop for review without merging/deleting the Phase 3 branch. Charts, backdated
+entry, corrections, full backup/restore, scheduling and log viewing remain later
+phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 
@@ -47,9 +48,10 @@ duration control as skipped; a partially entered control must be handled by an
 explicit validation rule, not silently converted into a skip. Require whole
 minutes and seconds, nonnegative minutes and seconds in 0–59; reject fractional
 seconds and invalid values. A nonblank actual duration must be at least 1
-second; zero is invalid, while fully empty remains SQL NULL. Partial-input
-layout/validation details remain open for Phase 3. Implement none of these
-actual-measurement rules as Phase 2 workout-entry functionality.
+second; zero is invalid, while fully empty remains SQL NULL. Both parts must
+be supplied for a performed duration, including explicit zero minutes when
+appropriate. Partial input is an error, never silently normalized to a skip.
+The implementation lives in schema 3 and does not alter retained schema-2 files.
 
 Show previous matching weight/duration and its increase recommendation. When the
 previous matching session was skipped, show that fact and the last performed
@@ -66,14 +68,14 @@ from numeric performance summaries and charts. Explicit zero weight is valid.
 All screens retain mobile-first rounded cards, oval buttons, large inputs, and
 Auto/Light/Dark themes. No external assets or third-party service is required.
 
-## Schema design (routine configuration implemented; results remain planned)
+## Schema design (schema-3 sessions and results implemented)
 
 Type belongs to the routine's exercise configuration and is copied into each
 session entry. Permanent exercise identities remain person-owned. A type edit
 changes future routine usage, never earlier snapshots or existing drafts.
 History queries use the entry's type, not the routine's current type.
 
-| Planned record | Fields relevant to this feature |
+| Record | Fields relevant to this feature |
 | --- | --- |
 | Routine exercise | `exercise_id`, `measurement_type` (`weight`/`time`), `target_sets`, `target_reps`, `target_duration_seconds`, optional exercise notes and weight-meaning metadata. |
 | Session entry snapshot | Permanent exercise ID, name/order, measurement type, target sets, target reps or duration seconds, unit/weight meaning, optional notes, nullable integer `actual_weight_tenths_lb`, nullable integer `actual_duration_seconds`, nullable increase flag. |
@@ -87,7 +89,9 @@ stored 400. Explicit zero stores 0 and displays 0.0; empty input is SQL NULL.
 Use exact decimal parsing, not binary floating-point rounding. Duration is a
 STRICT SQLite INTEGER in seconds, minimum 1 for a non-NULL actual measurement;
 zero is invalid and empty is SQL NULL. Target duration also uses integer seconds.
-These result columns are Phase 3 design only; schema 2 stays unchanged.
+These result columns are implemented in schema 3; retained schema 2 stays unchanged.
+Both actual representations are bounded by SQLite signed 64-bit integers; form
+measurement strings are limited to 100 characters before parsing.
 
 Required database constraints and service invariants:
 
@@ -119,10 +123,11 @@ duration must remain distinguishable in tables and charts.
 ## Schema compatibility, migration, and rollback
 
 Phase 2 implements an explicit candidate-only migration from metadata-only
-schema 1 to schema 2. Its source remains unchanged, and startup still never
-migrates or initializes. Schema 2 adds configuration only; there are no actual
-measurements, NULL/zero results, or history records to transform. Future domain
-changes require separately reviewed migrations, never in-place alterations.
+schema 1 to schema 2. Phase 3 extends this with explicit schema 1/2 → 3
+candidates. Original files remain unchanged. Existing metadata, people, exercise
+definitions and routine targets (including NULLs) are compared row-for-row; only
+new workout tables/index/triggers are added. Startup never migrates or initializes.
+Future domain changes require separately reviewed candidates, not in-place changes.
 
 When a later authorized phase adds domain tables, determine the required schema
 version explicitly. Normal startup must continue refusing unsupported versions;
@@ -150,7 +155,7 @@ workouts; disclose this before any future recovery action.
 
 ## Future automated acceptance tests by phase
 
-Phase 2 routine tests are now implemented; workout/history/recovery assertions remain future tests, not claimed as passing.
+Phase 2 routine tests and Phase 3 workout/persistence/migration tests are implemented. General history, backup and restore assertions remain future tests, not claimed as passing.
 Use disposable fixtures only, including corruption/migration/restore tests.
 
 | Phase | Required automated coverage |
@@ -162,20 +167,21 @@ Use disposable fixtures only, including corruption/migration/restore tests.
 
 ## Open decisions and validation history
 
-Before implementing affected phases, resolve upper weight/duration limits,
-partially entered duration control behavior, time personal-record rules, and
-editable correction fields/audit behavior. Weight precision/truncation/storage,
+Before later phases, resolve time personal-record rules and editable correction
+fields/audit behavior, plus any future product-specific limits below the SQLite
+storage bounds. Phase 3 uses signed 64-bit integer storage and requires both
+duration parts or neither; partial input is a clear validation error. Weight precision/truncation/storage,
 valid zero weight, minimum-one-second actual time, empty-as-NULL semantics and
 People-screen switching are final decisions, not open questions. Every skipped
 exercise must retain its own snapshot entry with NULL measurements; never
 substitute zero or previous performance, and preserve tracking type and values.
-Implementation belongs to Phase 3 after separate authorization.
+These rules are now implemented in authorized Phase 3, with no Phase 4 work.
 
-Current Phase 2 validation covers routine configuration, independent copies,
-integer-second targets, migration success/failure, source preservation, and
-browser/container behavior. See [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) for the
-99-test result and remaining limits. Workout entry/history/backup assertions
-still await their authorized phases.
+Phase 2 validation remains recorded in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md).
+Current Phase 3 evidence is in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md), including
+workout entry, NULL/zero semantics, truncation, concurrent writes, network faults,
+restart recovery, candidate migration and browser/container regressions. General
+history/backup assertions still await their authorized phases.
 
 Historical design-only branch (`a5f7c35`): 37 existing foundation tests passed;
 documentation links, disclosures and whitespace checks passed. No application

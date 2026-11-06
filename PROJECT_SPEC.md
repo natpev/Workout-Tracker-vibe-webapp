@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phase 1, Weight/Time design, and Phase 2 reviewed and approved. Finalization authorizes documentation, complete regression testing, merge into main and cleanup of fully merged branches only. Phase 3 has not begun and requires separate implementation authorization. No deployment or real workout data is authorized.
-**Current scope:** people, permanent exercise definitions, typed routine configuration, and the minimal explicit candidate-only migration necessary for schema 2. Workout logging, snapshots/results, charts, automatic backups, restore UI, and scheduling remain later phases.
+**Project status:** Phase 1, Weight/Time design and Phase 2 are approved and merged. Phase 3 only is authorized and implemented on phase-3-workout-tracking for review. Do not merge/delete its branch or begin Phase 4 without approval. No deployment or real workout data is authorized.
+**Current scope:** existing management plus workout start/resume, immutable entry snapshots, autosaved drafts, exact typed measurements, previous performance, revision conflicts, atomic Finish & Save, confirmed discard, and safe schema-3 migration. Charts, backdated entry, saved-workout corrections, full backup/restore, scheduling and log viewing remain later phases.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -43,7 +43,7 @@
 ### Weight, time, and skipped-exercise semantics (important)
 
 - The current measurement input initially starts **blank** for both types; previous performance is visible for reference but is **not silently prefilled**. This prevents accidentally treating a skipped exercise as performed.
-- Phase 3 rule: weight defaults to pounds with at most **one decimal place**. Truncate additional digits, **never round**: 40.99 → 40.9; 42.56 → 42.5; whole 40 displays as 40.0. Store integer tenths of a pound (`actual_weight_tenths_lb`), so 40.9 lb = 409. Parse decimal input exactly rather than using binary floating-point rounding. Explicit zero is valid, stores 0, and counts as entered; empty input stores SQL NULL. This rule is documented now but must be implemented only in authorized Phase 3 work.
+- Phase 3 rule: weight defaults to pounds with at most **one decimal place**. Truncate additional digits, **never round**: 40.99 → 40.9; 42.56 → 42.5; whole 40 displays as 40.0. Store integer tenths of a pound (`actual_weight_tenths_lb`), so 40.9 lb = 409. Parse decimal input exactly rather than using binary floating-point rounding. Explicit zero is valid, stores 0, and counts as entered; empty input stores SQL NULL. This is implemented in Phase 3; retained Phase 2 databases are not altered in place.
 - When the user finishes/saves, **each exercise from the session's routine snapshot gets a saved workout-entry record**, even if its applicable measurement was never entered.
 - If skipped, the applicable measurement must be true SQL **`NULL`**: weight for Weight exercises or duration for Time exercises. `NULL` ≠ `0` and ≠ the previous measurement; a skipped exercise must **not be omitted** from the saved workout.
 - A blank measurement does not count toward the workout progress bar. Progress means **number of exercises with non-NULL applicable measurements / total exercises**, across both types. Explicit zero weight counts as entered. Navigating to an exercise does not mark it done.
@@ -57,7 +57,7 @@
 - Keep a **snapshot** of exercise names, order, measurement type, target sets, target reps or duration, unit/weight meaning, optional exercise notes, and related prescribed routine information in every saved session; changes to routines never alter old sessions.
 - A user's previous weights/increase flags must be drawn only from that user's logged exercise history; copied routine ownership must not leak values from another person.
 - Prevent accidental duplicate workouts if Finish & Save is tapped twice or retried.
-- Time exercises have a target duration per set entered as minutes and seconds, and one actual duration per exercise regardless of set count. Store both target and actual durations as integer seconds, not decimal minutes; do not multiply actual duration by sets. Phase 3 actual duration must be at least 1 second: zero seconds is invalid, and empty duration stores SQL NULL for a skipped exercise. Actual-duration maximum/input-layout details remain open; these rules do not add measurement entry to Phase 2.
+- Time exercises have a target duration per set entered as minutes and seconds, and one actual duration per exercise regardless of set count. Store both target and actual durations as integer seconds, not decimal minutes; do not multiply actual duration by sets. Phase 3 actual duration must be at least 1 second: zero seconds is invalid, and empty duration stores SQL NULL for a skipped exercise. Both minutes and seconds must be supplied for a performed duration; partially blank or malformed input is a validation error. Fully blank means SQL NULL. Phase 3 uses the signed 64-bit SQLite integer storage limit and bounds form strings to 100 characters; it does not change retained Phase 2 databases.
 - Allow one active draft per user. Allow completing an entirely skipped workout only after confirmation.
 
 ## 4. Manual historical entry and history
@@ -102,14 +102,14 @@
 - Theme options: **Auto** (follow phone/computer appearance, the default), **Light**, **Dark**, with a manual override stored for that device/browser rather than changing the theme unexpectedly on another device.
 - Phone primarily for workout entry; PC primarily for routine editing, history tables and charts, but both should remain usable everywhere.
 
-## 6. Data model (Phase 2 implemented; workout tables still conceptual)
+## 6. Data model (Phase 3 schema 3 implemented)
 
 - **Users (`people`)** — permanent UUID, display name, archive flag. Phase 2 always archives rather than deletes people, preserving records whether or not history exists.
 - **Exercises (`exercises`)** — permanent person-owned UUIDs, names and archive status, independent of future historical snapshots. Renaming a reused identity updates this person’s routine displays; independent copies receive new identities.
 - **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Delete removes from active lists by archiving, never reuses an identity.
 - **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite foreign keys enforce matching ownership. Type is selected on the routine exercise, not inferred from its name.
-- **Workout sessions (not implemented)** — person, started/finished timestamps, date, selected routine identification, draft/completed/discarded status.
-- **Workout entries (not implemented)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
+- **Workout sessions (`workout_sessions`)** — permanent ID, person/routine ownership, routine-name snapshot, UTC started/updated/finished/discarded timestamps, workout date, IANA timezone, draft/completed/discarded status, revision, snapshot entry count and current position. A unique partial index permits only one draft per person.
+- **Workout entries (`workout_entries`)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots. Completed/discarded entry updates and entry deletion are blocked by schema-3 triggers; confirmed corrections remain Phase 4 work and are not exposed now.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
 - **Schema version** — SQLite user schema version recorded separately from the Git/app release number.
 
@@ -169,8 +169,8 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 11. Open design / implementation decisions (not yet approved)
 
 - Exact server operating system, Proxmox VM/container layout, binding LAN interface/port, and on-host storage paths.
-- Actual-duration upper limits, partial minutes/seconds input behavior, exact duration control layout, and time personal-record rules. Minimum actual duration is settled at 1 second; zero is invalid and blank is skipped (SQL NULL).
-- Actual-weight upper limits, whether units beyond default pounds are configurable, and per-dumbbell vs total-barbell labels. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
+- Time personal-record rules and any future product-specific upper bound. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, require both minute/second parts, reject zero, and treat two blank parts as SQL NULL.
+- Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Exact fields and audit history for confirmed workout corrections; completed-workout deletion is not authorized.
 - Configured backup frequency/time and DST rules; scheduling starts disabled. On corruption, startup must refuse unsafe storage rather than replace it.
@@ -178,18 +178,18 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Approved phased plan (Phase 2 complete; Phase 3 implementation not authorized)
+## 12. Approved phased plan (Phase 3 only currently authorized)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
-3. **Workout workflow:** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
+3. **Workout workflow (implemented for review):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 
-## 13. Phase 2 schema, validation, and maintenance
+## 13. Retained Phase 2 compatibility and maintenance
 
 Schema 1 remains readable as a foundation-only screen. Startup never upgrades it.
 `migrate-storage --confirm-upgrade` accepts only validated schema 1, uses SQLite's
@@ -221,9 +221,47 @@ exercise identities, including duplication within the same person.
 Management POSTs require signed-session CSRF tokens, ownership checks, and server
 validation. Routine edit forms include a state fingerprint and reject stale
 writes. No password/authentication is added: household user switching is still
-navigation. Phase 2 has no actual measurement columns. In Phase 3, weight will use integer
-tenths of a pound with extra decimal digits truncated, not rounded; actual time
-will use integer seconds with minimum 1. Empty measurements retain SQL NULL
+navigation. Retained Phase 2 databases have no actual measurement columns. Phase 3 stores
+weight as integer tenths with extra decimal digits truncated, not rounded;
+actual time uses integer seconds with minimum 1. Empty measurements retain SQL NULL
 entry rows, never historical values or zero. Historical snapshots must preserve
 tracking type, targets and actual measurements independently of routine edits. See
 [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) for the implementation/test record.
+
+## 14. Phase 3 storage, persistence and completion
+
+The explicit CLI supports target schema 3 from verified schema 1 or 2. It changes
+only a new candidate, compares every existing table row including NULL fields,
+validates integrity, foreign keys, exact table/index/trigger DDL and migration
+history, then atomically selects the candidate. Prior files and selections remain
+retained. Compatible target-3 requests are no-write/no-copy no-ops. Normal startup
+supports schemas 1/2/3 without automatically migrating them; workout routes require
+3, while old management routes continue supporting 2. No real data is used in tests.
+
+Start copies all routine configurations into blank actual-entry snapshots in a
+single transaction. Empty routines cannot start. A repeated start offers the
+existing draft rather than replacing it. People switching remains unchanged.
+`WORKOUT_TIMEZONE` selects an installed IANA zone; absent configuration follows
+the server-local zone, falling back to UTC when no local zone is configured.
+Compose explicitly defaults to Etc/UTC and permits overriding it. Store UTC
+instants, the zone and computed local workout date; never infer these from the
+browser timezone.
+
+Every update checks ownership, entry membership, revision, typed measurements
+and cursor position under the shared storage-lock protocol. Writes serialize;
+stale tabs receive 409 without overwriting anything. Input autosaves after a
+short debounce; only post-commit acknowledgments show Saved and update progress
+and overview. Navigation/Finish wait for pending saves. Input typed during a
+pending response stays intact and is saved next. Invalid/network-failed input
+stays visible with an error; earlier committed values remain recoverable. Browser
+closure before acknowledgment cannot guarantee persistence; warn on unsaved
+changes rather than claim success. There is no offline client queue.
+
+Finish includes current form data and status transition in one transaction,
+checks every original snapshot row is present and confirms an all-NULL workout.
+Completed retries return the existing completion without writing another session.
+Discard uses “Are you sure?”, acknowledgment, disabled-until-checked OK, and
+Cancel/Escape preserving the draft. A confirmed discard changes only its active
+session status; completed history cannot be discarded or deleted. A singular
+saved-workout confirmation is included; general history exploration and charts
+remain Phase 4. See [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md).
