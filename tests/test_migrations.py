@@ -142,3 +142,67 @@ def test_explicit_cli_confirmation_and_success(legacy):
     result = runner.invoke(main, ["migrate-storage", "--data-root", str(root), "--confirm-upgrade"])
     assert result.exit_code == 0, result.output
     assert "original preserved" in result.output
+
+
+def test_schema3_migration_preserves_populated_catalog_and_nulls(phase2_root):
+    """Upgrade populated Phase 2 through a separate candidate without changing its bytes."""
+    from workout_tracker import catalog as c
+    from workout_tracker.storage import database_session
+    root=phase2_root
+    with database_session(root,write=True) as db:
+        person=c.create_person(db,'Migration fixture')
+        routine=c.create_routine(db,person,'Source')
+        c.add_entry(db,person,routine,dict(name='Weight',measurement_type='weight',target_sets='3',target_reps='12'))
+        c.add_entry(db,person,routine,dict(name='Time',measurement_type='time',target_sets='3',minutes='0',seconds='45'))
+        before_rows=[tuple(row) for row in db.execute('SELECT * FROM routine_exercises ORDER BY id')]
+    original=root/'data'/json.loads((root/'config'/'active.json').read_text())['database']
+    original_bytes=original.read_bytes(); modified=original.stat().st_mtime_ns
+    assert migrate_storage(root,target_version=3)=={'changed':True,'schema_version':3}
+    assert original.read_bytes()==original_bytes and original.stat().st_mtime_ns==modified
+    with database_session(root,minimum_version=3) as db:
+        assert [tuple(row) for row in db.execute('SELECT * FROM routine_exercises ORDER BY id')]==before_rows
+        assert db.execute('SELECT count(*) FROM workout_entries').fetchone()[0]==0
+        assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
+    before=tree_bytes(root)
+    assert migrate_storage(root,target_version=3)['changed'] is False
+    assert tree_bytes(root)==before
+
+
+@pytest.mark.parametrize('fault',['ddl','data-change','activation','post-switch'])
+def test_schema3_failure_retains_populated_original(phase2_root,fault):
+    """Data equality validation and activation rollback protect populated schema 2."""
+    from workout_tracker import migrations, catalog as c
+    from workout_tracker.storage import database_session
+    root=phase2_root
+    with database_session(root,write=True) as db:
+        c.create_person(db,'Must survive')
+    selection=(root/'config'/'active.json').read_bytes()
+    source=root/'data'/json.loads(selection)['database']; original=source.read_bytes()
+    upgrade=migrations._upgrade_candidate; sync=migrations._sync_directory
+    count=0
+
+    def change_data(connection,target_version):
+        """Inject logically wrong but structurally valid data into the candidate only."""
+        upgrade(connection,target_version)
+        connection.execute("UPDATE people SET name='Changed'");connection.commit()
+
+    def failed_sync(path):
+        """Fail one sync after publication and allow selection rollback to complete."""
+        nonlocal count
+        if path==root/'config':
+            count+=1
+            if count==2:
+                raise OSError('simulated sync failure')
+        sync(path)
+
+    patches={
+        'ddl':patch.object(migrations,'_upgrade_candidate',side_effect=sqlite3.OperationalError('DDL failure')),
+        'data-change':patch.object(migrations,'_upgrade_candidate',side_effect=change_data),
+        'activation':patch.object(migrations.os,'replace',side_effect=OSError('activation failure')),
+        'post-switch':patch.object(migrations,'_sync_directory',side_effect=failed_sync),
+    }
+    with patches[fault],pytest.raises(StorageError):
+        migrate_storage(root,target_version=3)
+    assert source.read_bytes()==original
+    assert (root/'config'/'active.json').read_bytes()==selection
+    assert inspect_storage(root)['schema_version']==2

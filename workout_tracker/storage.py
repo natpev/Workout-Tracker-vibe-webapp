@@ -17,6 +17,7 @@ import sqlite3
 from uuid import uuid4
 
 from .schema import PHASE2_TABLES
+from .workout_schema import WORKOUT_OBJECTS
 
 SCHEMA_VERSION = 1  # Explicit first install starts at the original foundation schema.
 APPLICATION_ID = 0x5754524B
@@ -108,7 +109,7 @@ def _inspect_unlocked(value, *, selection=None):
         filename = manifest["database"]
         if not isinstance(filename, str) or not (
             filename == f"schema-1-{storage_id}.sqlite3" or
-            re.fullmatch(rf"schema-2-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+            re.fullmatch(rf"schema-[23]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = root / "data" / filename
@@ -133,7 +134,7 @@ def _inspect_unlocked(value, *, selection=None):
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (1, 2):
+            if version not in (1, 2, 3):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -144,13 +145,15 @@ def _inspect_unlocked(value, *, selection=None):
                 "SELECT name, sql FROM sqlite_schema WHERE substr(name, 1, 7) != 'sqlite_'"
             ))
             expected = TABLES if version == 1 else TABLES | PHASE2_TABLES
+            if version == 3:
+                expected |= WORKOUT_OBJECTS
             if not filename.startswith(f"schema-{version}-"):
                 raise StorageError("The selected filename and schema version disagree.")
             if objects != expected:
                 raise StorageError("The database schema does not match this release.")
             if connection.execute("SELECT * FROM storage_metadata").fetchall() != [(1, storage_id)]:
                 raise StorageError("The database identity does not match its manifest.")
-            migrations = [(1, "foundation")] + ([(2, "people_and_routines")] if version == 2 else [])
+            migrations = [(1, "foundation")] + ([(2, "people_and_routines")] if version >= 2 else []) + ([(3, "workout_tracking")] if version == 3 else [])
             if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
         finally:
@@ -250,7 +253,7 @@ def inspect_storage(value):
 
 
 @contextmanager
-def database_session(value, *, write=False):
+def database_session(value, *, write=False, minimum_version=2):
     """Routes/services use one validated schema-2 connection per transaction.
 
     Browser -> route -> service -> this connection. A write takes an exclusive
@@ -259,8 +262,8 @@ def database_session(value, *, write=False):
     """
     with storage_lock(value, exclusive=write):
         details = _inspect_unlocked(value)
-        if details["schema_version"] != 2:
-            raise StorageError("Phase 2 needs explicit migrate-storage before editing.")
+        if details["schema_version"] < minimum_version:
+            raise StorageError("An explicit migrate-storage upgrade is required for this operation.")
         mode = "rw" if write else "ro"
         connection = sqlite3.connect(details["database"].as_uri() + f"?mode={mode}", uri=True, timeout=5)
         connection.row_factory = sqlite3.Row

@@ -44,16 +44,17 @@ def check_storage(data_root):
 @main.command("migrate-storage")
 @click.option("--data-root", required=True, type=click.Path(path_type=str))
 @click.option("--confirm-upgrade", is_flag=True)
-def migrate(data_root, confirm_upgrade):
+@click.option("--target-version", type=click.Choice(["2", "3"]), default="3", show_default=True)
+def migrate(data_root, confirm_upgrade, target_version):
     """Explicitly copy and upgrade known schema 1, never the original database."""
     from .migrations import migrate_storage
     if not confirm_upgrade:
         raise click.ClickException("Explicit --confirm-upgrade is required; no migration was performed.")
     try:
-        details = migrate_storage(data_root)
+        details = migrate_storage(data_root, target_version=int(target_version))
     except StorageError as error:
         raise click.ClickException(str(error)) from error
-    click.echo("Schema 2 verified. " + ("New candidate activated; original preserved." if details["changed"] else "Already compatible; no copy or write performed."))
+    click.echo(f"Schema {details['schema_version']} verified. " + ("New candidate activated; original preserved." if details["changed"] else "Already compatible; no copy or write performed."))
 
 
 if __name__ == "__main__":

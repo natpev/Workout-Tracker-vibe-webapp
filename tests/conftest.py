@@ -31,3 +31,16 @@ def phase2_app(phase2_root):
 def phase2_client(phase2_app):
     """Use Flask's isolated browser cookie jar, including its signed CSRF state."""
     return phase2_app.test_client()
+
+
+@pytest.fixture
+def phase3_root(phase2_root):
+    """Upgrade a disposable populated-capable schema 2 through a separate candidate."""
+    migrate_storage(phase2_root, target_version=3)
+    return phase2_root
+
+
+@pytest.fixture
+def phase3_app(phase3_root):
+    """Use an explicit DST-aware test zone, never household configuration/data."""
+    return create_app({'WORKOUT_DATA_ROOT': phase3_root, 'WORKOUT_TIMEZONE': 'America/Indiana/Indianapolis', 'TESTING': True})

@@ -14,6 +14,7 @@ import sqlite3
 from uuid import uuid4
 
 from .schema import PHASE2_TABLES
+from .workout_schema import WORKOUT_TABLES, WORKOUT_OBJECTS
 from .storage import StorageError, _inspect_unlocked, _sync_directory, storage_lock, load_signing_key
 
 
@@ -23,16 +24,22 @@ def _digest(path):
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def _upgrade_candidate(connection):
+def _upgrade_candidate(connection, target_version=2):
     """Apply Phase 2 DDL only to a brand-new copied database in one transaction."""
     connection.execute("PRAGMA foreign_keys=ON")
     connection.execute("PRAGMA synchronous=FULL")
     connection.execute("BEGIN IMMEDIATE")
     try:
-        for statement in PHASE2_TABLES.values():
-            connection.execute(statement)
-        connection.execute("INSERT INTO schema_migrations VALUES (2, 'people_and_routines')")
-        connection.execute("PRAGMA user_version=2")
+        current = connection.execute("PRAGMA user_version").fetchone()[0]
+        if current == 1:
+            for statement in PHASE2_TABLES.values():
+                connection.execute(statement)
+            connection.execute("INSERT INTO schema_migrations VALUES (2, 'people_and_routines')")
+        if target_version == 3:
+            for statement in WORKOUT_OBJECTS.values():
+                connection.execute(statement)
+            connection.execute("INSERT INTO schema_migrations VALUES (3, 'workout_tracking')")
+        connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
         connection.rollback()
@@ -48,7 +55,7 @@ def _write_manifest(path, selection):
         os.fsync(handle.fileno())
 
 
-def migrate_storage(value):
+def migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
     This supports exactly the known metadata-only v1 schema. A compatible v2
@@ -57,14 +64,16 @@ def migrate_storage(value):
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if source["schema_version"] == 2:
-            return {"changed": False, "schema_version": 2}
+        if target_version not in (2, 3) or source["schema_version"] > target_version:
+            raise StorageError("Unsupported migration target; downgrade is not permitted.")
+        if source["schema_version"] == target_version:
+            return {"changed": False, "schema_version": target_version}
         original = source["database"]
         original_hash = _digest(original)
         active = root / "config" / "active.json"
         original_selection = json.loads(active.read_text())
         token = uuid4().hex
-        candidate_name = f"schema-2-{source['storage_id']}-{token}.sqlite3"
+        candidate_name = f"schema-{target_version}-{source['storage_id']}-{token}.sqlite3"
         candidate = root / "data" / candidate_name
         pending = root / "config" / f"selection-{token}.pending"
         archive = root / "archives" / f"selection-before-{token}.json"
@@ -77,19 +86,28 @@ def migrate_storage(value):
             try:
                 target_connection = sqlite3.connect(candidate.as_uri() + "?mode=rw", uri=True)
                 source_connection.backup(target_connection)
-                _upgrade_candidate(target_connection)
-                # Domain tables must be empty; metadata identity and prior
-                # migration rows must be copied exactly, not reconstructed.
-                for name in PHASE2_TABLES:
-                    if target_connection.execute(f"SELECT count(*) FROM {name}").fetchone()[0] != 0:
-                        raise StorageError("The migrated domain tables are unexpectedly nonempty.")
-                for name in ("storage_metadata", "schema_migrations"):
+                if target_version == 2:
+                    _upgrade_candidate(target_connection)
+                else:
+                    _upgrade_candidate(target_connection, target_version)
+                # Compare every pre-existing table, row and NULL exactly. Counts
+                # alone could miss a changed value or ownership relationship.
+                existing = ["storage_metadata", "schema_migrations"]
+                if source["schema_version"] >= 2:
+                    existing += list(PHASE2_TABLES)
+                for name in existing:
                     before = source_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
                     after = target_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
                     if name == "schema_migrations":
-                        after = [row for row in after if row[0] != 2]
+                        after = [row for row in after if row[0] <= source["schema_version"]]
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
+                added = list(WORKOUT_TABLES) if target_version == 3 else []
+                if source["schema_version"] == 1:
+                    added += list(PHASE2_TABLES)
+                for name in added:
+                    if target_connection.execute(f"SELECT count(*) FROM {name}").fetchone()[0] != 0:
+                        raise StorageError("New tables are unexpectedly nonempty.")
             finally:
                 if target_connection is not None:
                     target_connection.close()
@@ -132,7 +150,7 @@ def migrate_storage(value):
                 except OSError as rollback_error:
                     raise StorageError("Activation durability is uncertain; stop and inspect both preserved databases.") from rollback_error
             raise StorageError("Migration failed; original selection retained and candidate preserved for inspection.") from error
-        return {"changed": True, "schema_version": 2}
+        return {"changed": True, "schema_version": target_version}
 
 
 def _validate_candidate(root, candidate, selection):
@@ -142,5 +160,5 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] != 2 or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3) or details["database"] != candidate:
         raise StorageError("Candidate validation did not select schema 2.")
