@@ -6,6 +6,7 @@ Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
 • Current authorization: Phase 1 (Foundation and Storage Safeguards) only, on a separate Git branch with tests and review. Stop before Phase 2. Do not deploy or connect to real workout data. Broader architecture approval does not authorize later phases.
+• Weight/Time feature request: editor/workout components are absent after Phase 1. Update architecture, schema design, specification, and future test requirements only; later-phase implementation still requires authorization. See MEASUREMENT_DESIGN.md.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
 
@@ -30,19 +31,19 @@ Functional contract
 People, routines, exercises
 
 • People are selected with simple tabs/selector; no login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
-• Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including prescribed sets and target reps.
+• Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including sets and target reps (Weight) or target duration per set (Time), selected with a segmented Weight/Time control.
 • A routine may be copied from a different user or duplicated within the same user. The result is an independent snapshot, not a shared/live link. Do not copy weight/history/increase state.
-• Historical workouts must retain exercise name, order, prescribed sets/reps, and results even after routine editing or deletion.
+• Historical workouts must retain exercise name, order, measurement type, prescribed sets/reps or duration, and results even after routine editing or deletion.
 
 Workout entry
 
 • Open site → select person → choose their routine → start a session with automatically recorded local date/time.
-• One exercise is shown at a time, with prescribed sets/reps, previous weight and previous increase next time flag for that person.
-• Enter exactly one weight per exercise (not one per set); no mandatory per-set or performed-reps entry. Set today’s weight initially blank so skipped exercises are unambiguous; previous weight is display-only, not silently copied into the new entry.
-• Offer an optional increase-next-time toggle, Back/Next, jump-to-exercise controls, a routine overview, and a progress bar counting nonblank weighted entries, not navigation position.
-• A skipped exercise must be included in the saved session with SQL NULL for weight. Never replace a blank weight with 0, an old weight, or a missing row. Charts must not interpret skipped entries as 0 lb.
+• One exercise is shown at a time, with sets × target reps or duration, previous matching measurement and previous increase next time flag for that person.
+• Enter exactly one applicable measurement per exercise (weight or duration, never one per set); no mandatory per-set or performed-reps entry. Today’s measurement starts blank; previous performance is display-only. Use type-specific increase labels. Store duration as integer seconds, independent of set count.
+• Offer an optional increase-next-time toggle, Back/Next, jump-to-exercise controls, a routine overview, and a progress bar counting non-NULL applicable measurements, not navigation position.
+• A skipped exercise must be included in the saved session with true SQL NULL for the applicable measurement; both actual weight and duration are NULL when skipped. Never replace a blank weight with 0, an old weight, or a missing row. Charts must not interpret skipped entries as zero; label weight in pounds and duration as time, and separate the two types.
 • Finish & Save atomically saves the whole workout, including NULL entries, then completes the session. Avoid accidental double submission.
-• Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered weights.
+• Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered measurements.
 • Discard Workout requires an explicit “Are you sure?” dialog, acknowledgment checkbox, Cancel, and OK disabled until acknowledgment. Cancel keeps the draft; confirmed discard affects only that unsaved/in-progress session, never saved history.
 • Allow manual entry of older workouts with a chosen past date; they belong in the same history and analytics as normal sessions.
 • Approved decisions: pounds by default with decimals; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 1.
@@ -51,7 +52,7 @@ Interface and reporting
 
 • Simple uncluttered phone-first UI; rounded cards, round/oval pill buttons, large tap targets. Support Dark, Light, and Auto (device theme, default), with a per-browser/device override.
 • Screens: Home/user selection, Routine selection, single-exercise Workout entry + overview, Routine editor/copy, History/charts + historical entry, Settings.
-• Separate user-specific historical tables, exercise weight progression charts, date/exercise filters, and basic personal records. Show skipped entries as skipped/blank, never as zero performance.
+• Separate user-specific historical tables, separate exercise weight/duration progression charts, date/exercise filters, and basic personal records. Show skipped entries as skipped/blank, never as zero performance.
 
 Database protection — highest priority
 
@@ -82,7 +83,7 @@ Settings, diagnostics, security
 Tests, review, and working style
 
 • Use test fixtures, never a real workout DB, for development tests, destructive commands, migrations, or restore rehearsals.
-• Cover: user/routine isolation and independent copies; exercise ordering; one weight per exercise; skipped exercise produces a present row with SQL NULL; progress bar semantics; previous-value display after skip; save idempotency; drafts/resume/discard confirmation; historical snapshots; migration success/failure with unchanged original; backup/restore integrity; scheduler missed-run and duplicate-run protection; theme persistence; core responsive accessibility.
+• Cover: user/routine isolation and independent copies; exercise ordering; one weight or duration per exercise; both types and type changes; integer seconds; skipped exercise produces a present row with true SQL NULL; progress bar semantics; previous-value display after skip; save idempotency; drafts/resume/discard confirmation; historical snapshots; migration success/failure with unchanged original; backup/restore integrity; scheduler missed-run and duplicate-run protection; theme persistence; core responsive accessibility.
 • Before changes to schema, data storage, backup, restore, or session completion, explain the risk, data path, validation, and rollback approach.
 • Make changes in small reviewable phases/branches/PRs. Record test results and limitations; never silently deploy to the live home server.
 • Update PROJECT_SPEC.md when the user approves new requirements. Keep undecided implementation details in its “Open decisions” section rather than deciding unasked.
