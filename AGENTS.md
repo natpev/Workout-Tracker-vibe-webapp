@@ -5,7 +5,8 @@ AGENTS.md — Workout Tracker
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current status: Phases 1–4 are completed and approved. The approved Phase 4 merge uses a fast-forward into main, followed by verification and removal of the fully merged feature branch. Phase 5 is next but is not authorized. No additional development, deployment, real workout data, backup scheduling, restore UI or persistent application log viewer is authorized.
+• Current authorization: Phase 5 only, implemented for review on phase-5-backups-logs from approved main ad20d08. Add verified backups, explicit candidate restore, dedicated scheduling and persistent diagnostics/Settings. Do not merge or delete this branch before review; do not begin Phase 6, deploy, use real workout data, add cloud synchronization or authentication.
+• Phases 1–4 remain intact. Phase 5 keeps schema 4 unchanged; operations settings/backup history/restore audit use private external atomic JSON and logs use private daily JSONL. The scheduler is a separate process, disabled until Settings explicitly enables it. All backup/restore/config writes coordinate with the existing storage-root lock. Log writes use a separate logs lock and must not prevent workout commits.
 • Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
 • When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
@@ -78,6 +79,7 @@ Settings, diagnostics, security
 
 • Settings includes a read-only log viewer: text search, severity and category/date filters, refresh, expandable error details, configurable retention (suggested default 30 days). Log meaningful app, workout-save, backup, integrity, migration, scheduler, and exception events, without noisy sensitive data dumps.
 • Keep logs and backup schedules/settings persistent, separate from replaceable containers. Never expose paths that allow arbitrary file reads or writes.
+• Restore accepts only server-listed verified backups of the same storage identity and exact current schema (2–4); no silent downgrade. Preserve a present damaged active file only on explicit recovery with a valid manifest; refuse missing files/identity or readable newer/foreign storage. Never replay interrupted maintenance tokens. Forms are bound to the selected dataset and checked again inside the write lock.
 • No public-facing bind by default. LAN-only without passwords means LAN users can see and alter shared household data; document this. If remote access is added later, revisit authentication, HTTPS, rate limiting, and access controls before enabling it.
 • Standard web safeguards still apply: server-side ownership checks (even though selector has no auth), CSRF protection on mutating forms, escaping, input validation, least-privilege file access, and safe backup/restore path handling.
 

@@ -2,15 +2,16 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software; not audited or approved for production.
 
-Phase 4 implements per-person workout history, local progress charts, independent
-historical entry and append-only corrections. Phases 1–3 remain approved and
-intact. Phase 4 is completed and approved for inclusion in main. Phase 5 is next
-and requires separate authorization. No Phase 5, backups/scheduling, restore interface,
-persistent application log viewer, deployment or real-data access is authorized.
+Phases 1–4 are completed and approved. Phase 5 adds Settings, verified server-side
+backups, deliberate candidate restores, a dedicated scheduler and persistent
+filtered logs. Phase 5 is implemented for review on `phase-5-backups-logs`;
+do not merge/delete it or begin Phase 6 before approval. No deployment, real
+workout data, cloud synchronization, internet exposure or authentication is authorized.
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
 [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md). Current implementation evidence
-and limitations are in [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md).
+and limitations are in [PHASE_5_REVIEW.md](PHASE_5_REVIEW.md).
+[PHASE_4_REVIEW.md](PHASE_4_REVIEW.md) retains the approved history/correction record.
 [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md) retains the prior implementation evidence.
 [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md) and the earlier
 [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) are retained as historical records.
@@ -21,6 +22,9 @@ and limitations are in [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md).
 - `storage.py`: external-path validation, explicit first install, schema verification and per-transaction locking. Every database connection enables foreign keys.
 - `schema.py`: exact schema-2 definitions; no performance tables.
 - `workout_schema.py`: schema-3 session/entry snapshots, one-draft index and immutable-finalized-record triggers.
+- `operations.py`, `maintenance.py`: private external settings/history and verified backup/restore candidates; no schema-5 migration.
+- `scheduler.py`: dedicated background CLI process, independent of Gunicorn/browser.
+- `diagnostics.py`, `settings_views.py`: protected structured logs, safe paginated viewer and confirmed maintenance forms.
 - `history_schema.py`: additive schema-4 history, preparations, registry and append-only audit objects; no Phase 3 protection is removed.
 - `history.py`, `history_views.py`: shared effective values, chronology/filters, chart preparation, historical completion and deliberate corrections.
 - `migrations.py`: explicit candidate-only upgrade from known schema 1/2/3 to target 2/3/4, preserving every original row/NULL and verifying registry consistency.
@@ -63,7 +67,7 @@ export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.4.0`, and schema version `4`. Schema 1 still opens
+`status: ready`, app version `0.5.0`, and schema version `4`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -226,8 +230,9 @@ external-storage/
   config/active.json                          # active database selection
   config/session.key                         # private session signing material
   archives/selection-before-<candidate>.json   # original selection
-  backups/                                   # reserved, not an implemented service
-  logs/                                      # reserved, not a persistent viewer
+  backups/<UTC-timestamp>-<id>.sqlite3         # verified copies and retained failed evidence
+  config/operations.json                     # settings, backup history, restore attempts
+  logs/events-YYYY-MM-DD.jsonl                # protected structured UTC logs
 ```
 
 The CLI takes the same persistent-root lock used by all app connections. It
@@ -284,12 +289,12 @@ only. Storage/key permissions must allow the configured UID/GID; do not make
 private storage world-readable to fix ownership. No live home-server deployment
 is authorized. Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase4-review` with build secret
+For isolated image review, build `workout-tracker:phase5-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase4-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase5-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -298,24 +303,114 @@ own containers. Browser tests need Chromium and optional pinned dependencies:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-browser.txt
-.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py
+.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py tests/test_settings_browser.py
 ```
 
 Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set
 `WORKOUT_CHROMIUM` to its executable if needed. Browser tests need loopback socket
 access. Without optional tools, their skipped status is distinct from a pass.
 
-## Backups, rollback, logs, and troubleshooting
+## Backups, restore, scheduling and logs
 
-Complete backup/restore interfaces, scheduling and persistent log viewing remain
-Phase 5. Automatic backups are not active. Do not introduce real workout data.
-On-server copies will not protect against physical storage loss.
+Open **Settings** from the main header. Database status, Backup Now, scheduling,
+backup history/details, restore audit and Logs are available without changing
+People-screen switching. The history links retain all prior functionality.
 
-Readiness verifies storage and returns a generic 503 when unavailable. Use the
-read-only `check-storage` command for operator diagnosis. Console logs report
-failures without raw form bodies or secrets; persistent `logs/` is reserved.
-No update purges retained data, schemas or logs. Incompatible code/schema pairs
-fail safely. Stop writers before any future rollback: selecting an older
-schema cannot merge newer records, and this phase supplies no restore command.
-A stopped-review code rollback to Phase 1 can read its preserved original only
-after deliberate manual recovery; never improvise a production selection change.
+**Backup Now** makes a uniquely named SQLite backup-API copy in external
+`backups/`, verifies integrity, foreign keys, application/storage identity, exact
+schema, complete snapshot/order/registry/audit consistency, and every original
+row/NULL/zero before showing Verified. Size, source, schema, SHA-256 and timestamps
+are recorded in private `config/operations.json`. It never downloads a file.
+The button waits for completion; retrying the same form reuses its operation ID.
+A new form is a new intentional backup. Failed/interrupted attempts stay visible
+and their files remain unverified evidence. No backups are rotated automatically.
+Inspect a backup to deliberately delete its file with checkbox confirmation;
+its metadata remains in history. These are SQLite data backups, not bundles of
+signing keys, schedule settings or diagnostic files: protect the whole external
+tree separately with host/offsite backups.
+
+**Automatic backups are disabled by default.** Settings requires an explicit
+enable, whole-day frequency (1–3650, default 1), HH:MM time (default 02:00), IANA
+zone (default Etc/UTC) and log retention (1–36500 days, default 30). The schedule
+zone is independent of workout-entry zone: choose it explicitly. Changes take
+effect on the next 30-second scheduler check and schedule the next future slot.
+Day cadence is anchored to the local configuration date, not 24-hour intervals.
+Repeated times run at the earlier occurrence only; skipped times advance to the
+first valid minute after the gap. A late restart handles at most one missed run,
+then advances beyond the current time without replaying the backlog. Failures
+are recorded, not immediately retried; the next scheduled slot can try again.
+Settings shows last automatic attempt/success/result and next UTC scheduled time.
+
+Compose now defines separate **web** and **scheduler** services using the same
+image, external bind mount and UID/GID. The scheduler runs
+`python -m workout_tracker scheduler`, with no ports or network and restart policy
+`unless-stopped`; Gunicorn workers never start schedulers. Persisted claims and
+the root-directory OS lock prevent overlapping/duplicate jobs across processes
+and restarts. `scheduler --once --data-root /absolute/disposable/storage` performs
+one due check for diagnostics. No new environment variables are required: the
+scheduler uses `WORKOUT_DATA_ROOT`; `WORKOUT_UID/GID`, CA build secret and web
+variables above remain in effect. No services have been deployed by this task. The image sets a 300-second web
+worker timeout for synchronous maintenance; exceptionally large operations can
+still exceed it and need operator inspection after an interruption.
+
+**Restore Backup** requires a checkbox plus typing RESTORE. It warns that later
+workouts/corrections are not merged. The service rechecks the selected backup,
+requires the same storage identity and exact selected schema (2–4), copies to a
+unique candidate, compares all values and audits, syncs it, retains the original
+file/selection, then atomically selects the verified candidate. Original and
+backup files are never overwritten. Failure before activation keeps the original;
+a post-activation sync or result-metadata failure attempts atomic rollback.
+If rollback durability also fails, the result is Uncertain: stop writers and
+inspect retained files/manifests before doing anything else. Reusing an attempt
+ID never runs restore twice. Forms opened before a restore are rejected; reload
+other browser tabs before editing. Existing requests serialize with maintenance,
+so saves cannot target a partially prepared candidate. Full verification can
+pause other requests; this is conservative household maintenance, not zero downtime.
+
+Older-schema backups are not migrated/downgraded by Restore. Keep them for a
+separately reviewed offline recovery; never edit their version marker. A missing,
+foreign/newer, symlinked or sidecar-bearing active file/manifest is refused.
+A present damaged file with a valid selection can be preserved during explicit
+recovery. Normal startup still refuses damaged storage and never restores,
+initializes, migrates or replaces it automatically.
+
+If a running worker detects corruption, Settings can still show backup history.
+If corruption prevents startup, stop **both** web and scheduler and all external
+SQLite tools, preserve the whole tree, then use the same explicit recovery service
+from an operator shell with the configured storage owner:
+
+```sh
+python -m workout_tracker list-backups --data-root /absolute/disposable/storage
+python -c 'from uuid import uuid4; print(uuid4().hex)'  # new operation identifier
+python -m workout_tracker restore-backup --data-root /absolute/disposable/storage \
+  --backup-id LISTED_VERIFIED_ID --operation-id NEW_32_HEX_ID --confirm-restore
+python -m workout_tracker check-storage --data-root /absolute/disposable/storage
+```
+
+Use only disposable storage for rehearsals. Restart workers/reload forms after
+successful verification. If an attempt remains In progress after process loss,
+do not replay it: inspect `operations.json`, protected logs, candidate and archived
+selection with writers stopped. The scheduler labels interrupted backup attempts
+failed on its next cycle; interrupted restores require operator inspection.
+No automatic reconciliation guesses which selection an interrupted restore used.
+If metadata is damaged, preserve it and seek operator review; it is never replaced
+with defaults. A missing signing key still requires explicit operator recovery;
+restoring SQLite does not invent a replacement key.
+
+**Logs** are private daily JSONL files under external `logs/`, with structured UTC
+time, severity, category and event IDs. The viewer supports newest-first text,
+severity/category/date filters, Refresh, 50-entry pages and expandable safe error
+details. Private paths/stack frames stay in protected server files; raw form bodies,
+keys/cookies/tokens and database values are not logged. Exception messages/locals
+are omitted from private traces; fixed safe messages, exception type and bounded
+frames provide diagnostics. Log failures warn on stderr and do not undo a workout
+commit. Ordinary startup/shutdown and failures append diagnostics, but compatible
+updates never copy/migrate/back up the workout database. Abrupt SIGKILL cannot
+write a shutdown event. Retention runs on Settings save and scheduler cycles;
+only named UTC log files older than the retention window are removed. Disable
+backups independently; keep the scheduler running for automatic log cleanup.
+
+Local backups do **not** protect against complete server/storage failure or
+replace Proxmox/offsite backups. There is no cloud backup/synchronization,
+remote authentication or public exposure in this phase. See
+[PHASE_5_REVIEW.md](PHASE_5_REVIEW.md) for validation and remaining limits.

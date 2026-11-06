@@ -11,8 +11,9 @@ merged into main, including typed workout entry, snapshots, server drafts,
 recovery, previous performance, atomic completion/discard and candidate schema 3.
 Phase 4 is completed and approved for inclusion in main:
 history, local SVG charts, independent historical completion and append-only
-correction revisions. Phase 5 is next and requires separate authorization. Full backup/
-restore, scheduling and application log viewing remain later phases. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
+correction revisions. Phase 5 is now authorized and implemented for review on
+phase-5-backups-logs: verified backups, deliberate restore, separate scheduling
+and persistent safe logs. No schema-5 change is needed; do not merge or begin Phase 6 before review. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 
@@ -160,7 +161,7 @@ workouts; disclose this before any future recovery action.
 
 ## Future automated acceptance tests by phase
 
-Phase 2 routine tests and Phase 3 workout/persistence/migration tests are implemented. Phase 4 history/chart/manual/correction tests are also implemented. Backup and restore assertions remain future tests, not claimed as passing.
+Phase 2 routine tests and Phase 3 workout/persistence/migration tests are implemented. Phase 4 history/chart/manual/correction tests are also implemented. Phase 5 backup/restore/scheduler/log assertions are implemented; current evidence is in PHASE_5_REVIEW.md.
 Use disposable fixtures only, including corruption/migration/restore tests.
 
 | Phase | Required automated coverage |
@@ -181,7 +182,7 @@ valid zero weight, minimum-one-second actual time, empty-as-NULL semantics and
 People-screen switching are final decisions, not open questions. Every skipped
 exercise must retain its own snapshot entry with NULL measurements; never
 substitute zero or previous performance, and preserve tracking type and values.
-These rules remain in effect through Phase 4, with no Phase 5 work.
+These measurement rules remain unchanged through Phase 5; recovery preserves exact stored integers and NULLs.
 
 Phase 2 validation remains recorded in [PHASE_2_REVIEW.md](PHASE_2_REVIEW.md).
 Current Phase 3 evidence is in [PHASE_3_REVIEW.md](PHASE_3_REVIEW.md), including
@@ -189,9 +190,25 @@ workout entry, NULL/zero semantics, truncation, concurrent writes, network fault
 restart recovery, candidate migration and browser/container regressions. Current
 Phase 4 evidence is in [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md): effective chronology,
 typed chart separation, independent historical entry, audit/concurrency and
-schema-3 preservation. Backup/restore assertions still await Phase 5.
+schema-3 preservation. Phase 5 recovery evidence is in PHASE_5_REVIEW.md.
 
 Historical design-only branch (`a5f7c35`): 37 existing foundation tests passed;
 documentation links, disclosures and whitespace checks passed. No application
 or schema changes were made in that earlier branch, so no typed runtime behavior
 was claimed then. Its approval led to the current Phase 2 implementation.
+
+
+## Phase 5 backup/restore invariants
+
+SQLite backup API copies every original table, including preparation snapshots,
+registry and append-only corrections. Verification checks exact schema/identity,
+foreign keys/integrity, ordered snapshot completeness, prepared prescriptions,
+correction before/after chains and cell-for-cell equality. No NULL is converted
+to zero and no weight/duration conversion runs during recovery. The same effective
+readers continue serving history/charts and previous-performance references.
+
+Restore accepts only the selected exact schema and storage identity, never silently
+migrates an older backup, and never changes original or backup files. Separate
+candidate activation shares the workout transaction lock. Browser form tokens
+include dataset generation to reject pre-restore submissions after a selection
+switch. External operation metadata and logs do not alter schema 4 or its triggers.

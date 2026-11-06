@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–4 and Weight/Time design are completed and approved for main. Phase 4 is approved for fast-forward merge and verified branch cleanup. Phase 5 is next and requires separate authorization. No deployment or real workout data access is authorized.
-**Current scope:** existing management/tracking plus per-person completed history, occurrence-based filters, local typed charts, historical completion independent of active drafts, append-only corrections/audit and safe candidate schema 4. Full backup/restore, scheduling and persistent application log viewing remain Phase 5.
+**Project status:** Phases 1–4 and Weight/Time design are approved and merged. Phase 5 only is authorized and implemented for review on phase-5-backups-logs. Do not merge/delete it or begin Phase 6 without approval. No deployment or real workout data access is authorized.
+**Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -173,18 +173,18 @@ These directories must be outside the Git repository and the ephemeral Docker im
 - Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
-- Configured backup frequency/time and DST rules; scheduling starts disabled. On corruption, startup must refuse unsafe storage rather than replace it.
-- Restore confirmation wording, backup deletion UI, and whether restore of archived schema versions is exposed in v1.
+- Household backup frequency/time/zone must be explicitly configured; scheduling starts disabled. Phase 5 implements local calendar-day cadence, earlier fold, first valid gap minute, and at-most-one missed-run handling. On corruption, startup must refuse unsafe storage rather than replace it.
+- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–4, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–4 completed and approved; Phase 5 next, not authorized)
+## 12. Phased plan (Phases 1–4 approved and merged; Phase 5 implemented for review)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
-5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
+5. **Backups and recovery (implemented for review):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
@@ -307,3 +307,45 @@ weight is plotted and included in maxima. Duration is plotted in seconds and
 labeled minutes:seconds, never multiplied by sets. Stats are accurately labeled
 highest logged weight/longest logged duration in the filtered range.
 See [PHASE_4_REVIEW.md](PHASE_4_REVIEW.md) for evidence and limitations.
+
+
+## 16. Phase 5 recovery and diagnostics
+
+Settings is accessible from the header and preserves People-screen switching.
+Backup Now uses SQLite backup API, unique timestamp/UUID files, structural/logical
+validation and exact row comparison, including NULL/zero, historical snapshots
+and every correction revision. Backup status/size/schema/source/hash/timestamps,
+schedules and restore attempts persist in private external operations.json.
+No workout schema migration is introduced; schema 4 and all protection triggers
+remain unchanged. Compatible updates never copy or migrate the selected database.
+
+Confirmed restore revalidates a listed ID, creates a distinct candidate, validates
+all data and retains the pre-restore database/selection before atomic activation.
+Post-switch durability/result-write failure triggers rollback; double failure is
+explicitly uncertain. Interrupted intents are never automatically replayed.
+Unconfirmed requests do not claim an operation. Dataset-generation-bound forms
+prevent pre-restore pages from writing into the restored selection, with a second
+check inside the write lock. Settings can show backup history during active-file
+corruption; explicit CLI recovery is available if startup refuses it. Missing,
+foreign/newer identity/schema, links and sidecars remain refused. Restore does
+not merge records created after the backup. Backup deletion is explicit and
+keeps metadata. No backup rotation or cloud synchronization is implemented.
+
+A separate Compose scheduler process checks settings every 30 seconds, not per
+Gunicorn worker. Backups remain disabled until explicitly configured. Frequency
+is 1–3650 calendar days, default 1; default clock is 02:00 Etc/UTC. Local anchor
+cadence uses earlier repeated times and first valid post-gap minute. Each due
+slot is claimed durably under the shared root lock before copying; missed backlog
+coalesces once and next advances into the future. Failures remain failed, without
+retry storms. Settings revisions and last attempt/success/result/next persist.
+
+Structured private UTC JSONL logs persist application lifecycle, unsafe storage,
+workout failures, migrations, backup/restore attempts/results and scheduler/security
+errors. Logs never include form bodies, private values, keys/cookies/tokens or raw
+exception messages. Protected bounded frames remain server-only; safe error
+details/event IDs are expandable in the browser. The viewer streams newest-first
+with text/severity/category/date filters and 50-row pages. Retention defaults to
+30 UTC days (1–36500), applies only to named log files, and runs on settings save
+and scheduler cycles. Logging cannot roll back database transactions. All services
+use non-root identities and external storage; the scheduler has no network/ports.
+See PHASE_5_REVIEW.md for tests, interruption semantics and operating limits.
