@@ -1,0 +1,14 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Flask supplies owned routines and explicitly selectable household copy sources.
+   POST creates independent definitions/settings; never copies workout results. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<h2>{{ person.name }}’s routines</h2>
+{% for row in routines %}<section><h3><a href="{{ url_for('manage.edit_routine', person_id=person.id, routine_id=row.id) }}">{{ row.name }}</a></h3></section>{% else %}<p>No routines yet.</p>{% endfor %}
+<section><h3>Create routine</h3><form method="post">{{ security() }}<input type="hidden" name="action" value="create"><label>Routine name <input name="name" required maxlength="100"></label><button>Create routine</button></form></section>
+{% if sources %}<section><h3>Copy a routine</h3><p>The copy gets independent exercises and settings, with no history or recorded results.</p>
+<form method="post">{{ security() }}<input type="hidden" name="action" value="copy">
+<label for="source-routine">Source routine</label><select id="source-routine" name="source" required>{% for source in sources %}<option value="{{ source.person_id }}:{{ source.id }}">{{ source.person_name }} / {{ source.name }}</option>{% endfor %}</select>
+<label>Name for the copy <input name="name" required maxlength="100"></label><button>Copy routine</button></form></section>{% endif %}
+{% endblock %}

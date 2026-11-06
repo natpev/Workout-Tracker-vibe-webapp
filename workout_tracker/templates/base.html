@@ -1,0 +1,30 @@
+<!-- SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+     Management templates extend this shell. Flask renders escaped data; local
+     theme/editor assets read browser preferences and configure form visibility. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Workout Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='editor.js') }}" defer></script>
+</head>
+<body>
+<main>
+  <header><h1>Workout Tracker</h1><a href="{{ url_for('manage.people') }}">People</a></header>
+  <p class="disclosure">SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.</p>
+  {% if person is defined %}<nav aria-label="Selected person"><strong>{{ person.name }}</strong> · <a href="{{ url_for('manage.dashboard', person_id=person.id) }}">Routines</a> · <a href="{{ url_for('manage.exercises', person_id=person.id) }}">Exercise names</a> · <a href="{{ url_for('manage.people') }}">Switch person</a></nav>{% endif %}
+  {% block content %}{% endblock %}
+  <section aria-labelledby="appearance-heading">
+    <h2 id="appearance-heading">Appearance</h2>
+    <label for="theme">Theme for this browser</label>
+    <select id="theme"><option value="auto">Auto (device setting)</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <p id="theme-status" role="status"></p>
+    <noscript>Auto follows your device. Theme override and live field switching need JavaScript; choose a type and submit valid fields to configure without it.</noscript>
+  </section>
+  <footer><p>People and routines only. Workout logging is not available yet. User selection is not authentication.</p></footer>
+</main>
+</body>
+</html>

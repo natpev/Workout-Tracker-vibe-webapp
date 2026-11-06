@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase1-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase2-review.
 """
 
 import hashlib
@@ -39,15 +39,15 @@ def storage_bytes(root):
             for path in root.rglob("*") if path.is_file()}
 
 
-def start_container(root):
+def start_container(root, *, writable=False):
     """Start one local-only disposable process with retained read-only storage."""
     return docker(
         "run", "-d", "--network=none", "--read-only", "--tmpfs", "/tmp",
         "--cap-drop=ALL", "--security-opt=no-new-privileges",
         "--user", f"{os.getuid()}:{os.getgid()}",
-        "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker,readonly",
+        "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase1-review",
+        "workout-tracker:phase2-review",
     ).stdout.strip()
 
 
@@ -106,7 +106,48 @@ def test_compose_configuration_is_loopback_and_external(tmp_path):
                             env=environment, capture_output=True, text=True, check=True, timeout=15)
     service = json.loads(result.stdout)["services"]["web"]
     assert service["ports"][0]["host_ip"] == "127.0.0.1"
-    assert service["volumes"][0]["read_only"] is True
+    assert service["volumes"][0].get("read_only", False) is False
     # Compose omits false values in normalized output; absence also means false.
     assert service["volumes"][0]["bind"].get("create_host_path", False) is False
     assert service["read_only"] is True
+
+
+def test_phase2_container_writes_persist_and_original_is_untouched(phase2_root):
+    """Exercise actual CSRF writes through Gunicorn, replace container, read data."""
+    root = phase2_root
+    original = next((root / "data").glob("schema-1-*.sqlite3"))
+    original_bytes = original.read_bytes()
+    retained = None
+    for iteration in range(2):
+        container = start_container(root, writable=True)
+        try:
+            deadline = time.monotonic() + 15
+            while True:
+                probe = docker("exec", container, "python", "-c",
+                    "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)", check=False)
+                if probe.returncode == 0:
+                    break
+                if time.monotonic() >= deadline:
+                    pytest.fail("Phase 2 container failed readiness: " + probe.stderr)
+                time.sleep(.2)
+            if iteration == 0:
+                # Actual browser-like form submission with signed cookies and the
+                # rendered CSRF token. Only synthetic fixture names are sent.
+                script = """
+import http.cookiejar, re, urllib.parse, urllib.request
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+base = 'http://127.0.0.1:8000'
+page = opener.open(base + '/people').read().decode()
+token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
+page = opener.open(base + '/people', urllib.parse.urlencode({'name':'Container Fixture','csrf_token':token}).encode()).read().decode()
+assert 'Container Fixture' in page
+"""
+                docker("exec", container, "python", "-c", script)
+                retained = storage_bytes(root)
+            else:
+                docker("exec", container, "python", "-c",
+                       "import urllib.request; assert b'Container Fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+                assert storage_bytes(root) == retained
+            assert original.read_bytes() == original_bytes
+        finally:
+            docker("rm", "-f", container)

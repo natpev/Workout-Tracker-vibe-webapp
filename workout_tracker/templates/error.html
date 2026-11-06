@@ -1,0 +1,5 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Flask supplies escaped validation/operational text with no SQL or private path.
+   No browser form contents are replayed or persisted after a failed request. #}
+{% extends 'base.html' %}
+{% block content %}<section role="alert"><h2>Unable to complete this request</h2><p>{{ message }}</p><p>Use your browser’s Back action to review your entries, or return to <a href="{{ url_for('manage.people') }}">People</a>.</p></section>{% endblock %}

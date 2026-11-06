@@ -1,6 +1,6 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
 # Proposed self-hosting configuration, not an instruction to deploy. Docker
-# supplies external host storage; Gunicorn only reads it during Phase 1.
+# supplies external host storage; Phase 2 writes only routine/people definitions.
 services:
   web:
     build:
@@ -16,7 +16,7 @@ services:
       - type: bind
         source: ${WORKOUT_DATA_ROOT:?Set an absolute external storage path}
         target: /var/lib/workout-tracker
-        read_only: true
+        read_only: false
         bind:
           create_host_path: false
     read_only: true

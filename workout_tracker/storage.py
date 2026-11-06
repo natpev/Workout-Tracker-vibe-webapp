@@ -1,8 +1,9 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
 """Storage safeguards called by the CLI and Flask factory.
 
-Only explicit initialization writes a new, external storage directory. Startup
-reads its manifest and SQLite metadata; it never creates or repairs storage.
+Explicit initialization creates a new external storage directory. Startup
+only reads existing storage. Phase 2 services use validated, locked connections
+to write definitions; only the separate migration module may change a schema.
 This module uses pathlib, SQLite, and POSIX file syncing, not a workout database.
 """
 
@@ -17,7 +18,7 @@ from uuid import uuid4
 
 from .schema import PHASE2_TABLES
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 1  # Explicit first install starts at the original foundation schema.
 APPLICATION_ID = 0x5754524B
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 DIRECTORIES = ("data", "archives", "backups", "config", "logs")
@@ -112,11 +113,18 @@ def _inspect_unlocked(value, *, selection=None):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = root / "data" / filename
         _regular_file(database)
-        # Phase 1 uses rollback journals. A sidecar means interrupted or foreign
+        # Both supported schemas use rollback journals. A sidecar means interrupted or foreign
         # storage: refuse it rather than recovering/modifying anything at startup.
         for suffix in ("-journal", "-wal", "-shm"):
             if os.path.lexists(str(database) + suffix):
                 raise StorageError("Database sidecars require operator investigation.")
+        # SQLite can create WAL/SHM sidecars even for mode=ro readers of a WAL
+        # database. Reject WAL header versions before opening SQLite, so startup
+        # cannot implicitly recover or change the original storage layout.
+        with database.open("rb") as handle:
+            header = handle.read(20)
+        if not header.startswith(b"SQLite format 3\x00") or header[18:20] != b"\x01\x01":
+            raise StorageError("Database header is damaged or uses unsupported WAL mode.")
         connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=5)
         try:
             connection.execute("PRAGMA foreign_keys = ON")
@@ -272,3 +280,22 @@ def database_session(value, *, write=False):
             raise
         finally:
             connection.close()
+
+
+def load_signing_key(value):
+    """Read explicitly provisioned session material; never generate it on startup.
+
+    CLI migration and Flask both use this check so a bad key cannot leave a
+    newly selected database with unusable forms. Secret bytes never reach logs.
+    """
+    key = storage_root(value) / "config" / "session.key"
+    try:
+        _regular_file(key)
+        if key.stat().st_mode & 0o077 or key.stat().st_size != 64:
+            raise StorageError("Session signing key permissions or size are unsafe.")
+        value = key.read_text()
+        if not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise StorageError("Session signing key is invalid.")
+        return value
+    except OSError as error:
+        raise StorageError("Session signing key is unavailable; startup did not create one.") from error

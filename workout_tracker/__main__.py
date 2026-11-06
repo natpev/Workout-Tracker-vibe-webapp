@@ -1,8 +1,9 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
 """Operator CLI invoked with python -m workout_tracker.
 
-Click parses explicit paths and confirmation. Only init-storage writes a new
-external tree; check-storage uses storage.py's read-only validation.
+Click parses explicit paths and confirmation. init-storage creates only a new
+external tree; migrate-storage upgrades a separate candidate; check-storage
+uses storage.py's read-only validation. No command deploys or restores data.
 """
 
 import click

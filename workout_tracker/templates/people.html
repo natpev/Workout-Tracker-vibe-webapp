@@ -1,0 +1,19 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Flask renders household people; forms post CSRF-protected create/manage requests. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<h2>People</h2>
+<p>Choose a person to manage their independent routines.</p>
+<section><h3>Add person</h3><form method="post">{{ security() }}<label>Name <input name="name" maxlength="100" required></label><button>Add person</button></form></section>
+{% for row in people %}
+<section>
+  <h3>{% if row.archived %}{{ row.name }} (archived){% else %}<a href="{{ url_for('manage.dashboard', person_id=row.id) }}">{{ row.name }}</a>{% endif %}</h3>
+  <form method="post" action="{{ url_for('manage.manage_person', person_id=row.id) }}">{{ security() }}<input type="hidden" name="action" value="rename"><label>Rename {{ row.name }} <input name="name" value="{{ row.name }}" maxlength="100" required></label><button>Save name</button></form>
+  <form method="post" action="{{ url_for('manage.manage_person', person_id=row.id) }}">{{ security() }}
+    {% if row.archived %}<button name="action" value="reactivate">Reactivate person</button>{% else %}
+    <label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> Archive this person and keep their records</label><button name="action" value="archive">Archive person</button>{% endif %}
+  </form>
+</section>
+{% else %}<p>No people yet. Add the first person above.</p>{% endfor %}
+{% endblock %}

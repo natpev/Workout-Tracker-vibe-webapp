@@ -14,7 +14,7 @@ import sqlite3
 from uuid import uuid4
 
 from .schema import PHASE2_TABLES
-from .storage import StorageError, _inspect_unlocked, _sync_directory, storage_lock
+from .storage import StorageError, _inspect_unlocked, _sync_directory, storage_lock, load_signing_key
 
 
 def _digest(path):
@@ -73,8 +73,9 @@ def migrate_storage(value):
             with candidate.open("xb"):
                 candidate.chmod(0o600)
             source_connection = sqlite3.connect(original.as_uri() + "?mode=ro", uri=True)
-            target_connection = sqlite3.connect(candidate.as_uri() + "?mode=rw", uri=True)
+            target_connection = None
             try:
+                target_connection = sqlite3.connect(candidate.as_uri() + "?mode=rw", uri=True)
                 source_connection.backup(target_connection)
                 _upgrade_candidate(target_connection)
                 # Domain tables must be empty; metadata identity and prior
@@ -90,7 +91,8 @@ def migrate_storage(value):
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
             finally:
-                target_connection.close()
+                if target_connection is not None:
+                    target_connection.close()
                 source_connection.close()
             with candidate.open("rb") as handle:
                 os.fsync(handle.fileno())
@@ -101,6 +103,16 @@ def migrate_storage(value):
             _validate_candidate(root, candidate, selection)
             if _digest(original) != original_hash or json.loads(active.read_text()) != original_selection:
                 raise StorageError("Original storage changed during maintenance; activation refused.")
+            # Session signing material is created only by explicit maintenance,
+            # never by startup. Existing configured keys are never overwritten.
+            key = root / "config" / "session.key"
+            if not os.path.lexists(key):
+                descriptor = os.open(key, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                with os.fdopen(descriptor, "w") as handle:
+                    handle.write(os.urandom(32).hex())
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            load_signing_key(root)
             os.link(active, archive)
             _sync_directory(root / "archives")
             _write_manifest(pending, selection)

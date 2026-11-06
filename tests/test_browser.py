@@ -88,3 +88,82 @@ def test_storage_denied_and_invalid_saved_theme(browser_page):
     page.select_option("#theme", "dark")
     assert "could not save" in page.locator("#theme-status").inner_text()
     assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+
+
+@pytest.fixture
+def management_page(phase2_root):
+    """Serve an actual schema-2 management app with its private fixture key."""
+    server = make_server("127.0.0.1", 0, create_app({"WORKOUT_DATA_ROOT": phase2_root}))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with playwright.sync_playwright() as manager:
+            browser = manager.chromium.launch(headless=True,
+                executable_path=os.environ.get("WORKOUT_CHROMIUM") or shutil.which("chromium"))
+            try:
+                page = browser.new_page(viewport={"width": 320, "height": 800})
+                yield page, f"http://127.0.0.1:{server.server_port}"
+            finally:
+                browser.close()
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
+def test_management_workflow_modes_order_copy_and_phone_layout(management_page):
+    """Drive routine creation/configuration/copy through real CSRF-protected forms."""
+    page, address = management_page
+    expect = playwright.expect
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(address + "/people")
+    page.get_by_label("Name", exact=True).fill("Alex")
+    page.get_by_role("button", name="Add person", exact=True).click()
+    page.get_by_label("Routine name", exact=True).fill("Strength")
+    page.get_by_role("button", name="Create routine", exact=True).click()
+    source = page.url
+    form = page.locator("[data-configuration]")
+    form.get_by_label("New exercise name (when not reusing)").fill("Plank")
+    # Native radios provide a segmented control with keyboard arrow navigation.
+    form.get_by_role("radio", name="Weight", exact=True).focus()
+    page.keyboard.press("ArrowRight")
+    expect(form.get_by_role("radio", name="Time", exact=True)).to_be_checked()
+    expect(form.locator('[data-fields="weight"]')).to_be_hidden()
+    form.get_by_label("Minutes", exact=True).fill("1")
+    form.get_by_label("Seconds", exact=True).fill("5")
+    form.get_by_label("Exercise notes (optional)").fill("Keep steady")
+    form.get_by_role("button", name="Add exercise", exact=True).click()
+    expect(page.get_by_text("Time · 3 sets × 1 min 5 sec", exact=True)).to_be_visible()
+    page.get_by_role("link", name="Plank", exact=True).click()
+    expect(page.get_by_label("Seconds", exact=True)).to_have_value("5")
+    page.get_by_role("radio", name="Weight", exact=True).check()
+    page.get_by_label("Target repetitions per set").fill("12")
+    page.get_by_role("button", name="Save exercise settings").click()
+    expect(page.get_by_text("Weight · 3 sets × 12 reps · pounds", exact=True)).to_be_visible()
+    form = page.locator("[data-configuration]")
+    form.get_by_label("New exercise name (when not reusing)").fill("Bench")
+    form.get_by_role("button", name="Add exercise", exact=True).click()
+    page.get_by_role("button", name="Move Bench up", exact=True).click()
+    expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
+    for width in (320, 768, 1280):
+        page.set_viewport_size({"width": width, "height": 800})
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.select_option("#theme", "dark")
+    page.reload()
+    expect(page.locator("#theme")).to_have_value("dark")
+    page.get_by_role("link", name="Switch person", exact=True).click()
+    page.get_by_label("Name", exact=True).fill("Sam")
+    page.get_by_role("button", name="Add person", exact=True).click()
+    page.get_by_label("Source routine", exact=True).select_option(label="Alex / Strength")
+    page.get_by_label("Name for the copy", exact=True).fill("Independent")
+    page.get_by_role("button", name="Copy routine", exact=True).click()
+    expect(page.get_by_role("heading", name="Independent", exact=True)).to_be_visible()
+    expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
+    page.get_by_role("link", name="Exercise names", exact=True).click()
+    rename_form = page.locator("form").filter(has=page.locator('input[name="name"][value="Bench"]'))
+    rename_form.get_by_label("Exercise name", exact=True).fill("Copy bench")
+    rename_form.get_by_role("button", name="Rename exercise").click()
+    page.goto(source)
+    expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
+    assert errors == []

@@ -1,0 +1,14 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Flask renders person-owned permanent definitions; rename applies to all reuse.
+   Archive never deletes an identity and is refused while active routines use it. #}
+{% extends 'base.html' %}
+{% from 'macros.html' import security with context %}
+{% block content %}
+<h2>Exercise names for {{ person.name }}</h2>
+<p>Renaming updates the name in this person’s routines that reuse the same exercise. Copies have independent identities. History snapshots will keep their original names.</p>
+<section><h3>Add exercise name</h3><form method="post">{{ security() }}<input type="hidden" name="action" value="create"><label>Exercise name <input name="name" required maxlength="100"></label><button>Add exercise name</button></form></section>
+{% for row in exercises %}<section>
+<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><input type="hidden" name="action" value="rename"><label>Exercise name <input name="name" value="{{ row.name }}" required maxlength="100"></label><button>Rename exercise</button></form>
+<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> Archive this definition and retain its identity</label><button name="action" value="archive">Archive exercise</button></form>
+</section>{% else %}<p>No active exercise definitions.</p>{% endfor %}
+{% endblock %}

@@ -15,7 +15,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 import pytest
 
-from workout_tracker import create_app
+from workout_tracker import APP_VERSION, create_app
 from workout_tracker.__main__ import main
 from workout_tracker.storage import (
     REPOSITORY_ROOT, StorageError, initialize_storage, inspect_storage,
@@ -101,7 +101,7 @@ def test_missing_tree_is_not_initialized(tmp_path):
     "missing-manifest", "bad-json", "duplicate-key", "traversal", "wrong-id",
     "missing-db", "corrupt-db", "old-version", "new-version", "wrong-app",
     "missing-table", "changed-table", "extra-table", "wrong-migration", "unreadable",
-    "journal", "wal", "shm",
+    "journal", "wal", "shm", "wal-header",
 ])
 def test_unsafe_storage_is_refused_without_changes(storage, damage):
     """Damaged selection/schema/access is a failure, never a reset or migration."""
@@ -125,6 +125,10 @@ def test_unsafe_storage_is_refused_without_changes(storage, damage):
         db.write_bytes(b"not a SQLite database")
     elif damage in ("journal", "wal", "shm"):
         Path(str(db) + "-" + damage).write_bytes(b"preserve investigation evidence")
+    elif damage == "wal-header":
+        connection = sqlite3.connect(db)
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.close()
     elif damage == "unreadable":
         db.chmod(0)
     else:
@@ -213,7 +217,7 @@ def test_startup_and_requests_do_not_change_storage(storage):
         assert b"SHAMEFULLY VIBE-CODED" in response.data
         assert b"Workout tracking is not available yet" in response.data
         assert client.get("/health/ready").json == {
-            "status": "ready", "app_version": "0.1.0", "schema_version": 1,
+            "status": "ready", "app_version": APP_VERSION, "schema_version": 1,
         }
         for asset in ("style.css", "theme.js"):
             assert client.get("/static/" + asset).status_code == 200
