@@ -2,7 +2,20 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** No production readiness or deployment approval is implied.
 
-## Scope and source branch
+## Approval and finalization
+
+Phase 2 is reviewed and approved. Current work updates documentation, verifies
+the complete suite, reconciles with main, merges preserving history, and removes
+only completed branches proven fully merged. Phase 3 is not authorized.
+The People-screen switching UI and all application/schema/test code remain
+unchanged from approved commit `402f857`. Final Phase 3 decisions: default pounds,
+one decimal place with extra digits truncated never rounded, integer tenths in
+SQLite, valid zero weight, empty SQL NULL; integer-second actual durations must
+be >= 1, zero is invalid, empty SQL NULL, one per exercise regardless of sets.
+Every skipped snapshot entry retains NULL measurements, never previous results
+or zero, and preserves tracking type. No workout-entry code is added here.
+
+## Initial implementation branch history (historical)
 
 Implemented only Phase 2, including its minimal migration prerequisite. Remote
 `main` fetched at task start remained at `6702250` and lacked the two approved
@@ -31,7 +44,9 @@ Schema 2 retains both schema-1 metadata tables and adds `people`, `exercises`,
 `routines`, `routine_exercises`. STRICT tables, CHECKs, unique positions and
 composite ownership foreign keys constrain configurations. No actual measurement,
 increase-state, workout, history, backup or schedule tables are introduced.
-Actual decimal-weight precision is deferred until Phase 3 design is finalized.
+Actual measurement storage is not implemented. Phase 3 precision is now final:
+integer tenths of a pound, truncating beyond one decimal place, never rounding.
+The actual-duration minimum is 1 second; empty values remain SQL NULL.
 
 The risk is changing the wrong database or selecting an incomplete upgrade.
 Explicit CLI confirmation, shared app/maintenance directory locks, source/schema
@@ -57,9 +72,10 @@ implemented. Reverting to an old database cannot merge records created afterward
 
 ## Validation
 
-Final command: `WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q`
+Approval-finalization rerun: `WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q`
 
-**99 passed, 0 failed, 0 skipped** in the final run:
+**99 passed, 0 failed, 0 skipped** again during documentation finalization (including available browser/container checks). The approved application, schema, user-switching UI, migration safeguards and test files are unchanged from `402f857`:
+
 
 - 93 foundation/storage, migration, catalog service, and HTTP integration tests.
 - 3 Chromium tests, including keyboard segmented selection, 1:05 → 65-second
@@ -111,8 +127,9 @@ workout data was accessed. No application deployment occurred.
 - Empty routines are allowed during editing. Routine deletion is soft archival;
   there is no routine/exercise reactivation UI yet (people can be reactivated).
 - Positive configuration limits are documented in the README. Actual duration
-  zero/partial-input rules, decimal performance precision and correction audit
-  semantics remain open for later phases, not silently resolved here.
+  upper limits, partial-input layout/validation and correction audit semantics
+  remain open for later phases. Precision, zero-weight validity and the
+  actual-duration minimum are finalized above for Phase 3 implementation.
 - Filesystem guarantees assume a local POSIX filesystem, one application storage
   root and all writers respecting locks. No hostile administrator, NFS storage,
   external SQLite writer or physical disk failure guarantee is claimed.

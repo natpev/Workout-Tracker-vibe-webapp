@@ -4,7 +4,9 @@
 
 Phase 2 implements people, permanent exercise definitions, and independently
 copyable Weight/Time routines. It includes only the safe migration prerequisite
-needed for this phase. Stop for review before Phase 3. No workout logging,
+needed for this phase. Phase 2 is reviewed and approved; only documentation,
+regression verification, merge and branch cleanup are currently authorized.
+Phase 3 requires separate authorization. No workout logging,
 results, historical charts, automatic backups, scheduling, or restore UI exists.
 Do not deploy or connect to real workout data.
 
@@ -67,7 +69,8 @@ initializing another path.
 
 ## People, exercise names, and routines
 
-Create/select people from People; rename, archive or reactivate them there.
+Keep the approved user-switching interface: create/select people through the
+People screen, without a redesigned selector or browser-style tabs; rename, archive or reactivate them there.
 Archiving always retains their IDs and records. Each person has independent
 routines and exercise definitions. Routine Delete removes it from active lists
 by archiving, preserving its identity; it does not delete exercise definitions.
@@ -87,8 +90,18 @@ Configuration limits: sets 1–1000, reps 1–10000, target duration 1–359999 
 (0–5999 minutes, 0–59 seconds); names 100 characters, notes 2000 and weight
 meaning 200. These bounds prevent invalid configuration, not define future
 actual-result precision. There are no actual weight/duration or increase-flag
-columns in Phase 2; decimal weights and explicit zero/NULL semantics remain
-specified for Phase 3 rather than prematurely adding workout logging.
+columns in Phase 2. Final Phase 3 rules are documented below; no workout-entry
+functionality or schema changes are introduced during Phase 2 finalization.
+
+Phase 3 must store pounds as **integer tenths**, truncate additional decimal
+digits **without rounding**, and display one decimal place: 40.99 → 40.9
+(stored 409), 42.56 → 42.5 (425), 40 → 40.0 (400). Explicit zero is valid
+(stored 0); empty weight is SQL NULL. Actual time is one duration per exercise
+regardless of set count, stored as integer seconds with minimum 1; zero is
+invalid and empty is SQL NULL. Every skipped exercise retains a saved entry
+with NULL measurements, never zero or prior results. Historical snapshots
+preserve tracking type and measurements even after routine edits. These are
+future implementation requirements, not current runtime capabilities.
 
 Use the routine's up/down controls to reorder routines or exercises. Duplicate
 within a person or use Copy a routine to copy between people. Every copy gets
