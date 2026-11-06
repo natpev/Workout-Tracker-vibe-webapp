@@ -7,7 +7,10 @@ There are no people, routines, workout records, migrations, backups, restores, o
 scheduler yet. Do not use real workout data. Stop for review before Phase 2.
 
 Read [AGENTS.md](AGENTS.md) and the authoritative [PROJECT_SPEC.md](PROJECT_SPEC.md)
-before changes. [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) records scope and validation.
+before changes. [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md) describes approved
+future Weight/Time exercise support and its phase-by-phase acceptance tests.
+This is a design update only: no routine editor, workout entry, or typed
+measurement storage is implemented yet. [PHASE_1_REVIEW.md](PHASE_1_REVIEW.md) records scope and validation.
 
 ## Architecture and data flow
 

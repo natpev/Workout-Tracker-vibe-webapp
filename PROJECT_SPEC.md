@@ -3,6 +3,7 @@
 > **SHAMEFULLY VIBE-CODED PROJECT.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
 **Project status:** Architecture approved; Phase 1 (Foundation and Storage Safeguards) authorized on a separate branch. Stop for review before Phase 2. No deployment or real workout data is authorized.
+**Feature-design authorization:** Weight/Time support is approved for the future routine, workout, history, and recovery phases. Phase 1 is implemented; those components are absent. This request updates design/documentation only and does not authorize implementation of Phase 2 or later.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -20,7 +21,7 @@
 - Choose a household user via simple tabs/selector (like a browser tab); **no passwords** initially.
 - Each person owns independent routines, workout drafts, history, weights, and increase flags.
 - Create, rename, edit, duplicate, reorder, and delete individual routines.
-- Within a routine, add/edit/remove/reorder exercises and define **sets and target reps**. Optional exercise notes/instructions and equipment labels are desirable, but must not complicate basic logging.
+- Within a routine, add/edit/remove/reorder exercises and choose **Weight** or **Time**, define sets for both, and configure target reps (Weight) or target minutes/seconds per set (Time). Optional exercise notes/instructions and equipment labels are desirable, but must not complicate basic logging.
 - **Copy from user:** select a different user and a routine, create an independent copy of the routine definition. No persistent link between copies; no copied logged weights, increase flags, or workout history.
 - **Duplicate own routine:** same independence behavior for a copy within one user.
 - Modifying/deleting a routine must never rewrite or remove already completed workout history.
@@ -32,39 +33,40 @@
 2. Select person.
 3. Select one of that person's routines to start.
 4. Record the session date and start time automatically using a consistent server-local timezone; allow explicit past dates in the separate historical-entry workflow.
-5. Display **one exercise at a time**, with its exercise name, prescribed sets × reps, that person's previous weight, and the previous **increase next time** flag.
-6. Enter **one current weight for the whole exercise** (not one per set) and optionally mark **increase next time**. Do **not** ask for actual reps/set-by-set results during normal workout entry.
+5. Display **one exercise at a time**, with its exercise name, prescribed sets × reps (Weight) or sets × target duration (Time), that person's previous matching measurement, and its previous **increase next time** flag.
+6. Enter **one current measurement for the whole exercise** (weight for Weight; duration for Time, not one per set) and optionally mark **increase next time**. Do **not** ask for actual reps/set-by-set results during normal workout entry.
 7. Navigate by **Back**, **Next**, exercise jump list, and expandable routine overview; show all exercise completion states and a whole-workout progress bar.
 8. **Finish & Save** both saves and completes the workout in one clear action. All routine exercises, including skipped ones, are captured in the completed session.
 9. If unfinished, automatically preserve a resumable draft when navigating away or losing the browser session. Save draft changes promptly on the server and show a clear save/error status so a failed save is not mistaken for a successful one.
 10. **Discard Workout** must display **“Are you sure?”**, an acknowledgment checkbox, and **Cancel / OK**; OK stays disabled until the checkbox is checked. Cancel preserves the draft; confirmation discards only the *unfinished* session, never past completed workouts.
 
-### Weight and skipped-exercise semantics (important)
+### Weight, time, and skipped-exercise semantics (important)
 
-- The current weight input initially starts **blank**; previous weight is visible for reference but is **not silently prefilled**. This prevents accidentally treating a skipped exercise as performed.
+- The current measurement input initially starts **blank** for both types; previous performance is visible for reference but is **not silently prefilled**. This prevents accidentally treating a skipped exercise as performed.
 - Weight defaults to pounds and supports decimal values. Explicit zero is valid and counts as an entered weight; it is never treated as NULL. Exact decimal precision remains to be chosen before workout storage implementation.
-- When the user finishes/saves, **each exercise from the session's routine snapshot gets a saved workout-entry record**, even if its weight was never entered.
-- If skipped, the database weight must be true SQL **`NULL`**. `NULL` ≠ `0` and ≠ the previous weight; a skipped exercise must **not be omitted** from the saved workout.
-- A blank weight does not count toward the workout progress bar. Progress means **number of exercises with entered weights / total exercises**. Navigating to an exercise does not mark it done.
-- Tables display skipped entries clearly as **Skipped** or an em dash; charts omit/gap skipped weights rather than plotting zero.
-- Show the previous session's weight and increase indicator. If that session skipped the exercise, show that fact plus the last successfully performed weight, including an explicitly entered zero.
-- Increase-next-time note applies to a performed exercise; do not invent a new increase recommendation when its saved weight is NULL.
+- When the user finishes/saves, **each exercise from the session's routine snapshot gets a saved workout-entry record**, even if its applicable measurement was never entered.
+- If skipped, the applicable measurement must be true SQL **`NULL`**: weight for Weight exercises or duration for Time exercises. `NULL` ≠ `0` and ≠ the previous measurement; a skipped exercise must **not be omitted** from the saved workout.
+- A blank measurement does not count toward the workout progress bar. Progress means **number of exercises with non-NULL applicable measurements / total exercises**, across both types. Explicit zero weight counts as entered. Navigating to an exercise does not mark it done.
+- Tables display skipped entries clearly as **Skipped** or an em dash; charts omit/gap skipped measurements rather than plotting zero. Skipped entries remain visible in history and are excluded from numeric progress calculations.
+- Show the previous session's matching measurement and increase indicator. If that session skipped the exercise, show that fact plus the last successfully performed matching measurement, including an explicitly entered zero weight. Do not compare or inherit recommendations across Weight/Time type changes.
+- Increase-next-time note applies to a performed exercise; do not invent a new increase recommendation when its applicable measurement is NULL. Use “Increase weight next time” or “Increase duration next time” according to type.
 
 ### Weight meaning and historical integrity
 
 - One numeric weight per exercise, for example 40 lb **per dumbbell** vs 95 lb **total barbell**. UI labels/metadata should make the meaning clear without requiring multiple weight fields.
-- Keep a **snapshot** of exercise names, order, target sets/reps and related prescribed routine information in every saved session; changes to routines never alter old sessions.
+- Keep a **snapshot** of exercise names, order, measurement type, target sets, target reps or duration, unit/weight meaning, optional exercise notes, and related prescribed routine information in every saved session; changes to routines never alter old sessions.
 - A user's previous weights/increase flags must be drawn only from that user's logged exercise history; copied routine ownership must not leak values from another person.
 - Prevent accidental duplicate workouts if Finish & Save is tapped twice or retried.
+- Time exercises have a target duration per set entered as minutes and seconds, and one actual duration per exercise regardless of set count. Store both target and actual durations as integer seconds, not decimal minutes; do not multiply actual duration by sets. Exact zero-duration rules and maximum limits remain open.
 - Allow one active draft per user. Allow completing an entirely skipped workout only after confirmation.
 
 ## 4. Manual historical entry and history
 
 - Manually enter workouts performed before app installation, selecting the user and any past calendar date.
 - Permit selection of an existing routine or manual exercise composition if the old routine no longer matches current ones. Store historical exercise snapshots rather than overwriting current routines.
-- Enter the same one weight per exercise (or leave skipped exercises NULL), optional increase flags, and preserve a consistent historical date.
+- Enter the same one weight or duration per exercise, according to its snapshotted type (or leave skipped exercises NULL), optional increase flags, and preserve a consistent historical date.
 - Provide a history view with past sessions by date/person/routine, drill-down exercise records, and an exercise selector plus date-range filters.
-- Show weight-over-time charts, a table of weights/sets/reps/increase flags, and simple personal records. User-specific data only.
+- Show separate weight/duration progression charts and tables of measurements, sets, target reps or duration, and increase flags. Weight axes use pounds; duration axes use time labels backed by integer seconds. Never combine incompatible units on one numeric series. Personal records must use the matching type and unit. User-specific data only.
 - Allow corrections to previously saved workouts with confirmation and validation. Preserve routine snapshots except for deliberate validated corrections; correction fields/audit detail remain to be specified before that phase. Deletion of completed workouts is not approved.
 
 ## 5. Screen designs and styling
@@ -78,14 +80,16 @@
 
 ### Screen C — Workout entry (primary mobile screen)
 - Top: selected person, routine, automatic date/time, exercise count and completion progress bar.
-- One focused exercise card: name, sets × reps, previous weight, previous increase indicator, one weight input, increase-next-time toggle.
+- One focused exercise card: name, sets × reps (Weight) or sets × duration (Time), previous matching measurement and increase indicator, one blank actual measurement input, and the type-specific increase-next-time toggle. A minutes/seconds duration control represents one measurement, never separate per-set results.
 - **Back / Next** oval buttons; exercise jump list and full/expandable routine overview to navigate out of order.
 - **Finish & Save** always available; **Discard Workout** with checkbox acknowledgment confirmation.
-- Show completed/skipped/unentered states without confusing navigation progress with actual logged weights.
+- Show completed/skipped/unentered states without confusing navigation progress with actual logged measurements.
 - On desktop, optionally show exercise overview beside current exercise.
 
 ### Screen D — Routine editor
-- Rename/reorder workouts; reorder/add/edit/delete exercises; define sets/reps; copy another user's routine as an **independent** copy; duplicate own routine.
+- Rename/reorder workouts; reorder/add/edit/delete exercises; define sets/reps or sets/target duration; copy another user's routine as an **independent** copy; duplicate own routine.
+
+- Include a keyboard-accessible segmented **Weight / Time** selector when adding/editing a routine exercise. Both modes offer positive-integer sets through rounded plus/minus controls or a numeric input. Weight shows target repetitions per set; Time shows target minutes and seconds per set. Hide and clear inapplicable target fields on save; the server validates the selected type. Examples: Dumbbell Bench Press — 3 × 12 reps; Plank — 3 × 45 seconds.
 
 ### Screen E — History and charts
 - Session table; exercise progress chart; choose user, exercise and date range; manually record historical workouts.
@@ -103,13 +107,13 @@
 - **Users** — identity/display name.
 - **Exercises** — permanent person-owned identities and reusable names/metadata, independent of historical snapshots.
 - **Routines** — owner, name, status and ordering.
-- **Routine exercises** — ordered exercise references, prescribed sets/reps, optional notes/equipment labels.
+- **Routine exercises** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/equipment labels. Type is selected on the routine exercise, not inferred from its name.
 - **Workout sessions** — person, started/finished timestamps, date, selected routine identification, draft/completed/discarded status.
-- **Workout entries** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), nullable **weight**, nullable/non-applicable increase flag, optional notes. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
+- **Workout entries** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable **weight** and integer **actual_duration_seconds**, snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots; explicit confirmed corrections may update saved workouts.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
 - **Schema version** — SQLite user schema version recorded separately from the Git/app release number.
 
-The final SQL must enforce referential integrity, preserve past sessions when a routine is removed, and allow saving **every scheduled exercise row with `weight IS NULL`** for skipped ones.
+The final SQL must enforce referential integrity, preserve past sessions when a routine is removed, and allow saving **every scheduled exercise row with both actual measurements SQL NULL** for skipped ones. Enforce valid type-specific target and measurement combinations with explicit NULL checks. See [MEASUREMENT_DESIGN.md](MEASUREMENT_DESIGN.md) for architecture, proposed fields, safety, and future automated acceptance tests.
 
 ## 7. Database preservation and updates
 
@@ -165,6 +169,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 11. Open design / implementation decisions (not yet approved)
 
 - Exact server operating system, Proxmox VM/container layout, binding LAN interface/port, and on-host storage paths.
+- Time-entry limits and whether explicitly entered zero duration is valid (blank always means skipped); exact duration control layout and time personal-record rules.
 - Decimal precision and limits; whether units beyond default pounds are configurable; per-dumbbell vs total-barbell labels.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Exact fields and audit history for confirmed workout corrections; completed-workout deletion is not authorized.
@@ -176,10 +181,10 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 12. Approved phased implementation (Phase 1 only currently authorized)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
-2. **People and routines:** person selection, permanent exercises, routine editing/ordering, independent copies; ownership and copy-isolation tests.
-3. **Workout workflow:** one draft per user, snapshots, decimal/zero/NULL semantics, previous values, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
-4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, snapshots and user isolation tests.
-5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests.
+2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
+3. **Workout workflow:** one draft per user, type/target snapshots, one actual weight or duration per exercise, decimal-weight/zero-weight/NULL semantics, integer seconds, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
+4. **History:** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
+5. **Backups and recovery:** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. Do not run a schema migration for this documentation change.
 6. **Release preparation:** responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
