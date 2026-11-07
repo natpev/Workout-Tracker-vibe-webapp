@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–5 and the installation guide are approved and merged. Phase 6 UI/UX redesign only is authorized and implemented for review on phase-6-mobile-ux-redesign. Do not merge/delete the branch or deploy/use real data without approval. No Compose port/network changes are authorized.
+**Project status:** Phases 1–6 and the installation guide are completed and approved for main. Phase 6 is approved for final verification, fast-forward merge and verified branch cleanup. Stop afterward; no additional phase, actual deployment/server access, live database operations or Compose port/network changes are authorized.
 **Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -178,14 +178,14 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–5 approved and merged; Phase 6 mobile UX implemented for review)
+## 12. Phased plan (Phases 1–6 completed and approved; further development requires authorization)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
 3. **Workout workflow (approved and merged):** one draft per user, type/target snapshots, one actual weight or duration per exercise, one-decimal weight truncation and integer-tenths storage, valid zero-weight/NULL semantics, minimum-1-second integer durations and empty-duration NULL semantics, matching previous values and increase flags, draft revisions, idempotent completion, all-skipped confirmation, discard dialog; transaction/concurrency and browser tests.
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery (completed and approved):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
-6. **Mobile UI/UX redesign (implemented for review; no live deployment):** compact People/routine selection, tab-scoped workout focus/save-and-exit, compact one-exercise layout, Settings appearance, neutral themes and persistent person accents; actual screenshot and browser viewport testing. Further installation, real-world testing and final polish: responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
+6. **Mobile UI/UX redesign (completed and approved; no live deployment):** compact People/routine selection, tab-scoped workout focus/save-and-exit, compact one-exercise layout, Settings appearance, neutral themes and persistent person accents; actual screenshot and browser viewport testing. Further installation, real-world testing and final polish: responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 

@@ -13,8 +13,9 @@ Phase 4 is completed and approved for inclusion in main:
 history, local SVG charts, independent historical completion and append-only
 correction revisions. Phases 1–5 are completed and approved for main, including
 Phase 5 verified backups, deliberate restore, separate scheduling and persistent
-safe logs. No schema-5 change is needed. Phase 6 mobile UI/UX redesign is authorized and implemented for review on
-phase-6-mobile-ux-redesign; no merge or actual deployment is authorized. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
+safe logs. No schema-5 change is needed. Phase 6 mobile UI/UX redesign is completed and approved for main, following
+final regression verification and fast-forward merge. No actual deployment,
+live database operation or additional development phase is authorized. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
 The validation record at the end describing the earlier documentation branch
 is historical, not the current implementation result.
 

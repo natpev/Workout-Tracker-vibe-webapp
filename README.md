@@ -508,9 +508,9 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–5 and the installation guide are approved and merged. Phase 6 mobile
-UI/UX is implemented for review on `phase-6-mobile-ux-redesign`; do not merge,
-delete the branch or deploy before approval. Phase 5 provides verified server-side
+Phases 1–6 and the installation guide are completed and approved for main.
+Phase 6 mobile UI/UX is approved for final verification and fast-forward merge.
+No additional development phase or actual deployment is authorized. Phase 5 provides verified server-side
 backups, deliberate candidate restores, a dedicated scheduler and persistent
 filtered logs. The Phase 6 redesign preserves these features and schema 4. No deployment, real
 workout data, cloud synchronization, internet exposure or authentication is authorized.

@@ -2,6 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Synthetic fixture data only; these are actual Chromium captures, not mockups.
 
+Phase 6 is completed and approved; no actual deployment is included.
+
 See [PHASE_6_UX_REVIEW.md](../../PHASE_6_UX_REVIEW.md) for the full viewport matrix,
 functional test evidence, baseline provenance, limitations and update instructions.
 

@@ -8,7 +8,11 @@
 `2be4c740749f4d2923583321a40271859c13f79e` (Phases 1–5 and installation guide).
 Implementation increment `5d0a990` introduces the coordinated presentation,
 preference and deliberate-exit changes. `a216f5e` records the browser tests and
-19 inspected screenshots. Documentation follows in a separate reviewable commit. Do not merge/delete this branch before approval.
+19 inspected screenshots. `7435462` records documentation and initial validation.
+Phase 6 was reviewed and approved on November 6, 2026. The authorized completion
+workflow runs the full suite, updates approval documentation, fast-forwards main,
+verifies remote containment and then deletes the fully merged feature branch.
+No additional development phase is authorized.
 No actual Proxmox access/deployment, real household data, network/port change,
 new authentication, public exposure or unrelated development is included.
 
@@ -40,7 +44,7 @@ new authentication, public exposure or unrelated development is included.
 | Preservation | NULL/zero, decimal truncation, integer durations, flags, progress, recovery, immutable snapshots, audits, history/charts, historical entry and all recovery/logging services remain tested. |
 | Browser/screenshot evidence | Six viewport sizes × two themes and all six accents; full workflow, failed save/exit, separate browser contexts, Back/reload, text enlargement and reduced keyboard-height checks; 19 actual PNG artifacts. |
 | Documentation/update safety | README/AGENTS/specification/measurement design updated, installation verification labeled historical, explicit no-migration update steps below. |
-| GitHub workflow | Push feature branch for review only; no merge, deletion or deployment. |
+| GitHub workflow | Reviewed and approved; verify, fast-forward main, push, verify remote containment, then delete the fully merged feature branch. No deployment. |
 
 ## Actual rendered screenshots and visual inspection
 
@@ -129,7 +133,9 @@ WORKOUT_UX_SCREENSHOTS=/workspace/Workout-Tracker-vibe-webapp/docs/phase-6 \
 /workspace/phase1-venv/bin/python -m pytest -q
 ```
 
-**246 passed in 150.72 seconds; zero failures/skips.** This includes **222 service/
+Final approved-merge verification repeated the complete suite: **246 passed in
+159.38 seconds; zero failures/skips.** The earlier implementation run also passed
+all 246 tests in 150.72 seconds. This includes **222 service/
 storage/HTTP tests, 15 Chromium tests and 9 Docker tests**. All earlier tests are
 retained; outdated UI assertions were updated for menu/Settings placement and
 compact status without removing their behavioral checks. New tests cover private
@@ -149,7 +155,7 @@ image was rebuilt with the new source as `workout-tracker:phase6-review`.
 `pip check` passed. Baseline schema/recovery/measurement/Compose files compare
 unchanged. No new runtime dependency, external asset/CDN or network service.
 
-## Existing-installation update — only after approval and merge
+## Existing-installation update — after the approved merge
 
 Finish & Save or Exit Workout with confirmed saves before maintenance. Keep your
 existing `.env`, UID/GID, network bind/port and external storage. Do **not** run
@@ -204,5 +210,22 @@ storage tree if the compatibility check fails. Stop and inspect instead.
   configuration is bounded to 1 MiB; no automatic pruning.
 - Existing Phase 1–5 local filesystem, cooperative locking, synchronous maintenance,
   no-auth LAN, backup/offsite and uncertainty-recovery limits still apply.
-- No actual server access, network/port adjustment, real-data operation, merge or
-  deployment occurred. Stop for review with the feature branch retained.
+- No actual server access, network/port adjustment, real-data operation or
+  deployment is included. Merge/cleanup is explicitly approved; stop afterward.
+
+
+## Existing update-script compatibility
+
+An existing script that fetches/fast-forwards approved main, rebuilds the same
+Compose services and recreates containers while retaining the existing .env and
+external data root is compatible with this release. No schema-4 migration,
+initialization or restore step should be added. Stop both writers for read-only
+compatibility verification as shown above. No server configuration/port change
+is required; the new preference file is created only after explicitly saving
+a person's accent. Confirm app 0.6.0 / schema 4 readiness afterward.
+
+The user's actual update script was not supplied, so its arbitrary commands have
+not been audited. If it initializes, migrates/restores automatically, deletes
+persistent data, changes mounts/ownership/ports or discards local Git work, do
+not run it unchanged. Use the exact conservative sequence above instead. This
+is a compatibility assessment, not a deployment or real-database verification.
