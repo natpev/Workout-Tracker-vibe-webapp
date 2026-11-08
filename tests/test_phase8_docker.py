@@ -22,7 +22,8 @@ from test_phase8_updater import fixture,REPO
 pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',reason='Opt-in isolated Docker rehearsal')
 
 
-def test_actual_v4_host_service_and_docker_migration(tmp_path):
+@pytest.mark.parametrize('fault',[None,'shutdown','startup'])
+def test_actual_v4_host_service_and_docker_migration(tmp_path,fault):
     """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
     short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')
     root,env=fixture(Path(short.name),5);env['MODE']='ok'
@@ -31,7 +32,15 @@ def test_actual_v4_host_service_and_docker_migration(tmp_path):
     # The cloud test UID cannot traverse the rootless daemon user's private
     # directory. Simulate only that path probe; every Docker operation is real.
     adapter.write_text('#!/usr/bin/env python3\n# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\nimport os,sys\nfrom pathlib import Path\na=sys.argv[1:]\nif "info" in a and "{{.DockerRootDir}}" in a: print(os.environ["FIXTURE"])\nelse: os.execv('+repr(real_docker)+', ['+repr(real_docker)+',*a])\n')
-    adapter.chmod(0o700)
+    source=adapter.read_text().replace('import os,sys','import os,sys,subprocess')
+    source=source.replace('a=sys.argv[1:]',"""a=sys.argv[1:]
+fault=os.environ.get('DOCKER_FAULT','')
+marker=Path(os.environ['FIXTURE'])/'shutdown-failed-once'
+if fault=='shutdown' and 'compose' in a and 'stop' in a and not marker.exists():
+ marker.touch();subprocess.run([REAL_DOCKER,*a]);sys.exit(1)
+if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REAL_DOCKER',repr(real_docker)))
+    adapter.write_text(source);adapter.chmod(0o700)
+    env['DOCKER_FAULT']=fault or ''
     for name in ('Dockerfile','.dockerignore','requirements.txt'):
         shutil.copy2(REPO/name,root/'app'/name)
     shutil.copytree(REPO/'workout_tracker',root/'app/workout_tracker',ignore=shutil.ignore_patterns('__pycache__'))
@@ -61,15 +70,32 @@ def test_actual_v4_host_service_and_docker_migration(tmp_path):
                 if time.monotonic()>deadline:
                     service_log.flush();pytest.fail('Independent host status did not start: '+(root/'updater/service-test.log').read_text()[-4000:])
                 time.sleep(.1)
+        # Rehearse recovery from an actually running application, not a fake
+        # successful restart response. Docker exec verifies its real health.
+        initial=subprocess.run([*prefix,'up','-d','--no-build'],env=clean_env,text=True,capture_output=True,timeout=30)
+        assert initial.returncode==0,initial.stderr
         result=subprocess.run(['bash',str(REPO/'deployment/update_workout_tracker_v4.sh'),'--root',str(root),'--confirm','--allow-migration'],
                               env=clean_env,text=True,capture_output=True,timeout=180)
-        assert result.returncode==0,result.stdout+result.stderr+'\n'+''.join(p.read_text()[-5000:] for p in state.glob('*.private.log'))
+        assert (result.returncode==0)==(fault is None),result.stdout+result.stderr+'\n'+''.join(p.read_text()[-5000:] for p in state.glob('*.private.log'))
         assert original.read_bytes()==before
-        assert json.loads(manifest.read_text())['database']!=original.name
+        assert (json.loads(manifest.read_text())['database']!=original.name)==(fault!='shutdown')
         assert service.poll() is None
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/status.json',timeout=5) as response:status=json.load(response)
-        assert status['status']=='Completed' and status['installed_schema']==6 and status['installed_version']=='0.8.0'
-        assert status['backup_id']
+        if fault is None:
+            assert status['status']=='Completed' and status['installed_schema']==6 and status['installed_version']=='0.8.0'
+            assert status['backup_id']
+        else:
+            if status['status']!='Failed' or status['recovered']!=(fault=='shutdown'):
+                pytest.fail(''.join(p.read_text() for p in state.glob('*.private.log')))
+            assert list(state.glob('*.recovery.json')) and list(state.glob('*.private.log'))
+            if fault=='startup':
+                stopped=subprocess.run([*prefix,'ps','--status','running','--services'],env=clean_env,text=True,capture_output=True,check=True)
+                assert not stopped.stdout.strip()
+                return  # The schema-6 selection must never be rolled back to 5.
+            health="import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='0.8.0',schema_version=5)"
+            checked=subprocess.run([*prefix,'exec','-T','web','python','-c',health],env=clean_env,text=True,capture_output=True)
+            assert checked.returncode==0,checked.stderr
+            return
         # The actual replacement web container can reach the host Unix socket
         # through the existing data mount, with its real configured writer UID.
         probe="import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/settings/updates').read(); assert b'Application Updates' in r and b'Completed' in r and b'password' not in r"

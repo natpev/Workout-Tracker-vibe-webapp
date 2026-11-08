@@ -194,6 +194,47 @@ class Engine:
         services=self.command([*self.compose,'ps','--status','running','--services'],check=False).stdout.splitlines()
         return result.returncode==0 and {'web','scheduler'}<=set(services)
 
+    def recover_image(self,recovery):
+        """Restart a preserved image only after every compatibility check succeeds.
+
+        The caller builds this record before any shutdown attempt. A changed
+        manifest, changed database bytes or failed old-image storage check means
+        manual inspection, never a backup restore or an incompatible restart.
+        Cleanup errors are logged privately without hiding the original failure.
+        """
+        started=False
+        try:
+            if not recovery:return False
+            self.command([*self.compose,'stop','web','scheduler'])
+            original=recovery['database']
+            if read_json(self.data/'config/active.json')!=recovery['manifest']:
+                raise UpdateError('Recovery refused: active selection changed.')
+            if original.is_symlink() or not original.is_file():
+                raise UpdateError('Recovery refused: original database missing or unsafe.')
+            if hashlib.sha256(original.read_bytes()).hexdigest()!=recovery['hash']:
+                raise UpdateError('Recovery refused: original database bytes changed.')
+            if self.preflight()!=recovery['config']:
+                raise UpdateError('Recovery refused: resolved configuration changed.')
+            probe=self.command(['docker','run','--rm','--network=none','--read-only','--tmpfs','/tmp','--user',recovery['config']['services']['web']['user'],'--mount',f'type=bind,src={self.data},dst=/var/lib/workout-tracker,readonly','--entrypoint','python',recovery['image'],'-m','workout_tracker','check-storage','--data-root','/var/lib/workout-tracker'],check=False)
+            if probe.returncode:raise UpdateError('Recovery refused: preserved image storage verification failed.')
+            self.command(['docker','image','tag',recovery['image'],IMAGE])
+            started=True
+            self.command([*self.compose,'up','-d','--no-build'])
+            import time
+            for attempt in range(10):
+                if self.health(recovery['version'],recovery['schema']):return True
+                time.sleep(1)
+        except Exception:
+            import traceback
+            with self.raw_log.open('a') as diagnostic:diagnostic.write(traceback.format_exc())
+        # A partially started or unhealthy recovered application must not remain
+        # running. Even failure of this final cleanup must not erase diagnostics.
+        if started:
+            try:self.command([*self.compose,'stop','web','scheduler'])
+            except Exception:
+                with self.raw_log.open('a') as diagnostic:diagnostic.write('Recovery shutdown failed; inspect containers manually.\n')
+        return False
+
     def install(self,release_id,*,confirm=False,migration_confirm=False):
         """Run one approved, confirmed update; preserve sources and verified recovery.
 
@@ -205,7 +246,10 @@ class Engine:
         expected=self.state().get('release')
         if not expected or release_id!=expected['id']: raise UpdateError('Review an approved release before installing.')
         with self.locked():
-            stopped=False;original=None;old_image=None;old_commit=None;backup_id=None;original_manifest=None
+            # Define every recovery input before any command can fail. The
+            # complete record is published before a partial shutdown is possible.
+            stopped=False;recovery=None;original_hash=None;before_config=None
+            schema=None;original=None;old_image=None;old_commit=None;backup_id=None;original_manifest=None
             operation=uuid4().hex;self.raw_log=self.state_dir/(operation+'.private.log')
             self.raw_log.touch(mode=0o600,exist_ok=False)
             try:
@@ -231,11 +275,25 @@ class Engine:
                 env_hash=hashlib.sha256((self.root/'.env').read_bytes()).hexdigest()
                 old_image='workout-tracker:before-update-'+operation
                 self.command(['docker','image','tag',IMAGE,old_image])
+                old_version=self.command(['docker','run','--rm','--network=none','--read-only','--entrypoint','python',old_image,'-c','from workout_tracker import APP_VERSION; print(APP_VERSION)']).stdout.strip()
+                if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',old_version):raise UpdateError('Preserved image version could not be verified.')
+                original_hash=hashlib.sha256(original.read_bytes()).hexdigest()
+                recovery=dict(database=original,manifest=original_manifest,hash=original_hash,
+                              config=before_config,image=old_image,version=old_version,schema=schema)
+                recovery_path=self.state_dir/(operation+'.recovery.json')
+                write_json(recovery_path,dict(commit=old_commit,image=old_image,version=old_version,
+                           schema=schema,manifest=original_manifest,database_hash=original_hash))
                 self.event('Validating storage',previous_commit=old_commit,previous_image=old_image,previous_database=original.name)
                 stopped=True;self.command([*self.compose,'stop','web','scheduler'])
                 # Recheck under quiescence, then take a verified application backup.
                 if self.storage()[:2]!=(schema,original_manifest): raise UpdateError('Selection changed during update preparation.')
+                # A valid workout may have committed between the first hash and
+                # shutdown. Rebaseline only after verifying the same selection
+                # while both writers are stopped; failures retain the first hash.
                 original_hash=hashlib.sha256(original.read_bytes()).hexdigest()
+                recovery['hash']=original_hash
+                preserved=read_json(recovery_path);preserved['database_hash']=original_hash
+                write_json(recovery_path,preserved)
                 self.event('Backing up database')
                 code="import json; from uuid import uuid4; from workout_tracker.maintenance import backup; r=backup('/var/lib/workout-tracker',uuid4().hex); assert r['status']=='verified'; print(json.dumps(dict(id=r['id'],status=r['status'])))"
                 backup=json.loads(self.command([*self.compose,'run','--rm','--no-deps','web','python','-c',code]).stdout)
@@ -280,24 +338,7 @@ class Engine:
                 import traceback
                 with self.raw_log.open('a') as diagnostic:diagnostic.write(traceback.format_exc())
                 failed_stage=self.state()['status'];recovered=False
-                if stopped:
-                    self.command([*self.compose,'stop','web','scheduler'],check=False)
-                    # Safe automatic image recovery only before any selection
-                    # change, on identical config with the preserved old DB bytes.
-                    if original and old_image and original_manifest==read_json(self.data/'config/active.json'):
-                        try:
-                            if self.preflight()==before_config and hashlib.sha256(original.read_bytes()).hexdigest()==original_hash:
-                                probe=self.command(['docker','run','--rm','--network=none','--read-only','--tmpfs','/tmp','--mount',f'type=bind,src={self.data},dst=/var/lib/workout-tracker,readonly','--entrypoint','python',old_image,'-m','workout_tracker','check-storage','--data-root','/var/lib/workout-tracker'],check=False)
-                                if probe.returncode==0:
-                                    self.command(['docker','image','tag',old_image,IMAGE]);self.command([*self.compose,'up','-d','--no-build'])
-                                    old_version=self.command(['docker','run','--rm','--network=none','--read-only','--entrypoint','python',old_image,'-c','from workout_tracker import APP_VERSION; print(APP_VERSION)']).stdout.strip()
-                                    import time
-                                    for attempt in range(10):
-                                        if self.health(old_version,schema):
-                                            recovered=True;break
-                                        time.sleep(1)
-                                    if not recovered: self.command([*self.compose,'stop','web','scheduler'],check=False)
-                        except Exception: recovered=False
+                if stopped:recovered=self.recover_image(recovery)
                 self.event('Failed','Failed during '+failed_stage+'. '+(str(error)+' ' if isinstance(error,UpdateError) else '')+('Preserved compatible image restarted and verified.' if recovered else 'Inspect preserved versions and private host log before restarting.'),last_failure=utc(),failure_stage=failed_stage,recovered=recovered)
                 if isinstance(error,UpdateError): raise
                 raise UpdateError('Update failed; inspect preserved operation diagnostics.') from error

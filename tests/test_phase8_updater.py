@@ -212,3 +212,71 @@ def test_generated_systemd_unit_is_syntactically_valid_and_scoped(tmp_path):
         env={**os.environ,'XDG_RUNTIME_DIR':str(runtime),'SYSTEMD_UNIT_PATH':str(tmp_path)+':'}
         result=subprocess.run(['systemd-analyze','--user','verify',str(path)],text=True,capture_output=True,env=env)
         assert result.returncode==0,result.stderr
+
+
+@pytest.mark.parametrize('fault,recovered',[
+    ('before-stop',False),('shutdown',True),('after-shutdown',True),
+    ('post-storage',True),('backup',True),('migration',True),
+    ('restart',False),('health',False),('recovery-health',False),
+    ('changed-selection',False),('changed-database',False),('recovery-stop',False),
+])
+def test_recovery_boundaries_have_initialized_verified_state(tmp_path,fault,recovered):
+    """Inject each failure boundary, retaining real SQLite and the fixed v4 engine.
+
+    Fake Docker/Git commands isolate host effects; separate Docker tests verify
+    actual process startup. A recovery must probe storage, start services and pass
+    the expected version/schema health check, not merely report a restart.
+    """
+    root,env=fixture(tmp_path);env['MODE']='ok'
+    manifest=root/'data/storage/config/active.json'
+    original=root/'data/storage/data'/json.loads(manifest.read_text())['database']
+    before=original.read_bytes();initial_manifest=manifest.read_bytes()
+    calls=[];injected=False;storage_checks=0
+    def runner(args,**kwargs):
+        """Fail once at a named boundary while executing all other fixture commands."""
+        nonlocal injected,storage_checks
+        calls.append(args)
+        stopping='stop' in args and 'compose' in args
+        verifying='check-storage' in args and 'compose' in args
+        if verifying:storage_checks+=1
+        point=(fault=='before-stop' and args[:1]==['docker'] and 'image' in args and 'tag' in args or
+               fault in ('shutdown','recovery-stop') and stopping or
+               fault in ('after-shutdown','post-storage','changed-selection','changed-database') and verifying and storage_checks==2 or
+               fault in ('backup','recovery-health') and any('maintenance import backup' in a for a in args) or
+               fault=='migration' and 'migrate-storage' in args or
+               fault=='restart' and 'compose' in args and 'up' in args or
+               fault=='health' and 'compose' in args and 'exec' in args)
+        if fault=='recovery-health' and injected and 'compose' in args and 'exec' in args:
+            return subprocess.CompletedProcess(args,1,'','Synthetic recovered health failure')
+        if point and (not injected or fault=='recovery-stop' and stopping):
+            injected=True
+            if fault in ('shutdown','after-shutdown'):subprocess.run(args,**kwargs)
+            if fault=='changed-selection':manifest.write_text(json.dumps({'database':'missing.sqlite3','storage_id':'x'}))
+            if fault=='changed-database':
+                import sqlite3
+                with sqlite3.connect(original) as db:db.execute("UPDATE people SET name='Changed while stopping'")
+            raise OSError('Synthetic boundary failure')
+        return subprocess.run(args,**kwargs)
+    with patch.dict(os.environ,env,clear=True),patch('time.sleep'):
+        engine=Engine(root,runner=runner);release=engine.check()
+        with pytest.raises(UpdateError):engine.install(release['id'],confirm=True,migration_confirm=True)
+    assert injected
+    state=engine.state();assert state['status']=='Failed' and state['recovered'] is recovered
+    diagnostics=''.join(p.read_text() for p in (root/'updater').glob('*.private.log'))
+    assert 'Synthetic boundary failure' in diagnostics and 'UnboundLocalError' not in diagnostics
+    assert state['failure_stage'] and state['last_failure']
+    if fault!='changed-database':assert original.read_bytes()==before
+    if fault not in ('restart','health','changed-selection'):assert manifest.read_bytes()==initial_manifest
+    if fault!='before-stop':
+        record=json.loads(next((root/'updater').glob('*.recovery.json')).read_text())
+        assert record['database_hash']==hashlib.sha256(before).hexdigest()
+        assert record['manifest']==json.loads(initial_manifest) and record['commit']=='b'*40
+    if recovered:
+        assert (root/'started').exists()
+        probes=[call for call in calls if 'check-storage' in call and '--mount' in call]
+        assert probes and probes[-1][probes[-1].index('--user')+1]=='10001:10001'
+        assert any('exec' in call and call[-2:]==['0.8.0','5'] for call in calls)
+    elif fault in ('restart','health','changed-selection','changed-database','recovery-stop'):
+        # The old recovery tag must never be promoted after an incompatible or
+        # unverified selection, changed bytes or failed quiescence check.
+        assert not any('image' in call and 'tag' in call and call[-1]=='workout-tracker:local' for call in calls)
