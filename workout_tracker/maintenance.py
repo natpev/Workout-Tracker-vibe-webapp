@@ -58,7 +58,9 @@ def logical_check(path,version):
             for index,row in enumerate(snapshots):
                 if type(row['position']) is not int or row['position']<0 or (index>0 and row['position']<=snapshots[index-1]['position']) or row['person_id']!=form['person_id'] or row['routine_id']!=form['routine_id']:
                     raise StorageError('Prepared snapshot ownership/order failed.')
-                if not db.execute('SELECT 1 FROM exercises WHERE id=? AND person_id=?',(row['exercise_id'],form['person_id'])).fetchone():
+                identity_sql = 'SELECT 1 FROM exercises WHERE id=?' + (' AND person_id=?' if version < 5 else '')
+                identity_args = (row['exercise_id'], form['person_id']) if version < 5 else (row['exercise_id'],)
+                if not db.execute(identity_sql, identity_args).fetchone():
                     raise StorageError('Prepared exercise identity failed.')
                 values={k:str(row[k]) for k in ('target_sets','target_reps','measurement_type','weight_meaning','notes')}
                 duration=row['target_duration_seconds']
@@ -189,7 +191,7 @@ def current_for_restore(root):
         selection=json.loads(active.read_text(),object_pairs_hook=_unique_object)
         if not isinstance(selection,dict) or set(selection)!= {'database','storage_id'}: raise original_error
         storage_id=selection['storage_id'];o.identity(storage_id)
-        match=re.fullmatch(rf'schema-([234])-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
+        match=re.fullmatch(rf'schema-([2345])-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
         if not match: raise original_error
         path=root/'data'/selection['database'];_regular_file(path)
         for suffix in ('-journal','-wal','-shm'):

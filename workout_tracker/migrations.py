@@ -1,5 +1,5 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-"""Explicit schema-1/2/3 -> schema-2/3/4 candidate migration called only by the CLI.
+"""Explicit schema-1/2/3/4 -> schema-2/3/4/5 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -27,7 +27,7 @@ def _digest(path):
 
 def _upgrade_candidate(connection, target_version=2):
     """Add the requested known schema only to a copied candidate in one transaction."""
-    connection.execute("PRAGMA foreign_keys=ON")
+    connection.execute("PRAGMA foreign_keys=" + ("OFF" if target_version == 5 else "ON"))
     connection.execute("PRAGMA synchronous=FULL")
     connection.execute("BEGIN IMMEDIATE")
     try:
@@ -40,13 +40,17 @@ def _upgrade_candidate(connection, target_version=2):
             for statement in WORKOUT_OBJECTS.values():
                 connection.execute(statement)
             connection.execute("INSERT INTO schema_migrations VALUES (3, 'workout_tracking')")
-        if target_version == 4:
+        if current < 4 and target_version >= 4:
             for statement in HISTORY_OBJECTS.values():
                 connection.execute(statement)
             # Original completed rows are not touched; the registry only links
             # them for future correction ownership. Counts are checked below.
             connection.execute("INSERT INTO workout_registry(id,person_id,live_session_id) SELECT id,person_id,id FROM workout_sessions WHERE status='completed'")
             connection.execute("INSERT INTO schema_migrations VALUES (4, 'history_and_corrections')")
+        if target_version == 5:
+            from .library_schema import upgrade_library
+            upgrade_library(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (5, 'shared_exercise_library')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -66,13 +70,13 @@ def _write_manifest(path, selection):
 def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schema 1/2/3 sources may upgrade to target 2/3/4. A matching target
+    Known schema 1/2/3/4 sources may upgrade to target 2/3/4/5. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -105,6 +109,8 @@ def _migrate_storage(value, target_version=2):
                     existing += list(PHASE2_TABLES)
                 if source["schema_version"] >= 3:
                     existing += list(WORKOUT_TABLES)
+                if source["schema_version"] >= 4:
+                    existing += list(HISTORY_TABLES)
                 for name in existing:
                     before = source_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
                     after = target_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
@@ -113,7 +119,7 @@ def _migrate_storage(value, target_version=2):
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
                 added = list(WORKOUT_TABLES) if source["schema_version"] < 3 and target_version >= 3 else []
-                if target_version == 4:
+                if source["schema_version"] < 4 and target_version >= 4:
                     added += [name for name in HISTORY_TABLES if name != 'workout_registry']
                     links = target_connection.execute("SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry ORDER BY id").fetchall()
                     expected_links = target_connection.execute("SELECT id,person_id,id,NULL FROM workout_sessions WHERE status='completed' ORDER BY id").fetchall()
@@ -135,6 +141,9 @@ def _migrate_storage(value, target_version=2):
             # Reuse the exact startup validator against an isolated manifest view
             # without selecting the candidate for application connections yet.
             _validate_candidate(root, candidate, selection)
+            # Validate prepared snapshots, chronology and every correction chain.
+            from .maintenance import logical_check
+            logical_check(candidate, target_version)
             if _digest(original) != original_hash or json.loads(active.read_text()) != original_selection:
                 raise StorageError("Original storage changed during maintenance; activation refused.")
             # Session signing material is created only by explicit maintenance,
@@ -176,7 +185,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 
