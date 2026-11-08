@@ -1,0 +1,11 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Display only host-verified release metadata; status survives web replacement. #}
+{% extends 'base.html' %}{% from 'macros.html' import security with context %}
+{% block content %}<h1>Application Updates</h1><p>Installed application {{ application_version }} · Database {{ active_schema_version }}</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if status_url %}<p><a class="pill" href="{{ status_url }}" target="_blank" rel="noopener">View Update Progress and Logs (independent host page)</a></p><p>Open the independent LAN HTTP page before installing; this application will stop temporarily.</p>{% endif %}
+{% if state %}<section><h2>Updater status</h2><p>{{ state.status }}</p><p>Last successful update: {{ state.last_success or 'None' }} · Last failed update: {{ state.last_failure or 'None' }}</p><a href="{{ url_for('updates.index',person_id=person.id if person else none) }}">Refresh actual status</a></section>
+<form method="post">{{ security() }}<button name="action" value="check">Check for Updates</button></form>
+{% if state.release %}<section><h2>Review Update</h2><p>Latest approved version: {{ state.release.version }} · Required database schema: {{ state.release.schema }}</p><p>Approved source: {{ state.release.source }} · Commit {{ state.release.id }}</p><p>Database migration {% if active_schema_version is number and state.release.schema>active_schema_version %}is required{% else %}is not required{% endif %}.</p><h3>Release notes</h3><pre>{{ state.release.notes }}</pre>
+<form method="post">{{ security() }}<input type="hidden" name="release" value="{{ state.release.id }}"><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required>Install this approved release, with a verified backup.</label><label class="acknowledge"><input type="checkbox" name="migration" value="yes">I explicitly approve a separate-candidate schema migration if required.</label><button name="action" value="install">Install Update</button></form></section>{% endif %}
+<section><h2>View Update Logs</h2>{% for event in state.events|reverse %}<p>{{ event.time }} · {{ event.status }} · {{ event.message }}</p>{% endfor %}</section>{% endif %}{% endblock %}

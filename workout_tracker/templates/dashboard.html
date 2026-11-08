@@ -13,4 +13,4 @@
 <form method="post">{{ security() }}<input type="hidden" name="action" value="copy">
 <label for="source-routine">Source routine</label><select id="source-routine" name="source" required>{% for source in sources %}<option value="{{ source.person_id }}:{{ source.id }}">{{ source.person_name }} / {{ source.name }}</option>{% endfor %}</select>
 <label>Name for the copy <input name="name" required maxlength="100"></label><button>Copy routine</button></form></section>{% endif %}
-</details>{% endblock %}
+</details>{% if archived_routines %}<details><summary>Previously archived routines</summary>{% for row in archived_routines %}<p>{{ row.name }} <a href="{{ url_for('deletion.review',person_id=person.id,kind='routine',identity=row.id) }}">Permanently Delete Routine</a></p>{% endfor %}</details>{% endif %}{% endblock %}

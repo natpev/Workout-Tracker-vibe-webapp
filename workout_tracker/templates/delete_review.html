@@ -1,0 +1,10 @@
+{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Household previews global impact, then submits a typed, CSRF-bound decision. #}
+{% extends 'base.html' %}{% from 'macros.html' import security with context %}
+{% block content %}<h1>Permanently Delete {{ impact.name }}?</h1>
+{% if kind=='exercise' %}<p>Permanent exercise ID: {{ identity }}</p><p>This global exercise affects {{ impact.people }} people, {{ impact.routines }} routines and {{ impact.entries }} recorded workout entries.</p><p class="destructive-notice">This permanently removes the exercise from every routine and erases its measurements and recommendations for every household member in the active database. Other exercises remain. Empty saved/discarded workouts will be removed. This cannot be undone through the application.</p>
+{% else %}<p>This permanently removes the routine and its current configurations. Completed workout history and global exercise definitions remain available.</p>{% endif %}
+<p>Older backups and retained database versions may still contain deleted records. Restoring an older backup may bring them back; no backup is rewritten or removed.</p>
+{% if impact.blocked %}<p role="alert">An active draft references this record. Finish or discard it through the existing workout workflow, then review deletion again.</p><a class="pill" href="{{ url_for('manage.dashboard',person_id=person.id) }}">Return to routines and drafts</a>
+{% else %}<form method="post">{{ security(impact.revision) }}<label>Type DELETE or {{ impact.name }}<input name="phrase" autocomplete="off" required></label><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required>I understand this permanent deletion.</label><button class="danger">Permanently Delete {{ 'Exercise' if kind=='exercise' else 'Routine' }}</button></form>{% endif %}
+<a class="pill secondary" href="{{ url_for('manage.dashboard',person_id=person.id) }}">Cancel</a>{% endblock %}

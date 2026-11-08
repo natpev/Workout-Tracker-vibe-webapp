@@ -128,7 +128,9 @@ def dashboard(person_id):
                                  "WHERE r.archived=0 AND p.archived=0 ORDER BY p.name,r.position").fetchall()
     if request.method == "POST":
         return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=identity), code=303)
-    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3)
+    with connection() as db:
+        archived_routines = db.execute('SELECT id,name FROM routines WHERE person_id=? AND archived=1 ORDER BY name',(person_id,)).fetchall() if version>=6 else []
+    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3, archived_routines=archived_routines)
 
 
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
@@ -141,10 +143,13 @@ def exercises(person_id):
                 catalog.create_definition(db, person_id, request.form.get("name"))
             else:
                 if request.form.get("action") == "archive":
+                    if db.execute('PRAGMA user_version').fetchone()[0]>=6:
+                        raise catalog.ValidationError('Use the dedicated household Permanent Delete Exercise page. Remove from Routine never deletes global history.')
                     confirmation()
                 catalog.update_definition(db, person_id, request.form.get("exercise_id"),
                                           request.form.get("name"), request.form.get("action"))
-        rows = catalog.definitions(db, person_id)
+        rows = (db.execute('SELECT * FROM exercises ORDER BY archived,name,id').fetchall()
+                if db.execute('PRAGMA user_version').fetchone()[0]>=6 else catalog.definitions(db, person_id))
     if request.method == "POST":
         return redirect(url_for("manage.exercises", person_id=person_id), code=303)
     return render_template("exercises.html", person=selected, exercises=rows)
@@ -163,6 +168,10 @@ def edit_routine(person_id, routine_id):
                 db.execute("UPDATE routines SET name=? WHERE id=? AND person_id=?",
                            (catalog.text(request.form.get("name"), "Routine name"), routine_id, person_id))
             elif action == "delete":
+                if db.execute('PRAGMA user_version').fetchone()[0] >= 6:
+                    # Destructive deletion needs its own impact preview/confirmation
+                    # route; never turn an old archive checkbox into consent.
+                    return redirect(url_for('deletion.review',person_id=person_id,kind='routine',identity=routine_id),code=303)
                 confirmation()
                 db.execute("UPDATE routines SET archived=1 WHERE id=? AND person_id=?", (routine_id, person_id))
             elif action == "move":

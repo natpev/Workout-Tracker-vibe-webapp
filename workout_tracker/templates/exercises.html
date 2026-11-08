@@ -1,14 +1,15 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
    Flask renders shared permanent definitions; rename applies to all reuse.
-   Archive never deletes an identity and is refused while active routines use it. #}
+   Schema 6 offers a dedicated household impact preview for permanent deletion; older schemas retain archival behavior. #}
 {% extends 'base.html' %}
 {% from 'macros.html' import security with context %}
 {% block content %}
 <h1>Exercise Library</h1>
-<p>Exercises are shared across the household on schema 5. Renaming updates current routine displays for everyone; historical snapshots keep their original names. Archiving is refused while any active routine uses the exercise. IDs distinguish older registrations with matching names.</p>
+<p>Exercises are shared across the household. Renaming updates current routine displays for everyone while historical snapshots keep their names. Remove from Routine affects only one configuration; Permanently Delete Exercise erases that global identity and its history across all people. IDs distinguish older registrations with matching names.</p>
 <section><h3>Add exercise name</h3><form method="post">{{ security() }}<input type="hidden" name="action" value="create"><label>Exercise name <input name="name" required maxlength="100"></label><button>Add exercise name</button></form></section>
 {% for row in exercises %}<section><p class="muted">Library ID: {{ row.id }}</p>
-<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><input type="hidden" name="action" value="rename"><label>Exercise name <input name="name" value="{{ row.name }}" required maxlength="100"></label><button>Rename exercise</button></form>
-<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> Archive this definition and retain its identity</label><button name="action" value="archive">Archive exercise</button></form>
+{% if not row.archived %}<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><input type="hidden" name="action" value="rename"><label>Exercise name <input name="name" value="{{ row.name }}" required maxlength="100"></label><button>Rename exercise</button></form>{% else %}<p>{{ row.name }} (previously archived)</p>{% endif %}
+{% if active_schema_version is not number or active_schema_version<6 %}<form method="post">{{ security() }}<input type="hidden" name="exercise_id" value="{{ row.id }}"><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required> Archive this definition and retain its identity</label><button name="action" value="archive">Archive exercise</button></form>{% endif %}
+{% if active_schema_version is number and active_schema_version>=6 %}<a class="pill danger" href="{{ url_for('deletion.review',person_id=person.id,kind='exercise',identity=row.id) }}">Permanently Delete Exercise</a>{% endif %}
 </section>{% else %}<p>No active exercise definitions.</p>{% endfor %}
 {% endblock %}

@@ -13,12 +13,12 @@
 <body data-accent="{{ accent_for(person.id) if person is defined and person else 'blue' }}" {% if workout_focused|default(false) %}class="workout-focus" data-workout-focus="{{ workout.id }}" data-person="{{ person.id }}"{% endif %} {% if workout is defined and workout.status|default('') in ['completed','discarded'] %}data-release-workout="{{ workout.id }}"{% endif %}>
 <main>
 <header class="app-header">
-{% if workout_focused|default(false) %}<span class="brand">Workout<span class="brand-dot" aria-hidden="true">●</span></span><span class="person-label">{{ person.name }}</span>
+{% if workout_focused|default(false) %}<span class="brand">Workout<span class="brand-dot" aria-hidden="true">●</span></span><span class="person-label" title="{{ person.name }} · {{ workout.routine_name }}">{{ person.name }} · {{ workout.routine_name }}</span>
 {% else %}<a class="brand" href="{{ url_for('manage.people') }}">Workout<span class="brand-dot" aria-hidden="true">●</span></a><div class="menu-wrap"><button class="icon-button secondary" type="button" data-menu-button aria-expanded="false" aria-controls="main-menu" aria-label="Open navigation">☰</button><div id="main-menu" class="menu-panel" hidden>
 <a href="{{ url_for('manage.people') }}">{{ 'Switch person' if person is defined and person else 'People' }}</a>
 {% if person is defined and person %}<a href="{{ url_for('manage.exercises',person_id=person.id) }}">Exercise Library</a>{% endif %}
 <a href="{{ url_for('settings.index',person_id=person.id if person is defined and person else none) }}" {% if request.blueprint=='settings' %}aria-current="page"{% endif %}>Settings</a>
-</div></div>{% endif %}
+</div></div>{% if person is defined and person %}<span class="person-label selected-person"><span class="person-accent" aria-hidden="true">●</span> {{ person.name }}</span>{% endif %}{% endif %}
 </header>
 {% if person is defined and person and not workout_focused|default(false) %}<nav class="primary-nav" aria-label="Selected person">
 <a href="{{ url_for('manage.dashboard',person_id=person.id) }}" {% if request.blueprint=='manage' or request.blueprint=='workout' %}aria-current="page"{% endif %}>Routines</a>

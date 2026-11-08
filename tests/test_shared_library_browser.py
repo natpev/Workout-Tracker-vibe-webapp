@@ -95,13 +95,13 @@ def test_global_library_named_cross_person_copy_and_versions(library_browser):
     unused.get_by_role('checkbox').check();unused.get_by_role('button',name='Archive exercise',exact=True).click()
     expect(page.locator('input[value="Squat"]')).to_have_count(0)
     page.goto(f'{base}/settings')
-    expect(page.get_by_text('Application version: 0.7.0',exact=True)).to_be_visible()
+    expect(page.get_by_text('Application version: 0.8.0',exact=True)).to_be_visible()
     expect(page.get_by_text('Database schema: 5',exact=True)).to_be_visible()
     for theme in ('auto','light','dark'):
         page.select_option('#theme',theme)
         for width in (320,390,1280):
             page.set_viewport_size({'width':width,'height':844})
-            expect(page.locator('footer')).to_contain_text('Workout Tracker v0.7.0 · Database v5')
+            expect(page.locator('footer')).to_contain_text('Workout Tracker v0.8.0 · Database v5')
             assert page.locator('footer').evaluate('element => getComputedStyle(element).position') not in ('fixed','sticky')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.goto(f'{base}/people/{b}/routines/{copy}')

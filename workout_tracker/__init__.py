@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.8.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 5
+TARGET_SCHEMA_VERSION = 6
 
 
 def create_app(test_config=None):
@@ -48,6 +48,10 @@ def create_app(test_config=None):
     from .views import bp
     from .catalog import ValidationError, MissingRecord
     app.register_blueprint(bp)
+    from .deletion_views import bp as deletion_bp
+    app.register_blueprint(deletion_bp)
+    from .update_views import bp as update_bp
+    app.register_blueprint(update_bp)
     from .workout_views import bp as workout_bp
     from .workouts import configured_timezone
     app.config["WORKOUT_TIMEZONE"] = configured_timezone(app.config.get("WORKOUT_TIMEZONE") or os.environ.get("WORKOUT_TIMEZONE"))

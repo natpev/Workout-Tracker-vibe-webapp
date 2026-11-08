@@ -1,0 +1,86 @@
+# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+"""Actual v4/host-service/Compose rehearsal with real disposable schema-5 storage.
+
+Git source fetching and the host-specific Docker storage path probe are simulated. Docker build, backup, schema-6 migration,
+container replacement, Unix peer checks and independent HTTP progress are real.
+No published workout port, external status listener, or real user data is used.
+"""
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+
+import pytest
+from test_phase8_updater import fixture,REPO
+
+pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',reason='Opt-in isolated Docker rehearsal')
+
+
+def test_actual_v4_host_service_and_docker_migration(tmp_path):
+    """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
+    short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')
+    root,env=fixture(Path(short.name),5);env['MODE']='ok'
+    adapter=Path(short.name)/'bin/docker'
+    real_docker=shutil.which('docker')
+    # The cloud test UID cannot traverse the rootless daemon user's private
+    # directory. Simulate only that path probe; every Docker operation is real.
+    adapter.write_text('#!/usr/bin/env python3\n# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\nimport os,sys\nfrom pathlib import Path\na=sys.argv[1:]\nif "info" in a and "{{.DockerRootDir}}" in a: print(os.environ["FIXTURE"])\nelse: os.execv('+repr(real_docker)+', ['+repr(real_docker)+',*a])\n')
+    adapter.chmod(0o700)
+    for name in ('Dockerfile','.dockerignore','requirements.txt'):
+        shutil.copy2(REPO/name,root/'app'/name)
+    shutil.copytree(REPO/'workout_tracker',root/'app/workout_tracker',ignore=shutil.ignore_patterns('__pycache__'))
+    compose=(REPO/'compose.yaml').read_text().replace('    ports:\n      - "${WORKOUT_BIND_ADDRESS:-127.0.0.1}:${WORKOUT_PORT:-8000}:8000"','    network_mode: none')
+    compose=compose.replace('services:\n','name: phase8-'+tmp_path.name[:40].replace('_','-').lower()+'\nservices:\n',1)
+    (root/'app/compose.yaml').write_text(compose)
+    (root/'.env').write_text(f'WORKOUT_DATA_ROOT={root}/data/storage\nWORKOUT_UID={os.getuid()}\nWORKOUT_GID={os.getgid()}\n')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
+    state=root/'updater';config=dict(root=str(root),uid=os.getuid(),gid=os.getgid(),status_url=f'http://127.0.0.1:{port}/status',app_url='http://127.0.0.1:8000')
+    (state/'config.json').write_text(json.dumps(config))
+    bridge=root/'data/storage/config/updater-bridge';bridge.mkdir()
+    (bridge/'client.json').write_text(json.dumps({'status_url':config['status_url']}))
+    service_env={**env,'PYTHONPATH':str(REPO)}
+    service_log=(root/'updater/service-test.log').open('w')
+    service=subprocess.Popen([sys.executable,'-m','workout_updater','serve','--root',str(root)],env=service_env,stdout=service_log,stderr=service_log)
+    docker=shutil.which('docker');prefix=[docker,'--host=unix:///var/run/docker.sock','compose','--project-directory',str(root/'app'),'--env-file',str(root/'.env'),'-f',str(root/'app/compose.yaml')]
+    clean_env={k:v for k,v in env.items() if k not in ('DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH')}
+    manifest=root/'data/storage/config/active.json';original=root/'data/storage/data'/json.loads(manifest.read_text())['database'];before=original.read_bytes()
+    try:
+        deadline=time.monotonic()+15
+        while True:
+            try:
+                with urllib.request.urlopen(config['status_url'],timeout=1) as response:assert response.status==200
+                break
+            except OSError:
+                if time.monotonic()>deadline:
+                    service_log.flush();pytest.fail('Independent host status did not start: '+(root/'updater/service-test.log').read_text()[-4000:])
+                time.sleep(.1)
+        result=subprocess.run(['bash',str(REPO/'deployment/update_workout_tracker_v4.sh'),'--root',str(root),'--confirm','--allow-migration'],
+                              env=clean_env,text=True,capture_output=True,timeout=180)
+        assert result.returncode==0,result.stdout+result.stderr+'\n'+''.join(p.read_text()[-5000:] for p in state.glob('*.private.log'))
+        assert original.read_bytes()==before
+        assert json.loads(manifest.read_text())['database']!=original.name
+        assert service.poll() is None
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/status.json',timeout=5) as response:status=json.load(response)
+        assert status['status']=='Completed' and status['installed_schema']==6 and status['installed_version']=='0.8.0'
+        assert status['backup_id']
+        # The actual replacement web container can reach the host Unix socket
+        # through the existing data mount, with its real configured writer UID.
+        probe="import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/settings/updates').read(); assert b'Application Updates' in r and b'Completed' in r and b'password' not in r"
+        response=subprocess.run([*prefix,'exec','-T','web','python','-c',probe],env=clean_env,text=True,capture_output=True)
+        assert response.returncode==0,response.stderr
+        assert (root/'app/.env').read_bytes()==(root/'.env').read_bytes()
+        for event in ('Backing up database','Migrating database','Starting services','Verifying health'):
+            assert any(row['status']==event for row in status['events'])
+    finally:
+        service.terminate()
+        try:service.wait(timeout=5)
+        except subprocess.TimeoutExpired:service.kill();service.wait()
+        subprocess.run([*prefix,'down'],env=clean_env,text=True,capture_output=True,check=False,timeout=30)
+        service_log.close();short.cleanup()
