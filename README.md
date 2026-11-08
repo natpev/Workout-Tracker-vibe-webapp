@@ -15,7 +15,7 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.9.0**. Current full-feature database schema:
+Current application version: **0.10.0**. Current full-feature database schema:
 **7**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.9.0" and d["schema_version"]==7'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.0" and d["schema_version"]==7'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.9.0`, `schema_version: 7`.
+Expected fields are `status: ready`, `app_version: 0.10.0`, `schema_version: 7`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -422,7 +422,9 @@ private `.env`. Use the existing checkout and the same persistent data root.
 If you make a manual backup as a precaution, that is an explicit separate action;
 an ordinary compatible update does not automatically copy/back up the database.
 
-**Already schema 7 only:** use the normal-update block below. Existing schema-4/5/6
+**Existing browser updater:** first follow the [Phase 10 one-time host-service upgrade](deployment/README.md#phase-10-existing-installation-upgrade) for live output.
+
+**Manual Docker update, already schema 7 only:** use the normal-update block below. Existing schema-4/5/6
 installations must instead follow [the confirmed upgrade procedure](deployment/README.md#first-upgrade-from-schema-6) before restarting.
 
 First inspect local work; if `git status --short` lists changes, stop and reconcile
@@ -511,21 +513,21 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–9 are completed and approved for the authorized direct main merge.
-Final verification: **342 passed, 0 failed, 0 skipped**, including Chromium and Docker. Current target: **application 0.9.0 / schema 7**.
-Phase 9 adds grouped passwordless Administration, one allow-all access boundary,
-menu navigation and History/Progress tabs, independent copies of global defaults,
-twelve accents, consistent labels, 24-hour minute-only workout clocks, normalized
-duration parts, and original local favicons. No accounts, passwords or HTTPS.
-The application stays **http://10.0.69.9:8000**; independent read-only updater
-progress stays **http://10.0.69.9:8001/status** after explicit host installation.
+Phases 1–10 are implemented. Current target: **application 0.10.0 / schema 7**.
+Final verification: **384 passed, 0 failed, 0 skipped** (including Chromium and Docker).
+Phase 10 results and known limits are recorded in
+[PHASE_10_REVIEW.md](PHASE_10_REVIEW.md). Existing Phase 1–9 functionality remains;
+Phase 10 adds form-preserving historical errors, structured optional time,
+Progress range controls/tooltips and independent live update output. No accounts,
+passwords or HTTPS. The application stays **http://10.0.69.9:8000**; independent
+read-only progress stays **http://10.0.69.9:8001/status**.
 
-Read [PHASE_9_REVIEW.md](PHASE_9_REVIEW.md) and [deployment/README.md](deployment/README.md)
-for test results, schema-6→7 candidate migration and exact existing-installation
-commands. V4 remains supported; no new updater script is required. Initial host
-setup needs Python/venv/systemd, separately from the core Docker-only install.
-No real database/server operation is performed in development. The user explicitly
-authorizes a verified direct fast-forward merge, with **no PR attempt**.
+Read [deployment/README.md](deployment/README.md#phase-10-existing-installation-upgrade)
+for exact existing-installation commands and the required one-time host-service
+upgrade for live console output. V4 remains supported. Initial host setup needs
+Python/venv/systemd, separately from the core Docker-only install. Schema 7 does
+not require migration. No real database/server operation is performed in development.
+The user explicitly authorizes verified direct main merge, with **no PR attempt**.
 
 Read [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md) for the current redesign,
 screenshots, tests and existing-installation update steps. Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
@@ -588,7 +590,7 @@ export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.9.0`, and schema version `7`. Schema 1 still opens
+`status: ready`, app version `0.10.0`, and schema version `7`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -848,7 +850,7 @@ must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
 docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase8-review .
-WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
+WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q
 ```
 
 They use disposable fixtures, no network or published ports, and remove their
@@ -856,7 +858,7 @@ own containers. Browser tests need Chromium and optional pinned dependencies:
 
 ```sh
 .venv/bin/python -m pip install -r requirements-browser.txt
-.venv/bin/python -m pytest -q tests/test_browser.py tests/test_workout_browser.py tests/test_history_browser.py tests/test_settings_browser.py tests/test_mobile_ux_browser.py
+.venv/bin/python -m pytest -q -k browser
 ```
 
 Install Chromium or use `.venv/bin/python -m playwright install chromium`. Set
@@ -971,7 +973,7 @@ remote authentication or public exposure in this phase. See
 
 ## Application and database versioning
 
-The application uses semantic versions, currently **0.9.0**: major.minor.patch.
+The application uses semantic versions, currently **0.10.0**: major.minor.patch.
 After 1.0, breaking public-contract changes increment major, compatible features
 increment minor, and compatible fixes increment patch. During 0.x development,
 feature releases increment minor and compatible fixes increment patch; any
@@ -999,7 +1001,7 @@ docker run --rm --network=none --read-only --entrypoint python \
   workout-tracker:local -m workout_tracker release-info
 ```
 
-Expected JSON: `{"app_version": "0.9.0", "target_schema_version": 7}`.
+Expected JSON: `{"app_version": "0.10.0", "target_schema_version": 7}`.
 The target is release metadata; `/health/ready` and Settings/footer report the
 actual active schema instead. Parse JSON rather than scraping templates or the
 foundation initialization constant. Stop writers and explicitly back up/verify
@@ -1090,3 +1092,48 @@ not a fixed UTC offset. Diagnostic timestamps may retain seconds in explicit
 24-hour UTC; log date filters remain UTC. Original local SVG, ICO, 16/32 PNG and
 180 PNG Apple touch icons are served without external requests or new runtime
 dependencies. See static/icons/README.md for the original artwork/export details.
+
+## Phase 10 historical entry, Progress and live updates
+
+Phases 1–10 are implemented; current release is **0.10.0 / schema 7**. Phase 10
+needs **no database migration for an existing schema-7 installation**. No exercise
+identity or chart calculation changes are made; the separately reported duplicate/
+orphaned exercise issue is explicitly untouched.
+
+Historical entry/correction now keeps typed values on the same form after an
+error. A red, linked summary appears immediately above Save, with accessible
+field messages. Failed submissions save nothing; concurrent corrections show a
+conflict and retain input. Existing snapshots, SQL NULL skips, valid zero and
+append-only audit records remain protected. Optional workout time has an explicit
+24-hour hour/minute picker; type **0930** and leave the field to get **09:30**, or
+leave it blank when unknown. No AM/PM or seconds are displayed.
+
+Progress starts with **30 Days** and offers 60/90 Days, 6/12 calendar Months,
+All Time and Custom Range. The configured server IANA zone supplies today's date;
+days include today and the prior N−1 dates. Months start one day after the clamped
+calendar-month anniversary. Exercise/range choices survive History/Progress tabs,
+refresh and Back. Invalid custom dates retain input and the last valid graph
+where available. Hover, keyboard-focus or tap a graph dot for its date/measurement
+and known time. Skipped measurements stay in the accessible data list, never as
+zero-valued graph points.
+
+**Install Update** opens the independent progress tab automatically, keeping the
+app tab. Confirm installation and any required migration first. If a popup blocker
+intervenes, use the displayed fallback link. Check for Updates opens no tab. Review
+independent status before retrying a submission during an outage.
+
+The independent host page now has a scrolling **sanitized live console** from real
+Git/Docker/backup/verification/startup activity, plus status events. It stays online
+while Flask restarts. Scroll up without losing your place, use Scroll to Latest,
+refresh/reconnect, or select a retained operation. Only recognized safe messages
+are shown: arbitrary command output, environment values, Compose config, secrets,
+URLs and private logs are withheld. The newest 500 safe lines per operation and
+20 operations are retained; detailed SSH logs and backups are not pruned by this
+viewer. It is read-only, not a terminal. The trusted-LAN/no-password model remains.
+
+**Existing Phase 9 host service needs a one-time explicit upgrade for live logs.**
+Updating only the web image leaves the old separately copied runtime in place.
+See [exact installed-server steps](deployment/README.md#phase-10-existing-installation-upgrade)
+and [PHASE_10_REVIEW.md](PHASE_10_REVIEW.md) for implementation, tests and limits.
+V4 remains the emergency script; no v5 script, deployment or startup migration is
+introduced. Keep your existing Compose/.env and timezone settings.

@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–9 are implemented and approved; final verification passed all 342 tests (zero failed/skipped). Direct fast-forward merge/push and cleanup are explicitly authorized. Do not create or attempt a pull request. No live deployment, production data or Phase 10.
-**Current scope:** application 0.9.0 / schema 7. Global defaults, grouped passwordless Administration, compact navigation, twelve accents, consistent labels/clocks/duration normalization and original local favicons. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–10 are implemented. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
+**Current scope:** application 0.10.0 / unchanged schema 7. Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -178,7 +178,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–7 completed and approved)
+## 12. Original phased plan (Phases 1–7 completed and approved; later phases below)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
@@ -612,4 +612,74 @@ contract changes; add positive normalization tests rather than dropping coverage
 After verification, commit/push feature, fetch current main, reconcile safely if
 needed, directly fast-forward/push main, verify remote commits/targets/assets,
 then delete only the completed branch. No PR API calls, force push, deployment,
-production database operation, or Phase 10 is authorized.
+production database operation was authorized by Phase 9. Its earlier restriction
+on Phase 10 is superseded only by the explicit Phase 10 authorization below.
+
+## 21. Phase 10 — historical forms, Progress and independent update console
+
+Application **0.10.0**, schema **7 unchanged**. No SQLite schema, storage selection,
+identity reconciliation or history calculation change is needed. Phases 1–9 remain
+intact. The noticed duplicate/orphaned exercise issue is explicitly excluded from
+investigation, diagnosis, repair and cleanup in this phase.
+
+Historical preparation, measurement review and saved correction show expected
+validation failures on their original forms (400 validation / 409 stale revision).
+Retain every raw weight/duration string, checkbox, date/time/fold and correction
+revision; do not prefill blanks on POST. Collect exercise errors, associate each
+with aria-invalid/describedby, include a non-color marker and linked assertive
+summary immediately above Save. An exception exits/rolls back the write transaction
+before redisplay. Completion idempotency and append-only confirmed corrections
+remain the existing storage services; stale corrections cannot overwrite newer ones.
+Unexpected system/storage errors use the existing safe handlers.
+
+Optional workout clocks use 24-hour HH:mm text plus explicit hour/minute selectors,
+00–23 and 00–59, without AM/PM or displayed seconds. Four-digit input such as 0930
+normalizes on blur/submit, not while typing. Unknown remains blank/NULL; correction
+GET prefills effective values and preserves existing IANA/DST overlap/gap checks
+and hidden precision for unchanged displayed native times. Duration is independent.
+
+Progress uses URL state and defaults to 30 rolling inclusive local calendar days
+(today minus 29 days through today, configured IANA zone). 60/90 follow the same
+rule. 6/12 Months start one day after the corresponding clamped calendar-month
+anniversary and end today, including both endpoints. All Time removes date bounds;
+Custom Range reveals optional From/To and rejects malformed/reversed bounds inline.
+Keep selected exercise/raw dates on errors and display the previous valid graph
+where its URL bounds are available. History/Progress links and detail/correction
+flows carry explicit range context; refresh/Back retain it. Existing series, stats,
+exercise IDs, compatible meanings, NULL exclusions, zero and person isolation are
+unchanged. SVG lines/dots and accessible data lists remain local. Small escaped
+textContent bubbles show point date/actual/known time on hover, focus or touch;
+Escape/outside interaction hides them and viewport clamping limits overflow.
+
+Install Update synchronously opens exactly one configured trusted status URL tab
+per confirmed attempt and POSTs with CSRF without navigating the original tab.
+Check opens no tab. Native validity and server install/migration confirmation remain.
+Popup blocking shows a fallback link while installation continues; disable another
+attempt until status is reviewed/reloaded. Status GET never triggers installation.
+
+The independent host service retains its status/events and polls a separate
+sanitized ring while Flask stops/restarts. Actual child stdout/stderr are drained
+as they arrive, with deadlines, fixed argv/no shell and bounded parse tails.
+Default-deny classification emits recognized Git numeric/revision, BuildKit step,
+dependency lifecycle, verified backup/schema and container lifecycle messages,
+plus actual command stage/exit events. Arbitrary text, URLs/credentials, environment
+values, commands, stack traces and resolved Compose configuration are withheld.
+Detailed private diagnostics remain SSH-only, never served. Safe JSON is atomic,
+mode 0600, 500 lines of at most 500 ASCII characters per operation, newest 20 safe
+operations only; no backup/private-log retention is changed. Allowlisted IDs and
+bounded cursors accept read-only polling, not file paths or executable commands.
+Use textContent, local scripts/styles and restrictive CSP. Safe log-write failure
+must not reverse a completed storage action. Follow new output only at bottom;
+allow scrolling upward/Scroll to Latest, refresh/reconnect and retained operation
+selection after success or failure. Timestamps are explicitly 24-hour UTC.
+
+V4 remains the emergency updater. Existing independently installed host runtimes
+must be explicitly upgraded once to obtain streaming plus status JS/CSS; Flask
+replacement alone cannot update them. Older hosts retain basic status/update
+compatibility; the app warns when console_protocol is absent. Exact operator
+commands and limitations are in deployment/README.md and PHASE_10_REVIEW.md.
+Schema-7 installations need no migration; older schemas retain explicitly confirmed
+candidate-only migration, original preservation and recovery safeguards. No live
+storage, deployment, login/TLS, PR attempt or Phase 11 is authorized. After full
+backend/Chromium/Docker verification, the user authorizes feature push, direct
+history-preserving main merge/push, remote verification and completed-branch deletion.

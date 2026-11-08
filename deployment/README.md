@@ -1,8 +1,8 @@
-# Phase 9 installation, LAN updater v4 and recovery
+# Phase 10 installation, LAN updater v4 and recovery
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.9.0**, full-feature schema **7**. The application remains
+Application **0.10.0**, full-feature schema **7**. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -38,7 +38,7 @@ before maintenance. Do not initialize installed storage or delete retained files
 
 ## First upgrade from schema 6
 
-These commands apply after Phase 9 is merged into approved main. Schemas 4/5 can
+These commands apply after Phase 10 is merged into approved main. Schemas 4/5 can
 also upgrade explicitly to 7 through the same candidate machinery; verify the
 actual installed schema rather than assuming it. The initial step updates source
 only; the currently running image/database remain unchanged until v4 is confirmed.
@@ -88,7 +88,7 @@ backup, and prompts **MIGRATE 7** if the actual source schema needs upgrading.
 This is a safety confirmation, not authentication. The shared engine stops only
 web/scheduler, verifies a distinct backup, preserves the previous image/commit,
 builds, checks actual release-info, invokes confirmed candidate migration and
-validates schema/original bytes before restart. It then verifies actual app 0.9.0 /
+validates schema/original bytes before restart. It then verifies actual app 0.10.0 /
 schema 7 and scheduler status. No unsupported older image is started after schema
 activation. The parent .env is copied atomically/private into app/.env with the
 same contents, as explicitly requested; paths, ports and values are not changed.
@@ -114,7 +114,7 @@ docker compose --project-directory /root/WorkoutTracker/app \
 docker compose --project-directory /root/WorkoutTracker/app \
   --env-file /root/WorkoutTracker/.env \
   -f /root/WorkoutTracker/app/compose.yaml exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.9.0",schema_version=7)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.10.0",schema_version=7)'
 ```
 
 Open **http://10.0.69.9:8000/settings/updates**. No login or certificate action
@@ -250,3 +250,86 @@ hashes, exact DDL, integrity/FKs and completeness before activation. Existing
 routine settings and historical snapshots are unchanged. Schema-6 backups stay
 retained but Restore accepts only the exact currently selected schema; do not
 silently downgrade a schema-7 installation. No application startup migration.
+
+## Phase 10 existing-installation upgrade
+
+**SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.**
+
+Release **0.10.0 / target schema 7** is code-only for an existing schema-7 database.
+V4 remains supported. Install Update opens one independent status tab with a
+popup-blocked fallback; Check opens none. The new live console requires changed
+host Python modules and local status.js/status.css, copied by the existing explicit
+installer. Flask/Docker replacement alone never updates that separate runtime.
+An older host can still install this release, with basic status only, until you
+perform the host upgrade. Its missing console_protocol capability produces an app
+warning. Never assume container restart upgrades the host service.
+
+Run the following **over SSH on your server**, from root, only after this release
+is on main. These commands were not executed on your server. They require your
+existing installed service, clean main checkout, fixed paths/private address, Docker
+and Python venv dependencies. Keep your actual existing address if different.
+First ensure no check/install job is running; the service installer also refuses
+an overlapping update lock. Stop at an error; do not reset/clean local work.
+
+```bash
+(
+  set -e
+  cd /root/WorkoutTracker/app
+  test "$(git branch --show-current)" = main
+  test -z "$(git status --porcelain)"
+  git fetch origin main
+  git merge --ff-only origin/main
+  bash deployment/update_workout_tracker_v4.sh \
+    --upgrade-service --lan-address 10.0.69.9 \
+    --app-url http://10.0.69.9:8000 --status-port 8001
+  bash deployment/update_workout_tracker_v4.sh
+)
+```
+
+Fetching/fast-forwarding source before the host upgrade does not change running
+containers or SQLite. The explicit upgrade copies the new runtime/assets, refreshes
+the independent service and bridge configuration, and leaves app containers/storage
+running. The final v4 command asks for update consent, verifies a backup and uses
+the existing safe build/health workflow. For schema 7 it does not migrate or switch
+the selected database. If your installation is older, review its detected schema
+and explicitly approve the existing candidate migration separately; never initialize
+or restore to force an upgrade. Keep parent .env and Compose settings unchanged.
+
+Afterward verify:
+
+```bash
+curl --fail http://10.0.69.9:8000/health/ready
+curl --fail http://10.0.69.9:8001/status.json
+systemctl status workout-tracker-updater.service --no-pager
+```
+
+Ready JSON should report app_version 0.10.0 / schema_version 7; host status JSON
+should include console_protocol 1. Open http://10.0.69.9:8001/status for retained
+console output and Administration → Application Updates for future browser updates.
+A missing ensurepip/venv error requires the matching distro Python venv package
+(e.g. apt install python3-venv, or python3.12-venv when Python is 3.12), then rerun
+the explicit service-upgrade command. No replacement update script is required.
+
+### Safe console and diagnostic boundaries
+
+A selector streams actual fixed-argv child stdout/stderr before exit, under the
+original deadlines. Both pipes drain; parse tails are bounded to 2 MiB each and
+unterminated line buffers are bounded. Private operation logs remain detailed
+SSH diagnostics, except resolved Compose configuration is withheld altogether.
+The browser gets only a separate default-deny classification of recognized
+structural output and actual stage/command-exit events. Numeric Git progress,
+BuildKit DONE/CACHED, dependency lifecycle, verified backup/schema and container
+lifecycle appear; arbitrary text, commands, URLs, environment values and exception
+bodies do not. This deliberately omits many detailed build/error lines; use SSH
+private logs for diagnosis rather than expanding the public allowlist casually.
+
+Safe rings are atomic private JSON files with 500 × 500-character lines and the
+newest 20 operations; only those safe files are pruned. Raw private logs, recovery
+records, images, backups and schema archives retain existing policy. GET-only
+console.json accepts an allowlisted current/retained 32-hex operation ID and bounded
+cursor, never a pathname, shell text or control command. Local CSP-bound scripts
+render via textContent. Polling every 1.5 seconds survives web container downtime;
+24-hour timestamps explicitly use UTC. Upward scroll stays fixed; Scroll to Latest
+resumes following, and refresh reconnects to retained output. Without JavaScript,
+high-level status/events remain available by manual refresh; live console needs JS.
+The status page remains passwordless and private-LAN-only, with no TLS/proxy added.
