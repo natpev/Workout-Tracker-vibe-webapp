@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–7 are completed and approved. Phase 7 final tests, merge into main, push and verified branch cleanup are authorized. No Phase 8, deployment or live-data access is authorized.
-**Current scope:** application 0.7.0 / schema 5 adds a shared household Exercise Library and ID-preserving named routine copies. Person-owned routines, drafts, history, charts, corrections and recovery remain intact. Only explicit confirmed candidate migration upgrades schema 4; operations state remains external.
+**Project status:** Phases 1–7 are approved on main; revised Phase 8 is implemented and verified (294 passing tests) on phase-8-lan-management-and-updates. The user authorizes merge/cleanup after verification; see PHASE_8_REVIEW.md for GitHub workflow status. No deployment/live-data operation or Phase 9 is authorized.
+**Current scope:** application 0.8.0 / schema 6 adds confirmed hard deletion, sticky selected-person context and passwordless LAN browser updates using an independent host worker. No administrator accounts, passwords, roles, user login, HTTPS, certificate provisioning or reverse proxy are allowed. Anyone who can reach the private LAN app may confirm updates/deletion; network isolation is the trust boundary.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -102,12 +102,12 @@
 - Theme options: **Auto** (follow phone/computer appearance, the default), **Light**, **Dark**, with a manual override stored for that device/browser rather than changing the theme unexpectedly on another device.
 - Phone primarily for workout entry; PC primarily for routine editing, history tables and charts, but both should remain usable everywhere.
 
-## 6. Data model (schema 5 shares exercise identities)
+## 6. Data model (schema 6 retains global exercise identities and detaches routine snapshots)
 
 - **Users (`people`)** — permanent UUID, display name, archive flag. Phase 2 always archives rather than deletes people, preserving records whether or not history exists.
 - **Exercises (`exercises`)** — permanent global UUIDs, names and archive status. person_id retains original registration provenance only. Renaming updates current displays across people; historical snapshots retain their names. Copies reuse IDs. Legacy matching names are not merged.
-- **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Delete removes from active lists by archiving, never reuses an identity.
-- **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite routine/session foreign keys enforce person ownership; schema 5 exercise foreign keys reference the global exercise ID alone. Type is selected on the routine exercise, not inferred from its name.
+- **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Schema 6 deletes the definition/configuration permanently after confirmation and draft checks; saved routine IDs/names remain independent snapshots. Retained older schemas use archival behavior.
+- **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Routine configurations and session entries retain composite ownership foreign keys. Schema 6 routine IDs on live/historical snapshots are independent immutable references, with new insert guards enforcing routine/preparation ownership; exercise foreign keys remain global. Type is selected on the routine exercise, not inferred from its name.
 - **Workout sessions (`workout_sessions`)** — permanent ID, person/routine ownership, routine-name snapshot, UTC started/updated/finished/discarded timestamps, workout date, IANA timezone, draft/completed/discarded status, revision, snapshot entry count and current position. A unique partial index permits only one draft per person.
 - **Workout entries (`workout_entries`)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots. Completed/discarded entry updates and entry deletion are blocked by schema-3 triggers; Phase 4 corrections append separate revisions and never disable those triggers.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
@@ -174,7 +174,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
 - Household backup frequency/time/zone must be explicitly configured; scheduling starts disabled. Phase 5 implements local calendar-day cadence, earlier fold, first valid gap minute, and at-most-one missed-run handling. On corruption, startup must refuse unsafe storage rather than replace it.
-- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–5, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
+- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–6, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
@@ -439,7 +439,7 @@ The installed paths supplied by the user are /root/WorkoutTracker/app and
 /root/WorkoutTracker/data/storage; the updater is
 /root/WorkoutTracker/update_workout_tracker.sh. These are documentation context,
 not permission to access them. Exact upgrade and schema-4-only updater requirements
-are in PHASE_7_REVIEW.md. Final merge/verified cleanup is approved; do not deploy or begin Phase 8.
+are retained historically in PHASE_7_REVIEW.md. Revised Phase 8 instructions in section 19 and deployment/README.md supersede that older target.
 
 
 Final updater verification: `python -m workout_tracker release-info` exposes
@@ -451,3 +451,80 @@ detect the target, request confirmation for an actual upgrade, run candidate-onl
 migration, verify and restart/health-check. The external server script is unavailable
 and is not claimed tested. Disposable Docker tests exercise release detection,
 verified schema-4 backup and candidate upgrade to 5 before restart.
+
+
+## 19. Revised Phase 8 — trusted-LAN management and updates
+
+The interrupted authentication/TLS attempt is not part of this phase. Start fresh
+from main on phase-8-lan-management-and-updates. Only reviewed components with no
+user authentication/TLS are reused. Network endpoints stay HTTP on the configured
+private LAN; normal app address remains http://10.0.69.9:8000. Initial root SSH
+service installation is explicit; no privileged installation runs at app startup.
+
+Schema 6 permits dedicated, confirmed hard deletion while preserving ordinary
+snapshot/correction protections. Delete Exercise removes that global ID, its routine
+configs and native/historical entries across every person. Keep other actual values,
+NULLs, flags and prescriptions unchanged, normalize positions/counts, project every
+correction before/after array to surviving IDs and append a no-value-change revision
+barrier so stale forms cannot target a different row. Empty completed/discarded
+sessions, registry and audits disappear consistently. Affected uncompleted manual
+preparations are invalidated to prevent stale indexed input. Active native drafts
+block deletion. New same-name registration gets a new UUID and no prior results.
+Separate legacy same-name IDs are not merged/deleted together; another existing
+same-name definition must be reused/renamed/deleted deliberately before registering
+that name anew. Deletion previews show the permanent ID and people/routine/entry
+counts. POST requires CSRF, typed DELETE or exact name, acknowledgment and current
+impact fingerprint. No password or administrator authorization is required.
+
+Delete Routine removes its definition/configs, blocks active drafts and preserves
+all global definitions and completed snapshots (marked routine deleted). Remove
+From Routine affects only that configuration and never history/global definitions.
+Backups/retained schema versions are not rewritten; restoring an older same-schema
+backup can resurrect deleted data. Ordinary corrections remain append-only; only
+explicit global deletion redacts the deleted identity from existing audit arrays.
+
+Schema 5→6 uses the existing backup-copy/candidate migration. Rebuild only the three
+routine-referencing snapshot tables, remove their live-definition FKs, add insert
+ownership guards and gate existing protection triggers with a connection-local
+deletion flag. Preserve all original SQL cells/NULLs, migration identity and original
+source bytes. Verify exact DDL, integrity/FKs, counts and complete logical audit
+chains before atomic activation. Schema-6 application connections enable trusted
+schema only after exact DDL validation because Python sqlite3 cannot mark its guard
+function innocuous. The normal guard value is 0 and is restored after deletion.
+Never drop triggers or change schema in a live deletion transaction. Backup/restore
+accepts exact schema 6 and preserves guard DDL and audits. Startup never migrates.
+
+The compact sticky header always identifies the selected person and accent; active
+workouts also retain the snapshotted routine name. Normal navigation/context does
+not constitute authentication. Settings links directly to Application Updates.
+
+Browser updates use CSRF, approved-release review and explicit install/migration
+confirmation. A root host service receives only fixed actions through a Unix socket
+0660, validates Linux peer UID (configured app writer/root), fixed source, full SHA,
+paths and consent. The app never gets Docker/root access. A separate read-only HTTP
+listener binds explicitly to 10.0.69.9:8001 by default, validates Host and shows real
+persistent stages/logs while web is stopped. It has no command/install endpoint,
+accounts or TLS. Household users need no login anywhere.
+
+Approved source policy: only merged main from natpev/Workout-Tracker-vibe-webapp,
+through verified GitHub transport. The repository's main-merge governance is the
+approval boundary; this is not a cryptographic signature claim. Pin reviewed SHA,
+refuse dirty/diverged local work or a changed approved head before installation,
+parse APP_VERSION/TARGET_SCHEMA_VERSION with AST literal evaluation, then compare
+built release-info. Never run arbitrary remote scripts or unmerged branches.
+
+Host engine/v4 share checks, backup/candidate workflow, persistent lock/stages and
+safe recovery. Space checks cover installation and Docker storage with source-size
+allowance. Stop only web/scheduler, verify backup, fast-forward approved code, build,
+check metadata, explicitly migrate if needed, verify original hash/schema/selection,
+recopy parent .env privately/atomically, restart and verify health and scheduler.
+Preserve commit/image/backup/DB/logs. Pre-selection failure may restart the verified
+old image only against the unchanged selection/bytes and identical configuration;
+post-selection failure never blindly starts an incompatible old image or restores
+older data. Interrupted installs are marked failed on host restart and stopped for
+inspection, never automatically replayed. No-update checks do not stop/copy data.
+
+The actual available v3 script was inspected. V4 is committed at
+ deployment/update_workout_tracker_v4.sh; it dispatches to the installed shared
+host engine and explicitly installs/upgrades the service when requested. Initial
+SSH upgrade and recovery commands are in deployment/README.md and PHASE_8_REVIEW.md.

@@ -5,7 +5,7 @@
 > Historical record: this verifies the pre-redesign 0.5.0 installation. Phase 6
 > mobile UX/version 0.6.0 evidence is in [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md).
 
-> Current Phase 7 application 0.7.0 / schema 5 verification is in [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md); the original record below remains historical.
+> Phase 7 application 0.7.0 / schema 5 verification is in [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md). Current Phase 8 application 0.8.0 / schema 6 evidence and exact existing-installation upgrade instructions are in [PHASE_8_REVIEW.md](PHASE_8_REVIEW.md) and [deployment/README.md](deployment/README.md); the original record below remains historical.
 
 ## Authorized scope
 

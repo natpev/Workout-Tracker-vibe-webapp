@@ -4,15 +4,14 @@
 
 ## Current state and authorization
 
-Phases 1–7 are completed and approved for main. Their typed measurements,
-server drafts, history/charts, append-only corrections, recovery/scheduling/logs
-and mobile interface remain intact. Phase 7 is approved on
-`phase-7-shared-exercise-library` for shared exercise identities, named routine
-copies reusing IDs, schema-5 candidate migration and version displays. Final
-verification, merge/push and verified branch cleanup are authorized; no
-Phase 8, deployment or live-data access is authorized.
-Historical implementation evidence remains in the phase review documents; the
-current upgrade and validation record is PHASE_7_REVIEW.md.
+Phases 1–7 are completed and approved on main. Revised Phase 8 is authorized on
+phase-8-lan-management-and-updates for passwordless LAN hard deletion, sticky
+person context and browser/host updates. Application target is 0.8.0 / schema 6;
+no user authentication or HTTPS is introduced. Existing typed measurement,
+draft, history/correction and recovery behavior remains intact except deliberate
+global exercise erasure. Explicit candidate migration preserves originals.
+No server deployment, production data access or Phase 9 is authorized.
+See PHASE_8_REVIEW.md and deployment/README.md for current validation/upgrade steps.
 
 ## Interface and significant data flows
 
@@ -237,3 +236,19 @@ NULL, flag, prescription and audit values. Copies share only definition IDs;
 targets/notes/order are independent and results/drafts are never copied. Schema-4
 backups cannot silently restore over schema 5; use explicit same-schema recovery.
 See PHASE_7_REVIEW.md for candidate migration and installation instructions.
+
+
+## Revised Phase 8 deletion exception and migration
+
+Application 0.8.0/schema 6 preserves all measurement rules and person-specific
+queries. A deliberate global exercise deletion physically erases only that ID's
+entries/configs across people. Other NULL/zero/time/weight values remain exact.
+Correction arrays are projected to surviving entry IDs, with an appended unchanged-
+value revision barrier preventing stale indexed correction forms. Empty workouts
+are removed; remaining snapshots normalize order/counts. Active drafts block
+deletion. Routine deletion detaches only current definitions/configs and retains
+saved routine-name/configuration snapshots and all actual measurements. Backups
+and original migrated databases are preserved; compatible restore can resurrect
+previously deleted results. These actions are passwordless LAN POSTs with CSRF,
+explicit typed confirmation and current impact review, not account authentication.
+Schema 6 is applied only to a verified separate migration candidate, never startup.

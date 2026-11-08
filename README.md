@@ -15,8 +15,8 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.7.0**. Current full-feature database schema:
-**5**. Application and schema versions are different numbers. Initialization and
+Current application version: **0.8.0**. Current full-feature database schema:
+**6**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
 Follow the numbered steps in order from a **normal, non-root Linux account**
@@ -31,7 +31,7 @@ storage to make a command work.
 2. [Install the application code](#2-install-the-application-code)
 3. [Configure Compose](#3-configure-compose)
 4. [Build the image and prepare the storage parent](#4-build-the-image-and-prepare-the-storage-parent)
-5. [Initialize and verify schema 5](#5-initialize-and-verify-schema-5)
+5. [Initialize and verify schema 6](#5-initialize-and-verify-schema-6)
 6. [Start services and verify readiness](#6-start-services-and-verify-readiness)
 7. [Local and home-network access](#7-local-and-home-network-access)
 8. [First-run checks and everyday operations](#8-first-run-checks-and-everyday-operations)
@@ -218,7 +218,7 @@ so you cannot accidentally adopt another installation. The actual destination
 This matches the generated `.env` UID/GID. No blanket permission changes or
 recursive ownership changes to an existing installation are needed.
 
-### 5. Initialize and verify schema 5
+### 5. Initialize and verify schema 6
 
 **Run once, only for a new installation.** Initialization refuses an existing
 destination, even an empty directory. Normal Compose mounts refuse a missing
@@ -237,20 +237,20 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 It reports foundation storage initialized; **schema 1 is only the first step**.
 The new child now exists for Compose. Explicitly migrate a **separate candidate**
-to schema 5, then verify it:
+to schema 6, then verify it:
 
 ```sh
 docker compose run --rm --no-deps web python -m workout_tracker migrate-storage \
-  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 5
+  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 6
 
 docker compose run --rm --no-deps web python -m workout_tracker check-storage \
   --data-root /var/lib/workout-tracker
 ```
 
-Expect `Schema 5 verified` / `Storage verified; schema version 5.` The migration
-retains the schema-1 original, creates schema 5 in another file, provisions the
+Expect `Schema 6 verified` / `Storage verified; schema version 5.` The migration
+retains the schema-1 original, creates schema 6 in another file, provisions the
 private signing key, and atomically selects only a verified candidate. Do not
-omit `--target-version 5`: the CLI's backward-compatible default is **3**.
+omit `--target-version 6`: the CLI's backward-compatible default is **3**.
 `compose run` does not publish web ports unless explicitly requested; these are
 one-off maintenance containers, not started web/scheduler services.
 
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.7.0" and d["schema_version"]==5'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.8.0" and d["schema_version"]==6'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.7.0`, `schema_version: 5`.
+Expected fields are `status: ready`, `app_version: 0.8.0`, `schema_version: 6`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -422,8 +422,8 @@ private `.env`. Use the existing checkout and the same persistent data root.
 If you make a manual backup as a precaution, that is an explicit separate action;
 an ordinary compatible update does not automatically copy/back up the database.
 
-**Already schema 5 only:** use the normal-update block below. Existing schema-4
-installations must instead follow [the confirmed upgrade procedure](PHASE_7_REVIEW.md#existing-installation-upgrade) before restarting.
+**Already schema 6 only:** use the normal-update block below. Existing schema-4/5
+installations must instead follow [the confirmed upgrade procedure](deployment/README.md#first-upgrade-from-schema-5) before restarting.
 
 First inspect local work; if `git status --short` lists changes, stop and reconcile
 them instead of discarding them. Once the tree is clean:
@@ -455,13 +455,13 @@ explicit upgrade instructions; never initialize replacement storage.
 
 **Only when an approved release actually requires a schema upgrade**, run its
 specified candidate-only migration with writers and external SQLite tools stopped.
-For this release, an older supported schema 1/2/3/4 needs the following explicit
-upgrade to **5**; an already compatible schema 5 needs **no migration**:
+For this release, an older supported schema 1/2/3/4/5 needs the following explicit
+upgrade to **6**; an already compatible schema 6 needs **no migration**:
 
 ```sh
 docker compose stop
 docker compose run --rm --no-deps web python -m workout_tracker migrate-storage \
-  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 5
+  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 6
 docker compose run --rm --no-deps web python -m workout_tracker check-storage \
   --data-root /var/lib/workout-tracker
 # Only after both commands succeed:
@@ -487,7 +487,7 @@ changing anything. No troubleshooting step below deletes data or disables checks
 | Docker permission denied | Run `id`, `docker info`; correct trusted administrator access to Docker and log in again. Do not `chmod 666` the socket or storage. |
 | Missing bind source / storage not initialized | Check `test -d /opt/workout-tracker-data/storage` and `.env`'s host path. On a genuinely new install, follow steps 4–5 exactly. If previously installed storage disappeared, stop and investigate the mount/disk; never initialize an empty substitute. |
 | UID/GID mismatch / key permissions | Run `id` and the step-5 in-container ownership command. `.env` IDs must match private storage ownership; key mode must be 0600. Stop both services before deliberately correcting ownership of the **identified existing** tree. Do not use blanket world permissions, create a new key casually, or change owners of unrelated directories. |
-| Explicit migration required | `docker compose stop`, then use `compose run --rm --no-deps web ... check-storage` as in step 9. Current full functionality needs schema 5. Only run the release's confirmed candidate migration; never `init-storage` on installed data. |
+| Explicit migration required | `docker compose stop`, then use `compose run --rm --no-deps web ... check-storage` as in step 9. Current full functionality needs schema 6. Only run the release's confirmed candidate migration; never `init-storage` on installed data. |
 | Invalid/wrong timezone | Check the IANA spelling in `.env`, use `docker compose logs --tail 100 web`, correct it and recreate containers. Set the backup schedule timezone separately in Settings. |
 | Port already in use | Use optional `ss -ltn` to inspect listeners; change `WORKOUT_PORT` to a free port and recreate containers. Adjust your browser URL/firewall. Do not stop an unrelated service without identifying it. |
 | Works on server, not phone | Loopback is expected by default. Follow step 7, verify the actual private interface IP, trusted hosts, same trusted Wi-Fi, port, VM/host firewalls and router isolation. `docker compose ps` shows the published address. Never fix this by publicly exposing it. |
@@ -511,17 +511,19 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–7 and the installation guide are completed and approved for main.
-Phase 7 adds the shared Exercise Library, named ID-preserving routine copies and
-version display, targeting **application 0.7.0 / database schema 5**. It is approved
-for final verification, merge and verified branch cleanup; do not deploy or begin
-Phase 8. All prior tracking, history,
-correction, backup, scheduling and mobile features remain supported.
+Phases 1–7 are approved. Revised Phase 8 is implemented and verified on its feature
+branch, targeting **application 0.8.0 / schema 6** (294 tests passed):
+permanent global exercise deletion, routine deletion retaining history, sticky
+selected-person context and passwordless trusted-LAN browser updates. No user
+accounts, administrator passwords, login, HTTPS/certificates or reverse proxy are
+introduced. Anyone who can reach the private LAN app may confirm updates/deletion.
+The app remains **http://10.0.69.9:8000**; read-only independent updater progress
+uses **http://10.0.69.9:8001/status** after explicit host installation.
 
-Read [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md) for exact schema-4 installation upgrade
-instructions and updater changes. **Existing schema-4 installs need one explicit,
-confirmed candidate migration to 5.** Do not run initialization or assume an old
-schema-4-only updater is ready. No server/live-data access is included in this work.
+Read [PHASE_8_REVIEW.md](PHASE_8_REVIEW.md) and [deployment/README.md](deployment/README.md)
+for exact first-upgrade, one-time host service setup, v4 and recovery instructions.
+Existing schema 5 needs explicit candidate migration to 6; source databases stay
+unchanged. No real server/data operation was performed during development.
 
 Read [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md) for the current redesign,
 screenshots, tests and existing-installation update steps. Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md), and
@@ -577,14 +579,14 @@ It creates schema 1 first; a separate explicit command copies/upgrades it.
 export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 .venv/bin/python -m workout_tracker init-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-new-storage
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
-.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 5
+.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 6
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
 .venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --threads 2 'workout_tracker:create_app()'
 ```
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.7.0`, and schema version `5`. Schema 1 still opens
+`status: ready`, app version `0.8.0`, and schema version `6`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -629,15 +631,20 @@ not affect production containers.
 Keep the approved user-switching interface: create/select people through the
 People screen, without a redesigned selector or browser-style tabs; rename, archive or reactivate them there.
 Archiving always retains their IDs and records. Each person has independent
-routines and workout histories. Exercise definitions are shared globally on schema 5. Routine Delete removes it from active lists
-by archiving, preserving its identity; it does not delete exercise definitions.
+routines and workout histories. Exercise definitions are shared globally on schemas 5–6.
+On schema 6, confirmed routine deletion permanently removes its definition/settings
+while retaining completed snapshots and global exercises. Active drafts block deletion.
+Retained schemas 2–5 use their earlier archive behavior.
 
 Within a routine, register a new global exercise or select an existing library ID.
 Exercise Library renames definitions across everyone’s current routines, preserving
 historical snapshot names. Copies reuse the original IDs but keep independent
-targets/notes/order. Remove a definition from every active routine across all
-people before archiving it. Legacy same-name definitions retain distinct IDs;
-new case-insensitive duplicate names are rejected rather than merged. There is no exercise-archive restore UI yet.
+targets/notes/order. On schema 6, the separate confirmed Permanently Delete Exercise
+action erases that identity and its history across everyone; Remove From Routine
+affects only that routine. Older schema-5 archive rules remain unchanged. Legacy
+same-name definitions retain distinct IDs; new case-insensitive duplicate names
+are rejected rather than merged. Existing archives can be permanently removed
+on schema 6, but there is no exercise unarchive interface.
 
 Choose Weight or Time in the segmented control. Both use positive-integer sets.
 Weight configures reps and defaults to pounds; Time configures whole minutes and
@@ -778,7 +785,8 @@ external-storage/
   data/schema-2-<identity>-<candidate>.sqlite3  # retained Phase 2 original
   data/schema-3-<identity>-<candidate>.sqlite3  # retained original workout schema
   data/schema-4-<identity>-<candidate>.sqlite3  # retained pre-library schema
-  data/schema-5-<identity>-<candidate>.sqlite3  # current shared-library schema
+  data/schema-5-<identity>-<candidate>.sqlite3  # retained shared-library schema
+  data/schema-6-<identity>-<candidate>.sqlite3  # current deletion-capable schema
   config/active.json                          # active database selection
   config/session.key                         # private session signing material
   archives/selection-before-<candidate>.json   # original selection
@@ -790,8 +798,8 @@ external-storage/
 The CLI takes the same persistent-root lock used by all app connections. It
 refuses maintenance while a request holds a connection; stop workers and all
 external SQLite tools before migration. External tools do not follow our lock
-protocol. Known schema 1/2/3/4 can explicitly upgrade to 5; targets 2/3/4 remain
-available for compatible tooling. Select `--target-version 5` for this phase.
+protocol. Known schema 1/2/3/4/5 can explicitly upgrade to 6; targets 2/3/4/5 remain
+available for compatible tooling. Select `--target-version 6` for this phase.
 The CLI keeps its target-3 default for backward compatibility; its programmatic
 helper keeps the existing target-2 default for backward-compatible callers.
 
@@ -808,7 +816,7 @@ if that also fails, the CLI reports uncertainty and requires inspection. No
 original database is overwritten or removed. Previous versions stay in `data/`
 and their selection manifests in `archives/`; failed candidates stay for diagnosis.
 
-All five supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
+All six supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
 sidecars are refused **before** SQLite opens a source; there is no implicit
 recovery. Unknown, damaged, missing, symlinked or incompatible storage never
 becomes an empty replacement. A migration request matching the selected schema version is a
@@ -829,12 +837,12 @@ in the [installation guide](#3-configure-compose) above. The checks below are fo
 contributors using disposable fixtures, not a second installation procedure.
 Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase7-review` with build secret
+For isolated image review, build `workout-tracker:phase8-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase7-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase8-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -895,7 +903,7 @@ still exceed it and need operator inspection after an interruption.
 
 **Restore Backup** requires a checkbox plus typing RESTORE. It warns that later
 workouts/corrections are not merged. The service rechecks the selected backup,
-requires the same storage identity and exact selected schema (2–5), copies to a
+requires the same storage identity and exact selected schema (2–6), copies to a
 unique candidate, compares all values and audits, syncs it, retains the original
 file/selection, then atomically selects the verified candidate. Original and
 backup files are never overwritten. Failure before activation keeps the original;
@@ -958,7 +966,7 @@ remote authentication or public exposure in this phase. See
 
 ## Application and database versioning
 
-The application uses semantic versions, currently **0.7.0**: major.minor.patch.
+The application uses semantic versions, currently **0.8.0**: major.minor.patch.
 After 1.0, breaking public-contract changes increment major, compatible features
 increment minor, and compatible fixes increment patch. During 0.x development,
 feature releases increment minor and compatible fixes increment patch; any
@@ -968,22 +976,13 @@ A code release does not automatically require a migration. Settings About and
 the small document-flow footer read the running application version and verified
 active DB schema; /health/ready reports the same source values.
 
-### Existing /root/WorkoutTracker schema-4 installations
+### Existing /root/WorkoutTracker schema-4/5 installations
 
-The user-supplied checkout is `/root/WorkoutTracker/app`, storage is
-`/root/WorkoutTracker/data/storage`, and updater is
-`/root/WorkoutTracker/update_workout_tracker.sh`. These paths were not accessed.
-An updater that only accepts schema 4 needs modification before this release:
-verify the existing dataset; stop web and scheduler; run one confirmed separate-
-candidate migration with `--target-version 5`; verify schema 5 before restarting;
-then expect application 0.7.0/schema 5 readiness. Never initialize existing storage,
-restore automatically, rewrite schema markers, or delete old versions. For a
-schema-5 code update, skip migration entirely. Keep `.env`, bind mounts, numeric
-ownership, ports, and all external configuration unchanged.
-
-Follow the exact fail-fast procedure and rollback limitations in
-[PHASE_7_REVIEW.md](PHASE_7_REVIEW.md#existing-installation-upgrade).
-
+Use [deployment/README.md](deployment/README.md#first-upgrade-from-schema-5) for
+this release's explicit schema-6 upgrade and one-time passwordless host updater
+installation. Do not use the historical Phase 7/schema-5 guide as the current
+release target. Existing databases, root .env and original versions are preserved.
+The app remains HTTP port 8000; read-only updater progress is private LAN port 8001.
 
 ### Machine-readable release target for Docker updaters
 
@@ -995,12 +994,50 @@ docker run --rm --network=none --read-only --entrypoint python \
   workout-tracker:local -m workout_tracker release-info
 ```
 
-Expected JSON: `{"app_version": "0.7.0", "target_schema_version": 5}`.
+Expected JSON: `{"app_version": "0.8.0", "target_schema_version": 6}`.
 The target is release metadata; `/health/ready` and Settings/footer report the
 actual active schema instead. Parse JSON rather than scraping templates or the
 foundation initialization constant. Stop writers and explicitly back up/verify
 installed storage before updating; compare installed schema with this target,
 request confirmation if an upgrade is needed, then run the separate migration.
 Never infer consent from release detection or automatically initialize storage.
-The existing external updater has not been inspected or tested; see the complete
-operator sequence in PHASE_7_REVIEW.md.
+The actual available v3 was inspected; its schema-5 limit is incompatible with
+this release. Use v4 and the operator sequence in deployment/README.md. The live
+server copy was not accessed.
+
+
+## Phase 8 — permanent deletion and LAN updates
+
+The dedicated **Permanently Delete Exercise** preview shows the exact global ID,
+affected people/routines/entries and requires typed DELETE (or exact name), an
+acknowledgment and CSRF. It removes that ID and its recorded history for everyone,
+retaining other measurements. Active drafts block deletion. Empty saved/discarded
+workouts disappear; mixed workouts keep remaining entries and consistent audits.
+A new definition gets a new ID, with no prior results. Older backups/database
+versions remain and may restore deleted records on deliberate compatible recovery.
+
+**Permanently Delete Routine** removes current definition/configuration, keeps all
+global exercises and completed history, and blocks active drafts. **Remove From
+Routine** still removes only one configuration. Older schema-5 archives remain
+readable; full hard-delete behavior requires schema 6. Previously archived entries
+are available for deliberate cleanup after upgrade. No deletion requires login.
+
+The selected person/accent stays in a compact sticky header across management,
+history/charts and Settings. Workouts also show the original routine name while
+retaining existing save/exit/switch safeguards.
+
+Settings → **Application Updates** checks fixed approved main, reviews version,
+schema and notes, then confirms installation/migration. A separate host service
+owns Docker/Git; the web container has no Docker socket. Control is a restricted
+Unix socket with fixed actions and OS peer checks; independent progress is GET-
+only HTTP bound to the configured private interface. There is no password/TLS
+infrastructure. Network isolation and trusted-host/CSRF controls remain essential.
+
+The executable [v4 updater](deployment/update_workout_tracker_v4.sh) shares the
+same host engine for emergency SSH use. It always verifies a backup for a confirmed
+update, preserves old image/commit/database, uses the existing candidate migration,
+privately recopies the authoritative parent .env into app/.env, and validates real
+health/versions/scheduler. It never initializes or silently restores storage.
+Exact **schema-5→6 and one-time host installation** commands are in
+[deployment/README.md](deployment/README.md). Do not use an old schema-5-only v3
+script unchanged for this release. No service is installed at application startup.
