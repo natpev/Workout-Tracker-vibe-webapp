@@ -1,9 +1,10 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-   The initial POST snapshots a chosen routine and validates occurrence separately
-   from system entry time. It never changes the current active workout draft. #}
-{% extends 'base.html' %}
-{% from 'macros.html' import security with context %}
+   Expected preparation errors stay inline; raw date/time/routine/fold are retained. #}
+{% extends 'base.html' %}{% from 'macros.html' import security with context %}
+{% from 'historical_fields.html' import attributes,error,summary,clock_input,fold_input %}
 {% block content %}<h1>Enter historical workout</h1><p>This records a completed past workout separately from any active draft. Its original routine snapshot will be retained.</p>
-<section><form method="post">{{ security() }}<label for="historical-routine">Routine</label><select id="historical-routine" name="routine_id" required>{% for routine in routines %}<option value="{{ routine.id }}">{{ routine.name }}</option>{% endfor %}</select>
-<label>Workout date <input type="date" name="workout_date" required></label><label>Workout time (optional) <input type="text" inputmode="numeric" placeholder="HH:mm" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" name="workout_time"></label><p>Leave time blank when unknown. Timezone: {{ zone }}.</p>
-{% include 'time_fold.html' %}<button>Prepare historical workout</button></form></section>{% endblock %}
+<script src="{{ url_for('static',filename='historical.js') }}" defer></script>
+<section><form method="post" novalidate>{{ security() }}<label for="routine_id">Routine</label><select {{ attributes('routine_id',errors) }} name="routine_id" required><option value="">Choose routine</option>{% for routine in routines %}<option value="{{ routine.id }}" {% if values.get('routine_id',routines[0].id if routines and not errors else '')==routine.id %}selected{% endif %}>{{ routine.name }}</option>{% endfor %}</select>{{ error('routine_id',errors) }}
+<label for="workout_date">Workout date</label><input {{ attributes('workout_date',errors) }} type="{{ 'text' if errors.get('workout_date') else 'date' }}" name="workout_date" value="{{ values.get('workout_date','') }}" required>{{ error('workout_date',errors) }}
+{{ clock_input(values.get('workout_time',''),errors) }}<p>Timezone: {{ zone }}.</p>{{ fold_input(values,errors) }}
+{{ summary(errors) }}<button>Prepare historical workout</button></form></section>{% endblock %}

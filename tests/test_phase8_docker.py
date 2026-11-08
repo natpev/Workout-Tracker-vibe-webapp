@@ -18,15 +18,18 @@ import urllib.request
 
 import pytest
 from test_phase8_updater import fixture,REPO
+from workout_tracker import APP_VERSION
 
 pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',reason='Opt-in isolated Docker rehearsal')
 
 
-@pytest.mark.parametrize('fault',[None,'shutdown','startup'])
+@pytest.mark.parametrize('fault',[None,'code-only','shutdown','startup'])
 def test_actual_v4_host_service_and_docker_migration(tmp_path,fault):
     """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
     short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')
-    root,env=fixture(Path(short.name),6);env.update(MODE='ok',METADATA_VERSION='0.9.0',METADATA_SCHEMA='7')
+    initial_schema=7 if fault=='code-only' else 6
+    if fault=='code-only':fault=None
+    root,env=fixture(Path(short.name),initial_schema);env.update(MODE='ok',METADATA_VERSION=APP_VERSION,METADATA_SCHEMA='7')
     adapter=Path(short.name)/'bin/docker'
     real_docker=shutil.which('docker')
     # The cloud test UID cannot traverse the rootless daemon user's private
@@ -78,11 +81,11 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
                               env=clean_env,text=True,capture_output=True,timeout=180)
         assert (result.returncode==0)==(fault is None),result.stdout+result.stderr+'\n'+''.join(p.read_text()[-5000:] for p in state.glob('*.private.log'))
         assert original.read_bytes()==before
-        assert (json.loads(manifest.read_text())['database']!=original.name)==(fault!='shutdown')
+        assert (json.loads(manifest.read_text())['database']!=original.name)==(initial_schema<7 and fault!='shutdown')
         assert service.poll() is None
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/status.json',timeout=5) as response:status=json.load(response)
         if fault is None:
-            assert status['status']=='Completed' and status['installed_schema']==7 and status['installed_version']=='0.9.0'
+            assert status['status']=='Completed' and status['installed_schema']==7 and status['installed_version']==APP_VERSION
             assert status['backup_id']
         else:
             if status['status']!='Failed' or status['recovered']!=(fault=='shutdown'):
@@ -92,7 +95,7 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
                 stopped=subprocess.run([*prefix,'ps','--status','running','--services'],env=clean_env,text=True,capture_output=True,check=True)
                 assert not stopped.stdout.strip()
                 return  # The schema-7 selection must never be rolled back to 6.
-            health="import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='0.9.0',schema_version=6)"
+            health=f"import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='{APP_VERSION}',schema_version=6)"
             checked=subprocess.run([*prefix,'exec','-T','web','python','-c',health],env=clean_env,text=True,capture_output=True)
             assert checked.returncode==0,checked.stderr
             return
@@ -102,7 +105,11 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
         response=subprocess.run([*prefix,'exec','-T','web','python','-c',probe],env=clean_env,text=True,capture_output=True)
         assert response.returncode==0,response.stderr
         assert (root/'app/.env').read_bytes()==(root/'.env').read_bytes()
-        for event in ('Backing up database','Migrating database','Starting services','Verifying health'):
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/console.json?operation='+status['operation'],timeout=5) as response:console=json.load(response)
+        text='\n'.join(row['text'] for row in console['lines'])
+        assert 'Database backup verified:' in text and 'Completed' in text
+        assert 'WORKOUT_SECRET_KEY' not in text and status['console_protocol']==1
+        for event in ('Backing up database','Starting services','Verifying health')+ (('Migrating database',) if initial_schema<7 else ()):
             assert any(row['status']==event for row in status['events'])
     finally:
         service.terminate()

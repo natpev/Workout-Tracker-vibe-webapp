@@ -73,6 +73,7 @@ def test_historical_entry_correction_charts_filters_themes_and_snapshot(history_
     other.get_by_role('button',name='Apply correction',exact=True).click()
     expect(other.get_by_role('alert')).to_contain_text('corrected in another page')
     page.get_by_role('link',name='Progress',exact=True).click()
+    page.get_by_role('button',name='All Time',exact=True).click()
     expect(page.locator('.progress-series')).to_have_count(2)
     expect(page.locator('circle.chart-point')).to_have_count(2)
     expect(page.get_by_text('0.0 lb',exact=True).first).to_be_visible()
@@ -85,6 +86,7 @@ def test_historical_entry_correction_charts_filters_themes_and_snapshot(history_
     for width in (320,768,1280):
         page.set_viewport_size({'width':width,'height':800})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.get_by_role('button',name='Custom Range',exact=True).click()
     page.get_by_label('From date',exact=True).fill('2022-01-01')
     page.get_by_role('button',name='Update progress',exact=True).click()
     expect(page.locator('.progress-series')).to_have_count(0)
@@ -111,6 +113,7 @@ def test_skipped_historical_confirmation_and_chart_exclusion(history_page):
     page.get_by_role('button',name='Save historical workout',exact=True).click()
     expect(page.locator('.measurement')).to_have_text(['Skipped','Skipped'])
     page.get_by_role('link',name='Progress',exact=True).click()
+    page.get_by_role('button',name='All Time',exact=True).click()
     expect(page.locator('.progress-series')).to_have_count(2)
     expect(page.locator('circle.chart-point')).to_have_count(0)
     page.get_by_text('Chart data (including skipped entries)',exact=True).first.click()

@@ -1,0 +1,8 @@
+/* SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+   Independent status assets do not depend on the stopped application container. */
+:root { color-scheme:light dark; font:16px/1.5 system-ui,sans-serif; }
+* { box-sizing:border-box; }
+body { overflow-wrap:anywhere; max-width:70rem; margin:auto; padding:1rem; }
+a { color:light-dark(#2855d9,#a0b9ff); }
+button,select { max-width:calc(100% - .8rem); min-height:44px; font:inherit; padding:.6rem; border-radius:999px; margin:.4rem; }
+.console { height:45vh; min-height:240px; overflow:auto; background:#11151f; color:#e8edf8; border-radius:1rem; padding:1rem; white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.5 ui-monospace,monospace; }

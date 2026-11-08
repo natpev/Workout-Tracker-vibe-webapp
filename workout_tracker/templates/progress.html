@@ -1,18 +1,25 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
    Flask prepares separate numeric series. SVG is generated locally, with an
-   accessible table retaining skipped rows; no CDN, cloud service or JavaScript. #}
+   accessible table retaining skipped rows; no CDN or cloud service. Local JavaScript adds accessible point tooltips. #}
 {% extends 'base.html' %}
 {% block content %}
 <h1>Exercise progress</h1>
-<form method="get"><label for="progress-exercise">Exercise</label><select id="progress-exercise" name="exercise"><option value="">All exercises (separate charts)</option>{% for id,name in exercises.items() %}<option value="{{ id }}" {% if filters.get('exercise')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select><div class="duration"><label>From date <input type="date" name="from" value="{{ filters.get('from','') }}"></label><label>To date <input type="date" name="to" value="{{ filters.get('to','') }}"></label></div><button>Update progress</button></form>
-{% for chart in series %}<section class="progress-series" data-kind="{{ chart.kind }}">
+<script src="{{ url_for('static',filename='progress.js') }}" defer></script>
+<p>{{ range_description }}</p>
+<form method="get" id="progress-filter"><label for="progress-exercise">Exercise</label><select id="progress-exercise" name="exercise"><option value="">All exercises (separate charts)</option>{% for id,name in exercises.items() %}<option value="{{ id }}" {% if filters.get('exercise')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+<div class="range-buttons" aria-label="Progress date range">{% for value,label in range_options %}<button type="submit" name="range" value="{{ value }}" class="{{ 'primary' if range_token==value else 'secondary' }}" aria-pressed="{{ 'true' if range_token==value else 'false' }}">{{ label }}</button>{% endfor %}</div>
+<input type="hidden" name="previous_range" value="{{ applied.get('range','30') }}"><input type="hidden" name="previous_from" value="{{ applied.get('from','') }}"><input type="hidden" name="previous_to" value="{{ applied.get('to','') }}">
+{% if range_token=='custom' %}<div class="duration"><label>From date<input type="{{ 'text' if 'from' in invalid_dates else 'date' }}" {% if range_errors %}aria-invalid="true" aria-describedby="progress-range-error"{% endif %} name="from" value="{{ filters.get('from','') }}"></label><label>To date<input type="{{ 'text' if 'to' in invalid_dates else 'date' }}" {% if range_errors %}aria-invalid="true" aria-describedby="progress-range-error"{% endif %} name="to" value="{{ filters.get('to','') }}"></label></div>{% endif %}
+{% if range_errors %}<p id="progress-range-error" role="alert" class="field-error">* {{ range_errors.range }}</p>{% endif %}<button name="range" value="{{ range_token }}">Update progress</button></form>
+{% for chart in series %}{% set chart_index=loop.index %}<section class="progress-series" data-kind="{{ chart.kind }}">
 <h3>{{ chart.name }} — {{ 'Weight (lb)' if chart.kind=='weight' else 'Time (minutes:seconds)' }}{% if chart.meaning %} · {{ chart.meaning }}{% endif %}</h3>
 {% if chart.highest %}<p>{{ 'Highest logged weight' if chart.kind=='weight' else 'Longest logged duration' }} in this date range: <strong>{{ chart.highest.label }}</strong> ({{ chart.highest.date }})</p>
-<svg class="progress-chart" viewBox="0 0 720 290" role="img" aria-labelledby="chart-title-{{ loop.index }}"><title id="chart-title-{{ loop.index }}">{{ chart.name }}: {{ 'pounds' if chart.kind=='weight' else 'duration in seconds, labeled as minutes and seconds' }} by workout date. Skipped entries are not plotted.</title>
+<svg class="progress-chart" viewBox="0 0 720 290" role="group" aria-labelledby="chart-title-{{ loop.index }}"><title id="chart-title-{{ loop.index }}">{{ chart.name }}: {{ 'pounds' if chart.kind=='weight' else 'duration in seconds, labeled as minutes and seconds' }} by workout date. Skipped entries are not plotted.</title>
 <line x1="130" y1="40" x2="130" y2="220" class="chart-axis"/><line x1="130" y1="220" x2="660" y2="220" class="chart-axis"/>
 <text x="5" y="45">{{ chart.top_label }}</text><text x="80" y="222">{{ '0.0' if chart.kind=='weight' else '0:00' }}</text><text x="130" y="250">{{ chart.points[0].date }}</text><text x="520" y="250">{{ chart.points[-1].date }}</text><text x="280" y="278">Workout date</text>
-<polyline points="{{ chart.line }}" class="chart-line"/>{% for point in chart.points %}<circle cx="{{ point.x }}" cy="{{ point.y }}" r="5" class="chart-point"><title>{{ point.date }} {{ point.time|clock or 'Time unknown' }} — {{ point.label }}</title></circle>{% endfor %}</svg>
+<polyline points="{{ chart.line }}" class="chart-line"/>{% for point in chart.points %}<circle cx="{{ point.x }}" cy="{{ point.y }}" r="5" class="chart-point" tabindex="0" role="button" aria-label="{{ point.date }} {{ point.time|clock }} — {{ point.label }}" data-tooltip="{{ point.date }}{% if point.time %} · {{ point.time|clock }}{% endif %} · {{ point.label }}"><title>{{ point.date }} {{ point.time|clock or 'Time unknown' }} — {{ point.label }}</title></circle>{% endfor %}</svg>
+<div id="chart-tooltip-{{ chart_index }}" data-chart-tooltip class="chart-tooltip" role="tooltip" hidden></div>
 {% else %}<p>No performed measurements in this range. Skipped entries remain listed below.</p>{% endif %}
-<details><summary>Chart data (including skipped entries)</summary><ul>{% for record in chart.records %}<li><a href="{{ url_for('history.detail',person_id=person.id,workout_id=record.workout_id) }}">{{ record.date }} {{ record.time|clock or 'Time unknown' }}</a> — {{ record.label }}</li>{% endfor %}</ul></details></section>
+<details><summary>Chart data (including skipped entries)</summary><ul>{% for record in chart.records %}<li><a href="{{ url_for('history.detail',person_id=person.id,workout_id=record.workout_id,**progress_context) }}">{{ record.date }} {{ record.time|clock or 'Time unknown' }}</a> — {{ record.label }}</li>{% endfor %}</ul></details></section>
 {% else %}<p>No completed exercise records match these filters.</p>{% endfor %}
 {% endblock %}

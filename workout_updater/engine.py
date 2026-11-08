@@ -63,13 +63,16 @@ class Engine:
         self.app=self.root/'app';self.data=self.root/'data/storage';self.state_dir=self.root/'updater'
         if self.state_dir.is_symlink():raise UpdateError('Unsafe updater state directory.')
         self.state_path=self.state_dir/'status.json';self.runner=runner or subprocess.run
+        self.streaming=runner is None;self.console=None
         self.config=read_json(self.state_dir/'config.json',{})
         self.compose=['docker','compose','--project-directory',str(self.app),'--env-file',str(self.root/'.env'),'-f',str(self.app/'compose.yaml')]
         self.raw_log=None
 
     def state(self):
         """Read status without a job lock; atomic publication makes polling safe."""
-        return read_json(self.state_path,dict(status='Not yet checked',events=[],release=None,last_success=None,last_failure=None))
+        value=read_json(self.state_path,dict(status='Not yet checked',events=[],release=None,last_success=None,last_failure=None))
+        value['console_protocol']=1
+        return value
 
     def event(self,status,message=None,**fields):
         """Persist honest named stages and bounded safe events; never fake percentages."""
@@ -77,6 +80,7 @@ class Engine:
         if status not in RUNNING:state['operation_pending']=False
         state['events']=(state.get('events',[])+[dict(time=utc(),status=status,message=message or status)])[-200:]
         write_json(self.state_path,state)
+        self.console_line(status)
         print(status+': '+(message or status),flush=True)
 
     @contextmanager
@@ -90,22 +94,58 @@ class Engine:
             try: yield
             finally: fcntl.flock(lock,fcntl.LOCK_UN)
 
-    def command(self,args,*,input=None,check=True,timeout=120):
-        """Run an argv list, never a shell; keep stdout/stderr in private host logs.
+    def console_line(self,text):
+        """Append fixed/classified text only; safe-console failure cannot undo storage."""
+        if self.console:
+            try:self.console.append(text)
+            except (OSError,ValueError,UpdateError):
+                self.console=None
+                if self.raw_log:
+                    try:
+                        with self.raw_log.open('a') as handle:handle.write('Safe console unavailable; private diagnostics retained.\n')
+                    except OSError:pass  # A second logging failure cannot undo storage either.
 
-        Remove ambient Compose/workout selectors so browser jobs cannot target a
-        different installation. Credentials/proxy/CA variables are preserved.
+    def command(self,args,*,input=None,check=True,timeout=120):
+        """Stream fixed argv output privately and classify a separate safe live view.
+
+        Never echo argv/config/environment into the safe console. The optional
+        injected runner keeps deterministic failure tests; production uses Popen
+        with both pipes drained and the original per-command deadline enforced.
         """
+        from .console import safe_line
         env={k:v for k,v in os.environ.items() if not k.startswith(('WORKOUT_','COMPOSE_')) and k not in ('DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH')}
-        env['GIT_TERMINAL_PROMPT']='0'
-        env['BUILDX_BUILDER']='default'
-        if args[0]=='docker': args=['docker','--host=unix:///var/run/docker.sock',*args[1:]]
-        try: result=self.runner(args,input=input,capture_output=True,text=True,env=env,timeout=timeout)
-        except (OSError,subprocess.TimeoutExpired) as error: raise UpdateError('Updater command unavailable or timed out.') from error
-        if self.raw_log:
-            with self.raw_log.open('a') as handle:
-                if 'config' in args and '--format' in args:handle.write('<resolved Compose config/output withheld>\n')
-                else:handle.write(result.stdout or '');handle.write(result.stderr or '')
+        env['GIT_TERMINAL_PROMPT']='0';env['BUILDX_BUILDER']='default'
+        kind='git' if args[0]=='git' else 'docker'
+        if args[0]=='docker':
+            if 'build' in args:kind='build'
+            elif 'stop' in args:kind='stop'
+            elif 'up' in args:kind='start'
+            elif 'config' in args:kind='config'
+            elif 'check-storage' in args or 'migrate-storage' in args:kind='storage'
+            elif any('maintenance import backup' in arg for arg in args):kind='backup'
+            elif 'exec' in args:kind='health'
+            args=['docker','--host=unix:///var/run/docker.sock',*args[1:]]
+        public_label=('Git '+next((arg for arg in args if arg in ('fetch','merge','show','log','status','rev-parse','merge-base')),'verification')) if kind=='git' else kind.capitalize()
+        self.console_line(public_label+' command started.')
+        secrets=[value for value in os.environ.values() if len(value)>=4]
+        def output(line):
+            """Keep real output private; publish only recognized secret-free structure."""
+            if self.raw_log and kind!='config':
+                with self.raw_log.open('a') as handle:handle.write(line+'\n')
+            if kind!='config' and not any(secret in line for secret in secrets):
+                safe=safe_line(kind,line)
+                if safe:self.console_line(safe)
+        try:
+            if self.streaming:
+                from .process_output import stream_run
+                result=stream_run(args,env=env,input=input,timeout=timeout,on_line=output)
+            else:
+                result=self.runner(args,input=input,capture_output=True,text=True,env=env,timeout=timeout)
+                for line in ((result.stdout or '')+'\n'+(result.stderr or '')).splitlines():output(line)
+        except (OSError,subprocess.TimeoutExpired) as error:raise UpdateError('Updater command unavailable or timed out.') from error
+        if self.raw_log and kind=='config':
+            with self.raw_log.open('a') as handle:handle.write('<resolved Compose config/output withheld>\n')
+        self.console_line(public_label+' command exited '+str(result.returncode)+'.')
         if check and result.returncode:
             label='Git '+next((part for part in args if part in ('fetch','merge','show','log','status','rev-parse','merge-base')),'verification') if args[0]=='git' else 'Docker '+next((part for part in args if part in ('build','stop','up','run','exec','config','image')),'verification')
             raise UpdateError(label+' failed (exit '+str(result.returncode)+') during '+self.state()['status']+'. Inspect the private operation log.')
@@ -167,13 +207,15 @@ class Engine:
             try:
                 operation=uuid4().hex;self.raw_log=self.state_dir/(operation+'.private.log')
                 self.raw_log.touch(mode=0o600,exist_ok=False)
+                from .console import Console
+                self.console=Console(self.state_dir,operation)
                 self.event('Checking for updates',operation=operation,operation_type='check');self.preflight();release=self.fetch_release()
                 self.event('Available','Approved release metadata verified.',release=release)
                 return release
             except Exception as error:
                 message=str(error) if isinstance(error,UpdateError) else 'Approved release metadata validation failed.'
                 self.event('Failed',message,last_failure=utc(),failure_stage='Checking for updates');raise
-            finally:self.raw_log=None
+            finally:self.raw_log=None;self.console=None
 
     def storage(self):
         """Use the application's read-only verifier and exact manifest, never infer schema."""
@@ -253,6 +295,8 @@ class Engine:
             operation=uuid4().hex;self.raw_log=self.state_dir/(operation+'.private.log')
             self.raw_log.touch(mode=0o600,exist_ok=False)
             try:
+                from .console import Console
+                self.console=Console(self.state_dir,operation)
                 self.event('Preparing update',operation=operation,operation_type='install')
                 before_config=self.preflight();release=self.fetch_release()
                 if release['id']!=release_id or any(release[k]!=expected[k] for k in ('version','schema')):
@@ -342,4 +386,4 @@ class Engine:
                 self.event('Failed','Failed during '+failed_stage+'. '+(str(error)+' ' if isinstance(error,UpdateError) else '')+('Preserved compatible image restarted and verified.' if recovered else 'Inspect preserved versions and private host log before restarting.'),last_failure=utc(),failure_stage=failed_stage,recovered=recovered)
                 if isinstance(error,UpdateError): raise
                 raise UpdateError('Update failed; inspect preserved operation diagnostics.') from error
-            finally: self.raw_log=None
+            finally: self.raw_log=None;self.console=None

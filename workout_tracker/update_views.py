@@ -35,9 +35,12 @@ def index():
                 if release['schema']>current and not migration:raise StorageError('Confirm the separate-candidate database structure change before installing.')
                 state=update_client.call(root,'install',release=release['id'],confirm=True,migration=migration)
             else:raise StorageError('Unknown update action.')
+            if action=='install' and request.accept_mimetypes.best=='application/json':return jsonify(state=state),202
             return redirect(url_for('updates.index',person_id=selected['id'] if selected else None),code=303)
         state=update_client.call(root,'status')
-    except StorageError as exc:error=str(exc)
+    except StorageError as exc:
+        error=str(exc)
+        if request.method=='POST' and request.accept_mimetypes.best=='application/json':return jsonify(error=error),400
     return render_template('updates.html',person=selected,state=state,error=error,status_url=settings.get('status_url')),(400 if request.method=='POST' and error else 200)
 
 

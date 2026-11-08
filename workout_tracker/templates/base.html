@@ -25,7 +25,7 @@
 </div></div>{% if person is defined and person %}<span class="person-label selected-person"><span class="person-accent" aria-hidden="true">●</span> {{ person.name }}</span>{% endif %}{% endif %}
 </header>
 {% if person is defined and person and request.blueprint=='history' %}<nav class="primary-nav history-tabs" aria-label="History and Progress">
-<a href="{{ url_for('history.index',person_id=person.id) }}" {% if request.endpoint!='history.progress' %}aria-current="page"{% endif %}>History</a><a href="{{ url_for('history.progress',person_id=person.id) }}" {% if request.endpoint=='history.progress' %}aria-current="page"{% endif %}>Progress</a></nav>{% endif %}
+<a href="{{ url_for('history.index',person_id=person.id,**progress_context) }}" {% if request.endpoint!='history.progress' %}aria-current="page"{% endif %}>History</a><a href="{{ url_for('history.progress',person_id=person.id,range=progress_context.get('progress_range'),**{'from':progress_context.get('progress_from'),'to':progress_context.get('progress_to'),'exercise':progress_context.get('progress_exercise')}) }}" {% if request.endpoint=='history.progress' %}aria-current="page"{% endif %}>Progress</a></nav>{% endif %}
 {% for category,message in get_flashed_messages(with_categories=true) %}<p role="status" class="{{ category }}">{{ message }}</p>{% endfor %}
 {% block content %}{% endblock %}
 <footer class="version-footer"><small>Workout Tracker v{{ application_version }} · Database v{{ active_schema_version }}</small>{% if not workout_focused|default(false) %}<br><small>Household use · Person selection is not authentication.</small>{% endif %}</footer>

@@ -48,7 +48,7 @@ def test_historical_history_charts_corrections_and_ownership(phase4_app,phase4_r
     assert b'class="history-record"' not in client.get(f'/people/{b}/history').data
     assert b'class="history-record"' not in client.get(f'/people/{a}/history?from=2021-01-01').data
     assert client.get(f'/people/{a}/history?from=bad').status_code==400
-    charts=client.get(f'/people/{a}/progress')
+    charts=client.get(f'/people/{a}/progress?range=all')
     assert charts.status_code==200 and charts.data.count(b'<svg ')==2
     assert b'Highest logged weight' in charts.data and b'Longest logged duration' in charts.data
     assert b'40.9 lb' in charts.data and b'0:45' in charts.data

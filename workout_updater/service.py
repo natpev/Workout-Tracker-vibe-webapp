@@ -15,7 +15,9 @@ import struct
 import threading
 from urllib.parse import urlsplit
 from datetime import datetime
-from flask import Flask,render_template_string,jsonify
+from flask import Flask,render_template_string,jsonify,request,abort,Response
+from pathlib import Path
+from .console import retained,read_console
 from werkzeug.serving import make_server
 from .engine import Engine,UpdateError,RUNNING,utc
 
@@ -83,7 +85,7 @@ class Handler(socketserver.StreamRequestHandler):
         self.wfile.write(json.dumps(result).encode()+b'\n')
 
 
-STATUS_TEMPLATE='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{% if state.status in running %}<meta http-equiv="refresh" content="5">{% endif %}<title>Workout Tracker update progress</title></head><body><h1>Independent Update Progress</h1><p>{{ state.status }}</p><p>Last successful update: {{ state.last_success|timestamp or 'None' }} · Last failed update: {{ state.last_failure|timestamp or 'None' }}</p>{% for event in state.events|reverse %}<p>{{ event.time|timestamp }} · {{ event.status }} · {{ event.message }}</p>{% endfor %}<p>This read-only page stays available while the application restarts. No progress percentages are guessed.</p><p>Trusted private LAN only. No login or password is required.</p><a href="{{ app_url }}/settings/updates">Reconnect to Application Updates</a><a href="/status.json">Read status JSON</a></body></html>'''
+STATUS_TEMPLATE="""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/status.css"><script src="/status.js" defer></script><title>Workout Tracker update progress</title></head><body><h1>Independent Update Progress</h1><h2 id="current-status">{{ state.status }}</h2><p>Last successful update: <span id="last-success">{{ state.last_success|timestamp or 'None' }}</span> · Last failed update: <span id="last-failure">{{ state.last_failure|timestamp or 'None' }}</span></p><p>This read-only page stays available while the application restarts. No progress percentages are guessed.</p><p>Trusted private LAN only. No login or password is required.</p><p>Operation: <code id="operation-id">{{ operation or 'None' }}</code> · <span id="connection">Connecting to live output</span></p><form method="get"><label for="retained-operation">Retained safe operation</label><select name="operation" id="retained-operation">{% for identity in operations %}<option value="{{ identity }}" {% if operation==identity %}selected{% endif %}>{{ identity }}</option>{% endfor %}</select><button>View operation</button></form><h2>Live updater console</h2><button type="button" id="latest">Scroll to Latest</button><pre id="console" class="console" role="log" aria-label="Sanitized updater console" aria-live="polite" tabindex="0"></pre><p>Only recognized, sanitized output appears here. Detailed raw diagnostics remain private on the host. The newest 500 safe lines per operation and 20 operations are retained.</p><details open><summary>Status events</summary>{% for event in state.events|reverse %}<p>{{ event.time|timestamp }} · {{ event.status }} · {{ event.message }}</p>{% endfor %}</details><p><a href="{{ app_url }}/settings/updates">Reconnect to Application Updates</a> · <a href="/status.json">Read status JSON</a> · <a href="/status">Refresh current operation</a></p><noscript>Refresh this page or read the status JSON to view actual progress.</noscript></body></html>"""
 
 
 def status_app(engine):
@@ -104,18 +106,38 @@ def status_app(engine):
     @app.get('/status')
     def page():
         """Render actual persistent progress and safe logs without authentication."""
-        return render_template_string(STATUS_TEMPLATE,state=engine.state(),running=RUNNING,app_url=engine.config['app_url'].rstrip('/'))
+        state=engine.state();operation=request.args.get('operation') or state.get('operation')
+        if request.args.get('operation') and request.args['operation'] not in retained(engine.state_dir):abort(404)
+        return render_template_string(STATUS_TEMPLATE,state=state,operation=operation,operations=retained(engine.state_dir),app_url=engine.config['app_url'].rstrip('/'))
 
     @app.get('/status.json')
     def status():
         """Read-only status data; no action parameter is accepted or executed."""
         return jsonify(engine.state())
 
+    @app.get('/console.json')
+    def console_output():
+        """Read only bounded sanitized operation rings, never private logs or paths."""
+        if set(request.args)-{'operation','after'}:abort(400)
+        operation=request.args.get('operation') or engine.state().get('operation')
+        try:return jsonify(read_console(engine.state_dir,operation,int(request.args.get('after','0'))))
+        except (ValueError,UpdateError):abort(404)
+
+    @app.get('/status.js')
+    def status_script():
+        """Serve one fixed packaged script; request paths never select files."""
+        return Response((Path(__file__).parent/'status.js').read_text(),mimetype='text/javascript')
+
+    @app.get('/status.css')
+    def status_style():
+        """Serve fixed local status styling while application storage is offline."""
+        return Response((Path(__file__).parent/'status.css').read_text(),mimetype='text/css')
+
     @app.after_request
     def protected(response):
         """Prevent caching/framing and external assets; there are no login cookies."""
         response.headers.update({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
-          'Content-Security-Policy':"default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"})
+          'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
     return app
 

@@ -123,3 +123,20 @@ dialog::backdrop { background:#0008; }
 .accent-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.2rem .6rem; }
 .accent-options label { font-size:.85rem; }
 @media(min-width:768px) { .accent-options { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+/* Phase 10 inline errors use text, markers and borders rather than color alone. */
+.field-error { color:#a51d35; font-weight:650; }
+[aria-invalid="true"] { border:2px solid #bd2540 !important; }
+.error-summary { border:2px solid #bd2540; color:#a51d35; }
+.error-summary a { color:inherit; }
+:root[data-theme="dark"] .field-error,:root[data-theme="dark"] .error-summary { color:#ff9eae; }
+@media(prefers-color-scheme:dark) { :root:not([data-theme="light"]) .field-error,:root:not([data-theme="light"]) .error-summary { color:#ff9eae; } }
+.clock-controls { display:flex; gap:.5rem; align-items:center; }
+.clock-controls input { min-width:0; }
+.clock-controls button { flex-shrink:0; }
+[data-clock-picker] { border:1px solid var(--border); border-radius:.8rem; }
+.range-buttons { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0; }
+.range-buttons button { padding:.4rem .7rem; }
+.chart-tooltip { position:fixed; z-index:50; max-width:min(20rem,calc(100vw - 16px)); padding:.6rem .8rem; border:1px solid var(--accent); border-radius:.75rem; background:var(--card); color:var(--text); box-shadow:0 4px 20px #0003; pointer-events:none; font-size:.9rem; }
+.chart-point { cursor:pointer; stroke:transparent; stroke-width:18px; pointer-events:all; }
+.chart-point:focus { outline:none; stroke:var(--accent); stroke-width:3px; }
+.duration>div { flex:1; min-width:0; }

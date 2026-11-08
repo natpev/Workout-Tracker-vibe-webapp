@@ -106,7 +106,8 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     page.get_by_role('button',name='Open navigation',exact=True).click()
     page.get_by_role('link',name='History & Progress',exact=True).click();expect(page.locator('.history-record')).to_have_count(2)
     page.screenshot(path=str(SHOTS/'history-390x844-light.png'),full_page=True)
-    page.get_by_role('link',name='Progress',exact=True).click();expect(page.locator('.progress-series')).to_have_count(2)
+    page.get_by_role('link',name='Progress',exact=True).click()
+    page.get_by_role('button',name='All Time',exact=True).click();expect(page.locator('.progress-series')).to_have_count(2)
     page.screenshot(path=str(SHOTS/'progress-390x844-light.png'),full_page=True)
     with database_session(root) as db:
         assert w.active(db,a) is None
