@@ -14,6 +14,7 @@ import socketserver
 import struct
 import threading
 from urllib.parse import urlsplit
+from datetime import datetime
 from flask import Flask,render_template_string,jsonify
 from werkzeug.serving import make_server
 from .engine import Engine,UpdateError,RUNNING,utc
@@ -82,7 +83,7 @@ class Handler(socketserver.StreamRequestHandler):
         self.wfile.write(json.dumps(result).encode()+b'\n')
 
 
-STATUS_TEMPLATE='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{% if state.status in running %}<meta http-equiv="refresh" content="5">{% endif %}<title>Workout Tracker update progress</title></head><body><h1>Independent Update Progress</h1><p>{{ state.status }}</p><p>Last successful update: {{ state.last_success or 'None' }} · Last failed update: {{ state.last_failure or 'None' }}</p>{% for event in state.events|reverse %}<p>{{ event.time }} · {{ event.status }} · {{ event.message }}</p>{% endfor %}<p>This read-only page stays available while the application restarts. No progress percentages are guessed.</p><p>Trusted private LAN only. No login or password is required.</p><a href="{{ app_url }}/settings/updates">Reconnect to Application Updates</a><a href="/status.json">Read status JSON</a></body></html>'''
+STATUS_TEMPLATE='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{% if state.status in running %}<meta http-equiv="refresh" content="5">{% endif %}<title>Workout Tracker update progress</title></head><body><h1>Independent Update Progress</h1><p>{{ state.status }}</p><p>Last successful update: {{ state.last_success|timestamp or 'None' }} · Last failed update: {{ state.last_failure|timestamp or 'None' }}</p>{% for event in state.events|reverse %}<p>{{ event.time|timestamp }} · {{ event.status }} · {{ event.message }}</p>{% endfor %}<p>This read-only page stays available while the application restarts. No progress percentages are guessed.</p><p>Trusted private LAN only. No login or password is required.</p><a href="{{ app_url }}/settings/updates">Reconnect to Application Updates</a><a href="/status.json">Read status JSON</a></body></html>'''
 
 
 def status_app(engine):
@@ -92,6 +93,13 @@ def status_app(engine):
     if not ip.is_private or ip.is_unspecified or ip.is_multicast:raise UpdateError('Explicit private status interface required.')
     app=Flask('workout-updater-status')
     app.config.update(TRUSTED_HOSTS=[address],MAX_CONTENT_LENGTH=1024)
+
+    @app.template_filter('timestamp')
+    def status_timestamp(value):
+        """Render precise UTC diagnostic times in 24-hour form, never browser locale."""
+        if not value:return ''
+        try:return datetime.fromisoformat(str(value).replace('Z','+00:00')).strftime('%Y-%m-%d %H:%M:%S %Z')
+        except ValueError:return str(value)
 
     @app.get('/status')
     def page():

@@ -12,6 +12,8 @@ from .catalog import person
 
 bp=Blueprint('updates',__name__)
 bp.before_request(protect_forms)
+from .administration import require_administration
+bp.before_request(require_administration)
 
 
 @bp.route('/settings/updates',methods=['GET','POST'])

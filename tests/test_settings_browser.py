@@ -25,7 +25,7 @@ def settings_page(phase4_root):
             browser=manager.chromium.launch(headless=True,executable_path=os.environ.get('WORKOUT_CHROMIUM') or shutil.which('chromium'))
             try:
                 page=browser.new_page(viewport={'width':320,'height':800});base=f'http://127.0.0.1:{server.server_port}'
-                page.goto(base+'/settings');yield page,base,phase4_root
+                page.goto(base+'/settings/administration');yield page,base,phase4_root
             finally: browser.close()
     finally: server.shutdown();thread.join(5);server.server_close()
 
@@ -51,7 +51,7 @@ def test_backup_restore_confirmation_delete_themes_and_responsive(settings_page)
     page.goto(backup_url)
     page.get_by_label('I confirm deleting this backup file',exact=True).check()
     page.get_by_role('button',name='Delete backup permanently',exact=True).click()
-    expect(page.get_by_role('heading',name='Settings',exact=True)).to_be_visible()
+    expect(page.get_by_role('heading',name='Administration',exact=True)).to_be_visible()
     expect(page.get_by_text('deleted',exact=True)).to_be_visible()
     assert not errors
 

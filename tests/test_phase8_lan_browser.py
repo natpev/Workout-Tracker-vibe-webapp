@@ -43,7 +43,7 @@ def lan_browser(phase4_root,tmp_path):
     engine.config=dict(status_url=status_base+'/status',app_url=base)
     bridge=data/'config/updater-bridge';bridge.mkdir()
     write_json(bridge/'client.json',dict(status_url=status_base+'/status'))
-    release=dict(id='c'*40,version='0.8.0',schema=6,source='Synthetic approved main',notes='Approved fixture release')
+    release=dict(id='c'*40,version='0.9.0',schema=6,source='Synthetic approved main',notes='Approved fixture release')
     def check():
         """Simulate Git only; local protocol/status processing remain real."""
         engine.event('Available',release=release)
@@ -114,7 +114,7 @@ def test_http_browser_updates_no_login_and_status_survives_web_stop(lan_browser)
     # Forged POST lacks CSRF and cannot trigger the worker.
     assert page.request.post(base+'/settings/updates',form={'action':'check'}).status==400
     page.get_by_role('button',name='Check for Updates',exact=True).click()
-    page.reload();expect(page.get_by_text('Latest approved version: 0.8.0 · Required database schema: 6',exact=True)).to_be_visible()
+    page.reload();expect(page.get_by_text('Latest approved version: 0.9.0 · Required database schema: 6',exact=True)).to_be_visible()
     expect(page.get_by_text('Approved fixture release',exact=True)).to_be_visible()
     status_page=page.context.new_page();status_page.goto(status_base+'/status')
     expect(status_page.get_by_role('heading',name='Independent Update Progress',exact=True)).to_be_visible()
@@ -164,6 +164,7 @@ def test_settings_context_survives_maintenance_navigation_and_workout_return(lan
         page.goto(base+f'/settings?person_id={person}');header(name,color)
         for theme in ('auto','light','dark'):
             page.select_option('#theme',theme);page.reload();header(name,color)
+        page.get_by_role('link',name='Open Administration',exact=True).click();header(name,color)
         page.get_by_role('button',name='Save settings',exact=True).click();header(name,color)
         assert f'person_id={person}' in page.url
         page.get_by_role('link',name='Application Updates',exact=True).click();header(name,color)
@@ -171,11 +172,11 @@ def test_settings_context_survives_maintenance_navigation_and_workout_return(lan
             page.get_by_role('button',name='Check for Updates',exact=True).click()
         page.reload();header(name,color)
         page.go_back();header(name,color)
-        page.goto(base+f'/settings?person_id={person}')
+        page.goto(base+f'/settings/administration?person_id={person}')
         page.get_by_role('button',name='Backup Now',exact=True).click();header(name,color)
         backup_url=page.url;assert f'person_id={person}' in backup_url
         page.reload();header(name,color)
-        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Back to Administration',exact=True).click();header(name,color)
         page.get_by_role('link',name='Inspect backup 1',exact=True).click();header(name,color)
         page.get_by_label('I understand this selects an earlier dataset and preserves the current database separately',exact=True).check()
         page.get_by_label('Type RESTORE to confirm',exact=True).fill('RESTORE')
@@ -185,14 +186,14 @@ def test_settings_context_survives_maintenance_navigation_and_workout_return(lan
         with storage_lock(root) as storage:attempts=len(o.read_state(storage)['restores'])
         page.reload();header(name,color)
         with storage_lock(root) as storage:assert len(o.read_state(storage)['restores'])==attempts
-        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Back to Administration',exact=True).click();header(name,color)
         for i in range(55):diagnostics.emit(root,'INFO','Application','Context log fixture '+str(i))
         page.get_by_role('link',name='View logs',exact=True).click();header(name,color)
         page.get_by_label('Search log text',exact=True).fill('Context log fixture')
         page.get_by_role('button',name='Filter / Refresh logs',exact=True).click();header(name,color)
         page.get_by_role('link',name='Next page',exact=True).click();page.reload();header(name,color)
         page.get_by_role('link',name='Previous page',exact=True).click();header(name,color)
-        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Back to Administration',exact=True).click();header(name,color)
         page.goto(backup_url);page.get_by_label('I confirm deleting this backup file',exact=True).check()
         page.get_by_role('button',name='Delete backup permanently',exact=True).click();header(name,color)
     # The existing tab-scoped workout guard still prevents a direct Settings or
@@ -209,6 +210,7 @@ def test_settings_context_survives_maintenance_navigation_and_workout_return(lan
     page.wait_for_url('**/people/'+a+'?exited='+draft)
     page.wait_for_load_state('networkidle')
     page.goto(base+f'/settings?person_id={a}');header('A','purple')
+    page.get_by_role('button',name='Open navigation',exact=True).click()
     page.get_by_role('link',name='Routines',exact=True).click()
     page.get_by_role('link',name='Resume or discard unfinished workout',exact=True).click();header('A','purple')
     page.reload();header('A','purple')

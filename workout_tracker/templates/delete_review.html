@@ -7,4 +7,4 @@
 <p>Older backups and retained database versions may still contain deleted records. Restoring an older backup may bring them back; no backup is rewritten or removed.</p>
 {% if impact.blocked %}<p role="alert">An active draft references this record. Finish or discard it through the existing workout workflow, then review deletion again.</p><a class="pill" href="{{ url_for('manage.dashboard',person_id=person.id) }}">Return to routines and drafts</a>
 {% else %}<form method="post">{{ security(impact.revision) }}<label>Type DELETE or {{ impact.name }}<input name="phrase" autocomplete="off" required></label><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required>I understand this permanent deletion.</label><button class="danger">Permanently Delete {{ 'Exercise' if kind=='exercise' else 'Routine' }}</button></form>{% endif %}
-<a class="pill secondary" href="{{ url_for('manage.dashboard',person_id=person.id) }}">Cancel</a>{% endblock %}
+<a class="pill secondary" href="{{ url_for('manage.exercises' if kind=='exercise' else 'manage.dashboard',person_id=person.id) }}">Cancel</a>{% endblock %}

@@ -4,6 +4,11 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static',filename='icons/favicon.svg') }}">
+<link rel="icon" type="image/x-icon" href="{{ url_for('static',filename='icons/favicon.ico') }}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static',filename='icons/favicon-16.png') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static',filename='icons/favicon-32.png') }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static',filename='icons/apple-touch-icon.png') }}">
 <title>{% block title %}Workout Tracker{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
 <script src="{{ url_for('static',filename='theme.js') }}" defer></script>
@@ -15,16 +20,13 @@
 <header class="app-header">
 {% if workout_focused|default(false) %}<span class="brand">Workout<span class="brand-dot" aria-hidden="true">●</span></span><span class="person-label" title="{{ person.name }} · {{ workout.routine_name }}">{{ person.name }} · {{ workout.routine_name }}</span>
 {% else %}<a class="brand" href="{{ url_for('manage.people') }}">Workout<span class="brand-dot" aria-hidden="true">●</span></a><div class="menu-wrap"><button class="icon-button secondary" type="button" data-menu-button aria-expanded="false" aria-controls="main-menu" aria-label="Open navigation">☰</button><div id="main-menu" class="menu-panel" hidden>
-<a href="{{ url_for('manage.people') }}">{{ 'Switch person' if person is defined and person else 'People' }}</a>
-{% if person is defined and person %}<a href="{{ url_for('manage.exercises',person_id=person.id) }}">Exercise Library</a>{% endif %}
+<a href="{{ url_for('manage.dashboard',person_id=person.id) if person is defined and person else url_for('manage.people') }}">Routines</a><a href="{{ url_for('manage.exercises',person_id=person.id) if person is defined and person else url_for('manage.people') }}">Exercise Library</a><a href="{{ url_for('history.index',person_id=person.id) if person is defined and person else url_for('manage.people') }}">History &amp; Progress</a>
 <a href="{{ url_for('settings.index',person_id=person.id if person is defined and person else none) }}" {% if request.blueprint=='settings' %}aria-current="page"{% endif %}>Settings</a>
 </div></div>{% if person is defined and person %}<span class="person-label selected-person"><span class="person-accent" aria-hidden="true">●</span> {{ person.name }}</span>{% endif %}{% endif %}
 </header>
-{% if person is defined and person and not workout_focused|default(false) %}<nav class="primary-nav" aria-label="Selected person">
-<a href="{{ url_for('manage.dashboard',person_id=person.id) }}" {% if request.blueprint=='manage' or request.blueprint=='workout' %}aria-current="page"{% endif %}>Routines</a>
-<a href="{{ url_for('history.index',person_id=person.id) }}" {% if request.blueprint=='history' and request.endpoint!='history.progress' %}aria-current="page"{% endif %}>History</a>
-<a aria-label="Progress charts" href="{{ url_for('history.progress',person_id=person.id) }}" {% if request.endpoint=='history.progress' %}aria-current="page"{% endif %}>Progress</a>
-</nav>{% endif %}
+{% if person is defined and person and request.blueprint=='history' %}<nav class="primary-nav history-tabs" aria-label="History and Progress">
+<a href="{{ url_for('history.index',person_id=person.id) }}" {% if request.endpoint!='history.progress' %}aria-current="page"{% endif %}>History</a><a href="{{ url_for('history.progress',person_id=person.id) }}" {% if request.endpoint=='history.progress' %}aria-current="page"{% endif %}>Progress</a></nav>{% endif %}
+{% for category,message in get_flashed_messages(with_categories=true) %}<p role="status" class="{{ category }}">{{ message }}</p>{% endfor %}
 {% block content %}{% endblock %}
 <footer class="version-footer"><small>Workout Tracker v{{ application_version }} · Database v{{ active_schema_version }}</small>{% if not workout_focused|default(false) %}<br><small>Household use · Person selection is not authentication.</small>{% endif %}</footer>
 </main></body></html>

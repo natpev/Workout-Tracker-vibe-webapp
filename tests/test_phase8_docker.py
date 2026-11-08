@@ -26,7 +26,7 @@ pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',rea
 def test_actual_v4_host_service_and_docker_migration(tmp_path,fault):
     """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
     short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')
-    root,env=fixture(Path(short.name),5);env['MODE']='ok'
+    root,env=fixture(Path(short.name),6);env.update(MODE='ok',METADATA_VERSION='0.9.0',METADATA_SCHEMA='7')
     adapter=Path(short.name)/'bin/docker'
     real_docker=shutil.which('docker')
     # The cloud test UID cannot traverse the rootless daemon user's private
@@ -82,7 +82,7 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
         assert service.poll() is None
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/status.json',timeout=5) as response:status=json.load(response)
         if fault is None:
-            assert status['status']=='Completed' and status['installed_schema']==6 and status['installed_version']=='0.8.0'
+            assert status['status']=='Completed' and status['installed_schema']==7 and status['installed_version']=='0.9.0'
             assert status['backup_id']
         else:
             if status['status']!='Failed' or status['recovered']!=(fault=='shutdown'):
@@ -91,8 +91,8 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
             if fault=='startup':
                 stopped=subprocess.run([*prefix,'ps','--status','running','--services'],env=clean_env,text=True,capture_output=True,check=True)
                 assert not stopped.stdout.strip()
-                return  # The schema-6 selection must never be rolled back to 5.
-            health="import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='0.8.0',schema_version=5)"
+                return  # The schema-7 selection must never be rolled back to 6.
+            health="import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='0.9.0',schema_version=6)"
             checked=subprocess.run([*prefix,'exec','-T','web','python','-c',health],env=clean_env,text=True,capture_output=True)
             assert checked.returncode==0,checked.stderr
             return

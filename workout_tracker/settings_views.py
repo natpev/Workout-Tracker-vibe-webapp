@@ -15,6 +15,21 @@ bp=Blueprint('settings',__name__)
 bp.before_request(protect_forms)
 
 
+@bp.before_request
+def administration_boundary():
+    """Keep personal appearance separate; all maintenance shares one open boundary."""
+    from .administration import require_administration
+    if request.endpoint not in ('settings.index','settings.accent') or (request.endpoint=='settings.index' and request.method=='POST'):
+        return require_administration()
+
+
+@bp.get('/settings/administration')
+def administration():
+    """Render the grouped maintenance area using the existing Settings data flow."""
+    return index()
+
+
+
 def root_value():
     """Use only operator-configured external storage, never a request pathname."""
     return current_app.config['WORKOUT_DATA_ROOT']
@@ -55,7 +70,7 @@ def index():
     """Read database/schedule status, or explicitly save validated settings."""
     if request.method=='POST':
         scheduler.configure(root_value(),request.form)
-        return redirect(context_url('settings.index'),code=303)
+        return redirect(context_url('settings.administration'),code=303)
     with storage_lock(root_value()) as root:
         state=o.read_state(root)
         try:
@@ -87,7 +102,7 @@ def backup_detail(backup_id):
 def delete(backup_id):
     """Explicit checkbox plus Delete action; metadata survives file deletion."""
     m.delete_backup(root_value(),backup_id,request.form.get('confirm')=='yes')
-    return redirect(context_url('settings.index'),code=303)
+    return redirect(context_url('settings.administration'),code=303)
 
 
 @bp.post('/settings/backups/<backup_id>/restore')

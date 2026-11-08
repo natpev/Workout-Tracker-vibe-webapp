@@ -48,7 +48,7 @@ def choose_person_color(page,base,name,color):
     page.goto(base+'/people')
     page.get_by_role('button',name='Menu for '+name,exact=True).click()
     page.get_by_role('link',name='Person appearance',exact=True).click()
-    page.get_by_role('radio',name=color.title(),exact=True).check()
+    page.get_by_role('radio',name='Soft '+color.title(),exact=True).check()
     page.get_by_role('button',name='Save accent color',exact=True).click()
     assert page.locator('body').get_attribute('data-accent')==color
 
@@ -73,39 +73,40 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     expect(page.locator('body')).to_have_attribute('data-accent','purple')
     page.get_by_role('button',name='Start workout',exact=True).click()
     path=page.url
-    expect(page.get_by_label('Today’s weight (lb)')).to_have_value('')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('')
     expect(page.get_by_text('Previous session:',exact=False)).to_contain_text('42.5 lb')
     expect(page.get_by_text('Increase ↑',exact=True)).to_be_visible()
     expect(page.get_by_role('button',name='Open navigation')).to_have_count(0)
-    page.get_by_label('Today’s weight (lb)').fill('40.99')
+    page.get_by_label('Weight (lb)').fill('40.99')
     page.get_by_role('link',name='Next',exact=True).click()
-    page.get_by_label('Today’s minutes').fill('0');page.get_by_label('Today’s seconds').fill('55')
+    page.get_by_label('Minutes').fill('0');page.get_by_label('Seconds').fill('55')
     page.get_by_role('link',name='Back',exact=True).click()
-    expect(page.get_by_label('Today’s weight (lb)')).to_have_value('40.9')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('40.9')
     page.get_by_role('button',name='Save draft',exact=True).click();page.reload()
-    expect(page.get_by_label('Today’s weight (lb)')).to_have_value('40.9')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('40.9')
     # Attempting browser Back to routine selection cannot offer person switching
     # while this tab remains in its active workout flow.
-    page.go_back();expect(page.get_by_label('Today’s weight (lb)')).to_be_visible()
+    page.go_back();expect(page.get_by_label('Weight (lb)')).to_be_visible()
     separate=browser.new_context();other=separate.new_page();other.goto(base+'/people')
     other.get_by_role('link',name='Sam',exact=True).click();expect(other.locator('body')).to_have_attribute('data-accent','teal')
     separate.close()
-    page.get_by_label('Today’s weight (lb)').fill('42.56')
+    page.get_by_label('Weight (lb)').fill('42.56')
     page.get_by_text('More',exact=True).click();page.get_by_role('button',name='Exit Workout',exact=True).click()
     expect(page.get_by_role('heading',name='Ready for a workout?',exact=True)).to_be_visible()
-    page.get_by_role('button',name='Open navigation',exact=True).click();page.get_by_role('link',name='Switch person',exact=True).click()
+    page.get_by_role('button',name='Open navigation',exact=True).click();page.locator('a.brand').click()
     page.get_by_role('link',name='Sam',exact=True).click();expect(page.locator('body')).to_have_attribute('data-accent','teal')
     page.goto(base+'/people');page.get_by_role('link',name='Alex',exact=True).click()
     page.get_by_role('link',name='Resume or discard unfinished workout',exact=True).click()
     page.get_by_role('link',name='Resume workout',exact=True).click()
-    expect(page.get_by_label('Today’s weight (lb)')).to_have_value('42.5')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('42.5')
     page.get_by_role('link',name='Next',exact=True).click()
-    expect(page.get_by_label('Today’s seconds')).to_have_value('55')
+    expect(page.get_by_label('Seconds')).to_have_value('55')
     page.get_by_role('button',name='Finish & Save',exact=True).click()
     expect(page.get_by_role('heading',name='Workout saved',exact=True)).to_be_visible()
-    page.get_by_role('link',name='History',exact=True).click();expect(page.locator('.history-record')).to_have_count(2)
+    page.get_by_role('button',name='Open navigation',exact=True).click()
+    page.get_by_role('link',name='History & Progress',exact=True).click();expect(page.locator('.history-record')).to_have_count(2)
     page.screenshot(path=str(SHOTS/'history-390x844-light.png'),full_page=True)
-    page.get_by_role('link',name='Progress charts',exact=True).click();expect(page.locator('.progress-series')).to_have_count(2)
+    page.get_by_role('link',name='Progress',exact=True).click();expect(page.locator('.progress-series')).to_have_count(2)
     page.screenshot(path=str(SHOTS/'progress-390x844-light.png'),full_page=True)
     with database_session(root) as db:
         assert w.active(db,a) is None
@@ -118,16 +119,16 @@ def test_failed_exit_remains_on_input_and_native_back_retains_confirmed_draft(ux
     """Failed acknowledgment cannot navigate away or label unsaved text as persisted."""
     page,_,base,root,a,_,_=ux_browser;expect=pw.expect
     page.goto(base+'/people/'+a);page.get_by_role('button',name='Start workout',exact=True).click()
-    path=page.url;page.get_by_label('Today’s weight (lb)').fill('0');expect(page.locator('#save-status')).to_have_text('✓ Saved')
+    path=page.url;page.get_by_label('Weight (lb)').fill('0');expect(page.locator('#save-status')).to_have_text('✓ Saved')
     page.route('**/draft',lambda route:route.abort())
-    page.get_by_label('Today’s weight (lb)').fill('99');expect(page.locator('#save-status')).to_have_text('Save failed')
+    page.get_by_label('Weight (lb)').fill('99');expect(page.locator('#save-status')).to_have_text('Save failed')
     page.get_by_text('More',exact=True).click();page.get_by_role('button',name='Exit Workout',exact=True).click()
-    assert page.url==path;expect(page.get_by_label('Today’s weight (lb)')).to_have_value('99')
+    assert page.url==path;expect(page.get_by_label('Weight (lb)')).to_have_value('99')
     expect(page.locator('#save-error')).to_contain_text('Stay here')
     with database_session(root) as db: assert db.execute('SELECT actual_weight_tenths_lb FROM workout_entries WHERE measurement_type="weight"').fetchone()[0]==0
-    page.unroute('**/draft');page.get_by_label('Today’s weight (lb)').fill('42')
+    page.unroute('**/draft');page.get_by_label('Weight (lb)').fill('42')
     expect(page.locator('#save-status')).to_have_text('✓ Saved');page.go_back()
-    expect(page.get_by_label('Today’s weight (lb)')).to_have_value('42.0')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('42.0')
 
 
 def test_viewport_theme_accent_matrix_and_keyboard_reachability(ux_browser):
@@ -161,12 +162,12 @@ def test_viewport_theme_accent_matrix_and_keyboard_reachability(ux_browser):
     p.set_color(root,a,'purple')
     page.set_viewport_size({'width':390,'height':844});page.reload()
     page.get_by_role('link',name='Next',exact=True).click()
-    expect(page.get_by_label('Today’s minutes')).to_have_value('')
+    expect(page.get_by_label('Minutes')).to_have_value('')
     assert page.get_by_role('button',name='Finish & Save',exact=True).bounding_box()['y']<844
     page.screenshot(path=str(SHOTS/'time-390x844-dark-purple.png'),full_page=True)
     page.get_by_role('link',name='Back',exact=True).click()
     page.set_viewport_size({'width':390,'height':420})
-    page.get_by_label('Today’s weight (lb)').focus()
+    page.get_by_label('Weight (lb)').focus()
     page.get_by_role('link',name='Next',exact=True).scroll_into_view_if_needed()
     assert page.get_by_role('link',name='Next',exact=True).bounding_box()['y']<420
     page.get_by_role('button',name='Finish & Save',exact=True).scroll_into_view_if_needed()

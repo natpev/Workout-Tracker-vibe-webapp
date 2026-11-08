@@ -14,14 +14,14 @@
 <label>Number of sets <input name="target_sets" type="number" min="1" max="1000" step="1" value="{{ item.target_sets if item else 3 }}" required></label>
 <div data-fields="weight">
   <label>Target repetitions per set <input name="target_reps" type="number" min="1" max="10000" step="1" value="{{ item.target_reps if item and item.target_reps is not none else 12 }}"></label>
-  <p>Weight unit: pounds (lb). Actual weight is entered during the workout.</p>
+  <label>Weight unit<select name="unit"><option value="lb">Pounds (lb)</option></select></label>
   <label>Weight meaning (optional) <input name="weight_meaning" maxlength="200" placeholder="For example: per dumbbell" value="{{ item.weight_meaning if item else '' }}"></label>
 </div>
 <div data-fields="time">
   <p>Target duration per set</p>
   <div class="duration">
     <label>Minutes <input name="minutes" type="number" min="0" max="5999" step="1" value="{{ item.target_duration_seconds // 60 if item and item.target_duration_seconds is not none else 0 }}"></label>
-    <label>Seconds <input name="seconds" type="number" min="0" max="59" step="1" value="{{ item.target_duration_seconds % 60 if item and item.target_duration_seconds is not none else 45 }}"></label>
+    <label>Seconds <input name="seconds" type="number" min="0" max="359999" step="1" value="{{ item.target_duration_seconds % 60 if item and item.target_duration_seconds is not none else 45 }}"></label>
   </div>
 </div>
 <label>Exercise notes (optional) <textarea name="notes" maxlength="2000" rows="3">{{ item.notes if item else '' }}</textarea></label>

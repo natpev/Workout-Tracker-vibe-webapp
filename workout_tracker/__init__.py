@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.9.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 6
+TARGET_SCHEMA_VERSION = 7
 
 
 def create_app(test_config=None):
@@ -33,6 +33,8 @@ def create_app(test_config=None):
         SESSION_COOKIE_SAMESITE="Lax",
 
     )
+    from .presentation import clock,timestamp,workout_timestamp
+    app.jinja_env.filters.update(clock=clock,timestamp=timestamp,workout_timestamp=workout_timestamp)
     if test_config:
         app.config.update(test_config)
     from .diagnostics import emit

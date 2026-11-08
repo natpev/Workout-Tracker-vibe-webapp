@@ -140,7 +140,7 @@ def exercises(person_id):
         selected = catalog.person(db, person_id)
         if request.method == "POST":
             if request.form.get("action") == "create":
-                catalog.create_definition(db, person_id, request.form.get("name"))
+                catalog.create_definition(db, person_id, request.form.get("name"), request.form if "measurement_type" in request.form else None)
             else:
                 if request.form.get("action") == "archive":
                     if db.execute('PRAGMA user_version').fetchone()[0]>=6:
@@ -176,6 +176,8 @@ def edit_routine(person_id, routine_id):
                 db.execute("UPDATE routines SET archived=1 WHERE id=? AND person_id=?", (routine_id, person_id))
             elif action == "move":
                 catalog.move(db, "routines", "person_id", person_id, routine_id, request.form.get("direction"))
+            elif action == "add_defaults":
+                catalog.add_entry(db,person_id,routine_id,dict(exercise_id=request.form.get("exercise_id"),use_library_defaults="yes"))
             elif action == "add":
                 catalog.add_entry(db, person_id, routine_id, request.form)
             elif action == "duplicate":
@@ -224,3 +226,19 @@ def edit_entry(person_id, routine_id, entry_id):
     if request.method == "POST":
         return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=routine_id), code=303)
     return render_template("entry.html", person=selected, routine=parent, item=item, revision=revision)
+
+
+@bp.route('/people/<person_id>/exercises/<exercise_id>/defaults',methods=['GET','POST'])
+def edit_defaults(person_id,exercise_id):
+    """Edit a global preset in one transaction, never existing routine configurations."""
+    with connection(write=request.method=='POST') as db:
+        selected=catalog.person(db,person_id)
+        item=catalog.exercise_defaults(db,person_id,exercise_id)
+        definition=catalog.definition(db,person_id,exercise_id)
+        revision=hashlib.sha256(repr(tuple(item)).encode()).hexdigest()
+        if request.method=='POST':
+            if request.form.get('revision')!=revision:
+                raise catalog.ValidationError('Library defaults changed; reload before saving.')
+            catalog.update_defaults(db,person_id,exercise_id,request.form)
+    if request.method=='POST':return redirect(url_for('manage.exercises',person_id=person_id),code=303)
+    return render_template('exercise_defaults.html',person=selected,item=item,definition=definition,revision=revision)

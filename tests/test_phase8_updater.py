@@ -36,7 +36,7 @@ if name=='git':
  elif 'status' in args:pass
  elif 'fetch' in args:sys.exit(1 if mode=='fetch' else 0)
  elif 'rev-parse' in args:print('a'*40 if args[-1]=='origin/main' or (root/'merged').exists() or mode=='no-update' else 'b'*40)
- elif 'show' in args:print('APP_VERSION="0.8.0"\\nTARGET_SCHEMA_VERSION=6')
+ elif 'show' in args:print('APP_VERSION='+repr(os.environ.get('METADATA_VERSION','0.8.0'))+'\\nTARGET_SCHEMA_VERSION='+os.environ.get('METADATA_SCHEMA','6'))
  elif 'log' in args:print('Approved synthetic release notes')
  elif 'merge-base' in args:pass
  elif 'merge' in args:(root/'merged').touch()
@@ -57,7 +57,7 @@ if args[0]=='compose':
  else:raise RuntimeError(args)
 else:
  args=args[args.index('--entrypoint')+3:]
-if 'release-info' in args:print(json.dumps(dict(app_version='0.8.0',target_schema_version=6)));sys.exit(0)
+if 'release-info' in args:print(json.dumps(dict(app_version=os.environ.get('METADATA_VERSION','0.8.0'),target_schema_version=int(os.environ.get('METADATA_SCHEMA','6')))));sys.exit(0)
 if '-c' in args and 'print(APP_VERSION)' in args[args.index('-c')+1]:print('0.8.0');sys.exit(0)
 if 'check-storage' in args and mode=='database':sys.exit(1)
 if 'migrate-storage' in args and mode=='migration':sys.exit(1)

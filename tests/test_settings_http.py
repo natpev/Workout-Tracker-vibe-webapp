@@ -20,7 +20,7 @@ def fields(response):
 def test_settings_backup_restore_delete_and_stale_dataset_forms(phase4_app,phase4_root):
     """Review/confirm restore keeps audit, forbids old open forms and supports explicit deletion."""
     client=phase4_app.test_client();root=phase4_root
-    settings=client.get('/settings');assert settings.status_code==200 and b'Schema 4' in settings.data
+    settings=client.get('/settings/administration');assert settings.status_code==200 and b'Schema 4' in settings.data
     payload=fields(settings)
     assert client.post('/settings/backup',data={}).status_code==400
     response=client.post('/settings/backup',data=payload)
@@ -46,12 +46,12 @@ def test_settings_backup_restore_delete_and_stale_dataset_forms(phase4_app,phase
         state=o.read_state(root);assert len(state['backups'])==1 and len(state['restores'])==1
     # A replacement factory sees the same external metadata, not reset defaults.
     replacement=create_app({'WORKOUT_DATA_ROOT':root,'TESTING':True}).test_client()
-    assert b'deleted' in replacement.get('/settings').data
+    assert b'deleted' in replacement.get('/settings/administration').data
 
 
 def test_settings_validation_logs_filters_and_no_arbitrary_paths(phase4_app,phase4_root):
     """Logs offer bounded pages/safe details, and browser errors expose no private paths."""
-    root=phase4_root;client=phase4_app.test_client();page=client.get('/settings');payload=fields(page)
+    root=phase4_root;client=phase4_app.test_client();page=client.get('/settings/administration');payload=fields(page)
     invalid=dict(payload,days='0',time='02:00',timezone='Etc/UTC',retention_days='30')
     assert client.post('/settings',data=invalid).status_code==400
     valid=dict(payload,enabled='yes',days='2',time='14:05',timezone='America/New_York',retention_days='40')
@@ -83,7 +83,7 @@ def test_existing_settings_remains_available_when_database_is_damaged(phase4_app
     client=phase4_app.test_client();root=phase4_root;record=m.backup(root,uuid4().hex)
     with storage_lock(root): path=_inspect_unlocked(root)['database']
     path.write_bytes(b'broken active data')
-    page=client.get('/settings');assert page.status_code==200 and b'Database unavailable' in page.data
+    page=client.get('/settings/administration');assert page.status_code==200 and b'Database unavailable' in page.data
     detail=client.get('/settings/backups/'+record['id'])
     response=client.post('/settings/backups/'+record['id']+'/restore',data=dict(fields(detail),confirm='yes',confirmation='RESTORE'))
     assert response.status_code==303

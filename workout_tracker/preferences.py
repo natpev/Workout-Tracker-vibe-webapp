@@ -14,7 +14,8 @@ from uuid import uuid4
 from . import catalog
 from .storage import storage_lock,_inspect_unlocked,_regular_file,_unique_object,_sync_directory,StorageError
 
-PALETTE=('blue','teal','green','purple','orange','red')
+SOFT=('blue','teal','green','purple','orange','red')
+PALETTE=SOFT+tuple('vibrant-'+color for color in SOFT)
 
 
 def read(root):

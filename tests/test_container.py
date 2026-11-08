@@ -270,7 +270,7 @@ def test_phase5_backup_restore_metadata_and_logs_survive_replacement(phase4_root
 import http.cookiejar,re,urllib.parse,urllib.request
 opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 base='http://127.0.0.1:8000'
-page=opener.open(base+'/settings').read().decode()
+page=opener.open(base+'/settings/administration').read().decode()
 fields=dict(re.findall(r'name="(csrf_token|operation_id)" value="([^"]*)"',page))
 response=opener.open(base+'/settings/backup',urllib.parse.urlencode(fields).encode())
 path=urllib.parse.urlsplit(response.url).path;page=response.read().decode()
@@ -280,7 +280,7 @@ page=opener.open(base+path+'/restore',urllib.parse.urlencode(fields).encode()).r
 assert b'succeeded' in page
 """
                 docker('exec',container,'python','-c',script)
-            docker('exec',container,'python','-c',"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000/settings').read(); assert b'verified' in page and b'succeeded' in page; assert b'Restore completed' in urllib.request.urlopen('http://127.0.0.1:8000/settings/logs').read()")
+            docker('exec',container,'python','-c',"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000/settings/administration').read(); assert b'verified' in page and b'succeeded' in page; assert b'Restore completed' in urllib.request.urlopen('http://127.0.0.1:8000/settings/logs').read()")
         finally: docker('rm','-f',container)
     state=o.read_state(root);assert len(state['backups'])==len(state['restores'])==1
     record=next(iter(state['backups'].values()));assert m.backup_path(root,record).exists()
@@ -388,7 +388,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
                 if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
                 time.sleep(.2)
             docker(*isolated,'exec','-T','web','python','-c',
-                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.8.0',schema_version=4)")
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.9.0',schema_version=4)")
             for identity in ids.values():
                 inspected=json.loads(docker('inspect',identity).stdout)[0]
                 assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'
@@ -421,7 +421,7 @@ assert b'Installation fixture' in page
         release=json.loads(docker('run','--rm','--network=none','--read-only',
                                   '--entrypoint','python','workout-tracker:phase8-review',
                                   '-m','workout_tracker','release-info').stdout)
-        assert release==dict(app_version='0.8.0',target_schema_version=6)
+        assert release==dict(app_version='0.9.0',target_schema_version=7)
         # Before migration, explicitly back up/verify the installed schema-4
         # fixture while both services are stopped; never downgrade it later.
         backup=json.loads(docker(*isolated,'run','--rm','--no-deps','web','python','-c',
@@ -443,7 +443,7 @@ assert b'Installation fixture' in page
             if time.monotonic()>=deadline: pytest.fail('Upgraded schema-5 Compose service did not become healthy')
             time.sleep(.2)
         docker(*isolated,'exec','-T','web','python','-c',
-               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.8.0',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.9.0',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
         docker(*isolated,'stop')
         assert any('Scheduler process started' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
     finally:

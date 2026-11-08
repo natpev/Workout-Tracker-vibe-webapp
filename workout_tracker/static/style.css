@@ -111,3 +111,15 @@ dialog::backdrop { background:#0008; }
 .person-accent { color:var(--accent); }
 .danger { background:#a5192d; color:#fff; }
 .destructive-notice { border-left:4px solid #b3263d; padding:.8rem; }
+
+/* Phase 9: preserve original soft tokens; independent saturated pairs keep
+   primary text contrast >=4.5:1 against white/light and dark button text. */
+[data-accent="vibrant-blue"] { --accent-light:#1646ed; --accent-dark:#719cff; }
+[data-accent="vibrant-teal"] { --accent-light:#006d68; --accent-dark:#30d6c6; }
+[data-accent="vibrant-green"] { --accent-light:#086b30; --accent-dark:#45df79; }
+[data-accent="vibrant-purple"] { --accent-light:#7928df; --accent-dark:#ba87ff; }
+[data-accent="vibrant-orange"] { --accent-light:#ab3c00; --accent-dark:#ff9a45; }
+[data-accent="vibrant-red"] { --accent-light:#ce1236; --accent-dark:#ff6a85; }
+.accent-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.2rem .6rem; }
+.accent-options label { font-size:.85rem; }
+@media(min-width:768px) { .accent-options { grid-template-columns:repeat(3,minmax(0,1fr)); } }

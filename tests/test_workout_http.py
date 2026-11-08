@@ -52,7 +52,7 @@ def test_start_resume_autosave_restart_cursor_and_atomic_finish(phase3_app,phase
     assert client.post(path+'/draft',data=payload).status_code==409
     restarted=create_app({'WORKOUT_DATA_ROOT':phase3_root,'TESTING':True}).test_client()
     recovered=restarted.get(path)
-    assert b'Today\xe2\x80\x99s seconds' in recovered.data
+    assert b'Seconds' in recovered.data
     payload=fields(recovered);payload.update(minutes='1',seconds='5')
     result=restarted.post(path+'/finish',data=payload)
     assert result.status_code==303
@@ -97,9 +97,9 @@ def test_invalid_autosave_keeps_confirmed_values_and_hides_cross_user_items(phas
     payload=fields(client.get(path));payload.update(weight='0',increase='1')
     assert client.post(path+'/draft',data=payload).json['completed']==1
     page=client.get(path+'?position=1')
-    payload=fields(page);payload.update(minutes='1',seconds='')
+    payload=fields(page);payload.update(minutes='1',seconds='bad')
     response=client.post(path+'/draft',data=payload)
-    assert response.status_code==400 and 'both' in response.json['error']
+    assert response.status_code==400 and 'whole' in response.json['error']
     payload.update(minutes='0',seconds='1',entry_id='unknown')
     assert client.post(path+'/draft',data=payload).status_code==404
     with database_session(phase3_root) as db:

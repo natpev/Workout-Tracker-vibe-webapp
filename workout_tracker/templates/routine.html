@@ -19,10 +19,11 @@
 {% if row.notes %}<p>{{ row.notes }}</p>{% endif %}
 <form method="post" class="actions" action="{{ url_for('manage.edit_entry', person_id=person.id, routine_id=routine.id, entry_id=row.id) }}">{{ security(revision) }}<input type="hidden" name="action" value="move"><button name="direction" value="up" aria-label="Move {{ row.name }} up">↑ Up</button><button name="direction" value="down" aria-label="Move {{ row.name }} down">↓ Down</button></form>
 </section>{% else %}<p>This routine has no exercises yet.</p>{% endfor %}
+{% if active_schema_version>=7 %}<section><h3>Add from Exercise Library</h3><form method="post">{{ security(revision) }}<input type="hidden" name="action" value="add_defaults"><label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id" required>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }} · {{ exercise.id }}</option>{% endfor %}</select><p>Copies current library defaults. Edit this routine's settings afterward without changing anyone else's.</p><button>Add library exercise</button></form></section>{% endif %}
 <section><h3>Add exercise</h3>
 <form method="post" data-configuration>{{ security(revision) }}<input type="hidden" name="action" value="add">
-<label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id"><option value="">Create a new exercise name</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }} · {{ exercise.id }}</option>{% endfor %}</select>
-<label>New exercise name (when not reusing) <input name="name" maxlength="100"></label>
+{% if active_schema_version<7 %}<label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id"><option value="">Create a new exercise name</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }} · {{ exercise.id }}</option>{% endfor %}</select>
+{% endif %}<label>New exercise name (when not reusing) <input name="name" maxlength="100"></label>
 {{ configuration() }}<button>Add exercise</button>
 </form></section>
 <section><h3>Duplicate routine</h3><form method="post">{{ security(revision) }}<input type="hidden" name="action" value="duplicate"><label>Copy name <input name="name" maxlength="100" required></label><button>Duplicate routine</button></form></section>

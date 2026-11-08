@@ -10,9 +10,9 @@ document.querySelectorAll("[data-configuration]").forEach((form) => {
     form.querySelectorAll("[data-fields]").forEach((group) => {
       const active = group.dataset.fields === choice;
       group.hidden = !active;
-      group.querySelectorAll("input").forEach((input) => {
+      group.querySelectorAll("input,select").forEach((input) => {
         input.disabled = !active;
-        input.required = active && input.name !== "weight_meaning";
+        input.required = active && ["target_reps", "unit"].includes(input.name);
       });
     });
   };
