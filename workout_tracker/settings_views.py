@@ -5,7 +5,7 @@ Only server-listed IDs select backups. GET does not create settings or jobs.
 No route downloads files or exposes filesystem paths/technical stack frames.
 """
 from uuid import uuid4
-from flask import Blueprint,current_app,render_template,request,redirect,url_for,abort
+from flask import Blueprint,current_app,render_template,request,redirect,url_for,abort,g
 
 from . import operations as o,maintenance as m,diagnostics as d,scheduler
 from .storage import storage_lock,_inspect_unlocked,StorageError,database_session
@@ -20,12 +20,42 @@ def root_value():
     return current_app.config['WORKOUT_DATA_ROOT']
 
 
+def selected_person():
+    """Read URL person context once per request; never remember/switch an account.
+
+    After restore a person may no longer exist, or damaged storage may be
+    unavailable. In those cases recovery pages stay usable without inventing a
+    different person. Valid IDs resolve the current name/accent from storage.
+    """
+    if not hasattr(g,'settings_person'):
+        g.settings_person=None
+        identity=request.args.get('person_id')
+        if identity:
+            from .catalog import person,MissingRecord
+            try:
+                with database_session(root_value()) as db:
+                    g.settings_person=person(db,identity,archived=True)
+            except (StorageError,MissingRecord):pass
+    return g.settings_person
+
+
+@bp.context_processor
+def person_context():
+    """Supply the same explicit person to every Settings template/header."""
+    return dict(person=selected_person())
+
+
+def context_url(endpoint,**values):
+    """Carry URL context through redirects without a global/session identity."""
+    return url_for(endpoint,person_id=request.args.get('person_id') or None,**values)
+
+
 @bp.route('/settings',methods=['GET','POST'])
 def index():
     """Read database/schedule status, or explicitly save validated settings."""
     if request.method=='POST':
         scheduler.configure(root_value(),request.form)
-        return redirect(url_for('settings.index'),code=303)
+        return redirect(context_url('settings.index'),code=303)
     with storage_lock(root_value()) as root:
         state=o.read_state(root)
         try:
@@ -34,19 +64,14 @@ def index():
             details={'schema_version':'Unavailable'};database_ok=False
     successes=[row for row in state['backups'].values() if row['status']=='verified']
     latest=max((row['verified_at'] for row in successes),default=None)
-    person=None
-    if request.args.get('person_id'):
-        from .catalog import person as owned_person
-        with database_session(root_value()) as db:
-            person=owned_person(db,request.args['person_id'],archived=True)
-    return render_template('settings.html',person=person,last_backup=latest,schema=details['schema_version'],database_ok=database_ok,state=state,operation_id=uuid4().hex)
+    return render_template('settings.html',last_backup=latest,schema=details['schema_version'],database_ok=database_ok,state=state,operation_id=uuid4().hex)
 
 
 @bp.post('/settings/backup')
 def backup():
     """Wait for durable verification; failed attempts never display success."""
     record=m.backup(root_value(),request.form.get('operation_id'))
-    return redirect(url_for('settings.backup_detail',backup_id=record['id']),code=303)
+    return redirect(context_url('settings.backup_detail',backup_id=record['id']),code=303)
 
 
 @bp.get('/settings/backups/<backup_id>')
@@ -62,7 +87,7 @@ def backup_detail(backup_id):
 def delete(backup_id):
     """Explicit checkbox plus Delete action; metadata survives file deletion."""
     m.delete_backup(root_value(),backup_id,request.form.get('confirm')=='yes')
-    return redirect(url_for('settings.index'),code=303)
+    return redirect(context_url('settings.index'),code=303)
 
 
 @bp.post('/settings/backups/<backup_id>/restore')
@@ -72,6 +97,17 @@ def restore(backup_id):
                      request.form.get('confirm')=='yes' and request.form.get('confirmation')=='RESTORE')
     # Restoring changes the dataset-generation CSRF suffix; subsequent pages issue
     # fresh tokens while forms left open against the previous dataset are refused.
+    # Redirect to a read-only recorded result: refreshing must not repost a
+    # stale pre-restore CSRF token or request a second restoration.
+    return redirect(context_url('settings.restore_result',operation_id=record['id']),code=303)
+
+
+@bp.get('/settings/restores/<operation_id>')
+def restore_result(operation_id):
+    """Display an existing restore outcome without replaying any maintenance."""
+    with storage_lock(root_value()) as root:
+        record=o.read_state(root)['restores'].get(o.identity(operation_id))
+        if not record:abort(404)
     return render_template('restore_result.html',record=record),200 if record['status']=='succeeded' else 503
 
 

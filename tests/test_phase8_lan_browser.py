@@ -144,3 +144,71 @@ def test_local_socket_peer_validation_and_unapproved_payloads(lan_browser):
         unix.writer_uid=os.getuid()+1
         with pytest.raises(StorageError):call(root,'status')
     unix.writer_uid=os.getuid()
+
+
+@pytest.mark.parametrize('width',[320,1280])
+def test_settings_context_survives_maintenance_navigation_and_workout_return(lan_browser,width):
+    """Actual forms/redirects retain URL person and accent; restore refresh is read-only."""
+    from workout_tracker import diagnostics,operations as o,workouts as w
+    from workout_tracker.storage import storage_lock
+    page,base,status_base,root,a,b,r,other,e,saved,engine,http,unix=lan_browser;expect=pw.expect
+    page.set_viewport_size({'width':width,'height':844})
+    def header(name,color):
+        """Check exact person, accent, sticky bounds and phone-width overflow."""
+        expect(page.locator('header .person-label')).to_contain_text(name)
+        assert page.locator('body').get_attribute('data-accent')==color
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        page.evaluate('scrollTo(0,document.body.scrollHeight)')
+        box=page.locator('header').bounding_box();assert 0<=box['y']<5 and box['height']<110
+    for person,name,color in ((a,'A','purple'),(b,'B','teal')):
+        page.goto(base+f'/settings?person_id={person}');header(name,color)
+        for theme in ('auto','light','dark'):
+            page.select_option('#theme',theme);page.reload();header(name,color)
+        page.get_by_role('button',name='Save settings',exact=True).click();header(name,color)
+        assert f'person_id={person}' in page.url
+        page.get_by_role('link',name='Application Updates',exact=True).click();header(name,color)
+        with page.expect_navigation(wait_until='load'):
+            page.get_by_role('button',name='Check for Updates',exact=True).click()
+        page.reload();header(name,color)
+        page.go_back();header(name,color)
+        page.goto(base+f'/settings?person_id={person}')
+        page.get_by_role('button',name='Backup Now',exact=True).click();header(name,color)
+        backup_url=page.url;assert f'person_id={person}' in backup_url
+        page.reload();header(name,color)
+        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Inspect backup 1',exact=True).click();header(name,color)
+        page.get_by_label('I understand this selects an earlier dataset and preserves the current database separately',exact=True).check()
+        page.get_by_label('Type RESTORE to confirm',exact=True).fill('RESTORE')
+        page.get_by_role('button',name='Restore Backup',exact=True).click()
+        expect(page.get_by_role('heading',name='Restore result',exact=True)).to_be_visible();header(name,color)
+        assert '/settings/restores/' in page.url and f'person_id={person}' in page.url
+        with storage_lock(root) as storage:attempts=len(o.read_state(storage)['restores'])
+        page.reload();header(name,color)
+        with storage_lock(root) as storage:assert len(o.read_state(storage)['restores'])==attempts
+        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        for i in range(55):diagnostics.emit(root,'INFO','Application','Context log fixture '+str(i))
+        page.get_by_role('link',name='View logs',exact=True).click();header(name,color)
+        page.get_by_label('Search log text',exact=True).fill('Context log fixture')
+        page.get_by_role('button',name='Filter / Refresh logs',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Next page',exact=True).click();page.reload();header(name,color)
+        page.get_by_role('link',name='Previous page',exact=True).click();header(name,color)
+        page.get_by_role('link',name='Back to Settings',exact=True).click();header(name,color)
+        page.goto(backup_url);page.get_by_label('I confirm deleting this backup file',exact=True).check()
+        page.get_by_role('button',name='Delete backup permanently',exact=True).click();header(name,color)
+    # The existing tab-scoped workout guard still prevents a direct Settings or
+    # other-person navigation from switching context until explicit save/exit.
+    with database_session(root,write=True) as db:draft,_=w.start(db,a,r,'UTC')
+    page.goto(base+f'/people/{a}/workouts/{draft}');header('A','purple')
+    workout_url=page.url
+    page.goto(base+f'/settings?person_id={b}');page.wait_for_url(workout_url)
+    page.wait_for_load_state('networkidle');header('A','purple')
+    assert page.get_by_role('link',name='Switch person',exact=True).count()==0
+    page.get_by_text('More',exact=True).click()
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('button',name='Exit Workout',exact=True).click()
+    page.wait_for_url('**/people/'+a+'?exited='+draft)
+    page.wait_for_load_state('networkidle')
+    page.goto(base+f'/settings?person_id={a}');header('A','purple')
+    page.get_by_role('link',name='Routines',exact=True).click()
+    page.get_by_role('link',name='Resume or discard unfinished workout',exact=True).click();header('A','purple')
+    page.reload();header('A','purple')

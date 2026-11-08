@@ -33,6 +33,8 @@ def test_settings_backup_restore_delete_and_stale_dataset_forms(phase4_app,phase
     assert client.post(restore_path,data=restore_fields).status_code==503
     # A failed unconfirmed token is not claimed; confirmation can still submit it.
     restored=client.post(restore_path,data=dict(restore_fields,confirm='yes',confirmation='RESTORE'))
+    assert restored.status_code==303
+    restored=client.get(restored.headers['Location'])
     assert restored.status_code==200 and b'succeeded' in restored.data
     assert client.post('/people',data=dict(stale,name='Stale write')).status_code==400
     with database_session(root) as db: assert db.execute('SELECT count(*) FROM people').fetchone()[0]==0
@@ -70,6 +72,8 @@ def test_settings_validation_logs_filters_and_no_arbitrary_paths(phase4_app,phas
     m.backup_path(root,record).write_bytes(b'corrupted')
     detail=client.get('/settings/backups/'+record['id'])
     failed=client.post('/settings/backups/'+record['id']+'/restore',data=dict(fields(detail),confirm='yes',confirmation='RESTORE'))
+    assert failed.status_code==303
+    failed=client.get(failed.headers['Location'])
     assert failed.status_code==503 and b'failed' in failed.data and str(root).encode() not in failed.data
 
 
@@ -82,6 +86,8 @@ def test_existing_settings_remains_available_when_database_is_damaged(phase4_app
     page=client.get('/settings');assert page.status_code==200 and b'Database unavailable' in page.data
     detail=client.get('/settings/backups/'+record['id'])
     response=client.post('/settings/backups/'+record['id']+'/restore',data=dict(fields(detail),confirm='yes',confirmation='RESTORE'))
+    assert response.status_code==303
+    response=client.get(response.headers['Location'])
     assert response.status_code==200 and b'succeeded' in response.data
     assert path.read_bytes()==b'broken active data'
 
