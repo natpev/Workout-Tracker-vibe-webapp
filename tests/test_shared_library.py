@@ -32,6 +32,19 @@ def selected(root):
     return root/'data'/json.loads((root/'config'/'active.json').read_text())['database']
 
 
+def test_release_metadata_never_opens_or_initializes_storage(tmp_path):
+    """An updater detects schema 5 even without installed storage or an app worker."""
+    from workout_tracker import TARGET_SCHEMA_VERSION
+    absent = tmp_path / 'must-not-be-created'
+    with patch('workout_tracker.__main__.inspect_storage', side_effect=AssertionError('No database reads')), \
+         patch('workout_tracker.create_app', side_effect=AssertionError('No app startup')):
+        result = CliRunner().invoke(main, ['release-info'], env={'WORKOUT_DATA_ROOT': str(absent)})
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {'app_version': APP_VERSION,
+                                       'target_schema_version': TARGET_SCHEMA_VERSION}
+    assert TARGET_SCHEMA_VERSION == 5 and not absent.exists()
+
+
 def cells(db):
     """Capture every original table cell, preserving integer zero and SQL NULL."""
     names=[r[0] for r in db.execute("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'")]

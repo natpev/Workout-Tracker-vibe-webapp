@@ -3,7 +3,7 @@
 
 pytest creates disposable host metadata and mounts it read-only into test
 containers. No host ports or network are enabled; HTTP checks run inside them.
-Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase6-review.
+Set WORKOUT_CONTAINER_TESTS=1 after building workout-tracker:phase7-review.
 """
 
 import hashlib
@@ -48,7 +48,7 @@ def start_container(root, *, writable=False):
         "--user", f"{os.getuid()}:{os.getgid()}",
         "--mount", f"type=bind,src={root},dst=/var/lib/workout-tracker" + ("" if writable else ",readonly"),
         "-e", "WORKOUT_DATA_ROOT=/var/lib/workout-tracker",
-        "workout-tracker:phase6-review",
+        "workout-tracker:phase7-review",
     ).stdout.strip()
 
 
@@ -297,7 +297,7 @@ def test_dedicated_scheduler_container_due_slot_and_restart(phase4_root):
     for _ in range(2):
         docker('run','--rm','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
                '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
-               '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase6-review','python','-m','workout_tracker','scheduler','--once')
+               '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase7-review','python','-m','workout_tracker','scheduler','--once')
     current=o.read_state(root)
     assert len(current['backups'])==1 and current['schedule']['result']=='Verified'
     assert next(iter(current['backups'].values()))['source']=='automatic'
@@ -313,7 +313,7 @@ def test_scheduler_long_running_service_needs_no_browser_and_stops_cleanly(phase
         o.write_state(root,state)
     container=docker('run','-d','--network=none','--read-only','--tmpfs','/tmp','--cap-drop=ALL','--security-opt=no-new-privileges',
                      '--user',f'{os.getuid()}:{os.getgid()}','--mount',f'type=bind,src={root},dst=/var/lib/workout-tracker',
-                     '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase6-review','python','-m','workout_tracker','scheduler').stdout.strip()
+                     '-e','WORKOUT_DATA_ROOT=/var/lib/workout-tracker','workout-tracker:phase7-review','python','-m','workout_tracker','scheduler').stdout.strip()
     try:
         deadline=time.monotonic()+10
         while True:
@@ -416,6 +416,17 @@ assert b'Installation fixture' in page
             docker(*isolated,'stop')
         # Existing installed schema 4 upgrades explicitly with both writers
         # stopped. Verify source bytes, candidate selection and container versions.
+        # Detect the new release target with no database mounted and no app
+        # startup. The real updater can compare this JSON with check-storage.
+        release=json.loads(docker('run','--rm','--network=none','--read-only',
+                                  '--entrypoint','python','workout-tracker:phase7-review',
+                                  '-m','workout_tracker','release-info').stdout)
+        assert release==dict(app_version='0.7.0',target_schema_version=5)
+        # Before migration, explicitly back up/verify the installed schema-4
+        # fixture while both services are stopped; never downgrade it later.
+        backup=json.loads(docker(*isolated,'run','--rm','--no-deps','web','python','-c',
+            "import json; from uuid import uuid4; from workout_tracker.maintenance import backup; r=backup('/var/lib/workout-tracker',uuid4().hex); assert r['status']=='verified'; print(json.dumps(r))").stdout)
+        assert backup['schema_version']==4 and backup['status']=='verified'
         old_selection=json.loads((root/'config'/'active.json').read_text())
         original=root/'data'/old_selection['database'];original_bytes=original.read_bytes()
         docker(*isolated,'run','--rm','--no-deps','web','python','-m','workout_tracker','migrate-storage',

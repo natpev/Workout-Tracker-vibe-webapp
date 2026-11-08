@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–6 are completed and approved. Phase 7 is authorized for implementation and PR review on phase-7-shared-exercise-library; no merge or deployment is authorized.
+**Project status:** Phases 1–7 are completed and approved. Phase 7 final tests, merge into main, push and verified branch cleanup are authorized. No Phase 8, deployment or live-data access is authorized.
 **Current scope:** application 0.7.0 / schema 5 adds a shared household Exercise Library and ID-preserving named routine copies. Person-owned routines, drafts, history, charts, corrections and recovery remain intact. Only explicit confirmed candidate migration upgrades schema 4; operations state remains external.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -178,7 +178,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–6 completed and approved; Phase 7 authorized for review)
+## 12. Phased plan (Phases 1–7 completed and approved)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
@@ -186,7 +186,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery (completed and approved):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Mobile UI/UX redesign (completed and approved; no live deployment):** compact People/routine selection, tab-scoped workout focus/save-and-exit, compact one-exercise layout, Settings appearance, neutral themes and persistent person accents; actual screenshot and browser viewport testing. Further installation, real-world testing and final polish: responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
-7. **Shared Exercise Library (authorized; pending PR review):** global IDs, independent person histories, named ID-preserving copies, candidate schema 5 and actual version displays. No merge/deployment authorization.
+7. **Shared Exercise Library (completed and approved):** global IDs, independent person histories, named ID-preserving copies, candidate schema 5 and actual version displays. Approved for final merge/cleanup only; no deployment.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 
@@ -439,4 +439,15 @@ The installed paths supplied by the user are /root/WorkoutTracker/app and
 /root/WorkoutTracker/data/storage; the updater is
 /root/WorkoutTracker/update_workout_tracker.sh. These are documentation context,
 not permission to access them. Exact upgrade and schema-4-only updater requirements
-are in PHASE_7_REVIEW.md. Do not merge or deploy before review.
+are in PHASE_7_REVIEW.md. Final merge/verified cleanup is approved; do not deploy or begin Phase 8.
+
+
+Final updater verification: `python -m workout_tracker release-info` exposes
+APP_VERSION and TARGET_SCHEMA_VERSION as JSON without constructing Flask or
+opening/initializing storage. Updaters compare the new image target with a
+separately verified active schema. Stop both services, explicitly back up and
+verify existing storage, preserve whole-tree recovery protection, update/build,
+detect the target, request confirmation for an actual upgrade, run candidate-only
+migration, verify and restart/health-check. The external server script is unavailable
+and is not claimed tested. Disposable Docker tests exercise release detection,
+verified schema-4 backup and candidate upgrade to 5 before restart.

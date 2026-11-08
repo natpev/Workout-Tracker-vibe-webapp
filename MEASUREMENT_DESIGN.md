@@ -4,12 +4,13 @@
 
 ## Current state and authorization
 
-Phases 1–6 are completed, approved and merged into main. Their typed measurements,
+Phases 1–7 are completed and approved for main. Their typed measurements,
 server drafts, history/charts, append-only corrections, recovery/scheduling/logs
-and mobile interface remain intact. Phase 7 is authorized on
+and mobile interface remain intact. Phase 7 is approved on
 `phase-7-shared-exercise-library` for shared exercise identities, named routine
-copies reusing IDs, schema-5 candidate migration and version displays. Push and
-open a PR for review; no merge, deployment or live-data access is authorized.
+copies reusing IDs, schema-5 candidate migration and version displays. Final
+verification, merge/push and verified branch cleanup are authorized; no
+Phase 8, deployment or live-data access is authorized.
 Historical implementation evidence remains in the phase review documents; the
 current upgrade and validation record is PHASE_7_REVIEW.md.
 

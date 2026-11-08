@@ -6,6 +6,8 @@ external tree; migrate-storage upgrades a separate candidate; check-storage
 uses storage.py's read-only validation. Explicit restore-backup performs confirmed candidate recovery; no command deploys.
 """
 
+import json
+
 import click
 
 from .storage import StorageError, initialize_storage, inspect_storage
@@ -14,6 +16,19 @@ from .storage import StorageError, initialize_storage, inspect_storage
 @click.group()
 def main():
     """Provide first-install and read-only diagnostic commands, never deployment."""
+
+
+@main.command("release-info")
+def release_info():
+    """Print machine-readable release targets without reading or creating storage.
+
+    An updater runs this in the newly built image without a data mount, compares
+    target_schema_version with separately verified installed storage, then asks
+    the operator before any explicit candidate migration. No Flask app starts.
+    """
+    from . import APP_VERSION, TARGET_SCHEMA_VERSION
+    click.echo(json.dumps({"app_version": APP_VERSION,
+                           "target_schema_version": TARGET_SCHEMA_VERSION}))
 
 
 @main.command("init-storage")

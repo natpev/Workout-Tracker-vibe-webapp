@@ -511,10 +511,11 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–6 and the installation guide are completed and approved on main.
+Phases 1–7 and the installation guide are completed and approved for main.
 Phase 7 adds the shared Exercise Library, named ID-preserving routine copies and
-version display, targeting **application 0.7.0 / database schema 5**. It is pending
-PR review; do not merge or deploy without approval. All prior tracking, history,
+version display, targeting **application 0.7.0 / database schema 5**. It is approved
+for final verification, merge and verified branch cleanup; do not deploy or begin
+Phase 8. All prior tracking, history,
 correction, backup, scheduling and mobile features remain supported.
 
 Read [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md) for exact schema-4 installation upgrade
@@ -543,7 +544,7 @@ and limitations are in [PHASE_5_REVIEW.md](PHASE_5_REVIEW.md).
 - `library_schema.py`: schema-5 global references and candidate-only table rebuilds, preserving every original cell and trigger.
 - `history_schema.py`: additive schema-4 history, preparations, registry and append-only audit objects; no Phase 3 protection is removed.
 - `history.py`, `history_views.py`: shared effective values, chronology/filters, chart preparation, historical completion and deliberate corrections.
-- `migrations.py`: explicit candidate-only upgrade from known schema 1/2/3 to target 2/3/4, preserving every original row/NULL and verifying registry consistency.
+- `migrations.py`: explicit candidate-only upgrade from known schema 1/2/3/4 to target 2/3/4/5, preserving every original row/NULL and verifying registry consistency.
 - `workouts.py`, `workout_views.py`, `static/workout.js`: exact measurements, server drafts, serialized autosave, revision conflicts and atomic finalization.
 - `catalog.py`: parameterized SQL and rules for people, identities, ordering, typed targets, and independent copies.
 - `views.py`: CSRF-protected forms, ownership checks and stale-routine conflict detection.
@@ -828,12 +829,12 @@ in the [installation guide](#3-configure-compose) above. The checks below are fo
 contributors using disposable fixtures, not a second installation procedure.
 Containers never initialize or migrate storage at startup.
 
-For isolated image review, build `workout-tracker:phase6-review` with build secret
+For isolated image review, build `workout-tracker:phase7-review` with build secret
 `pip_ca` set to a trusted system CA bundle. Managed cloud proxy/CA configuration
 must be preserved. Run container tests only against the local Docker daemon:
 
 ```sh
-docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase6-review .
+docker build --secret id=pip_ca,src=/etc/ssl/certs/ca-certificates.crt -t workout-tracker:phase7-review .
 WORKOUT_CONTAINER_TESTS=1 .venv/bin/python -m pytest -q tests/test_container.py
 ```
 
@@ -982,3 +983,24 @@ ownership, ports, and all external configuration unchanged.
 
 Follow the exact fail-fast procedure and rollback limitations in
 [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md#existing-installation-upgrade).
+
+
+### Machine-readable release target for Docker updaters
+
+After building the new image, an updater can detect its release target without
+mounting data, starting Flask, or triggering migration:
+
+```sh
+docker run --rm --network=none --read-only --entrypoint python \
+  workout-tracker:local -m workout_tracker release-info
+```
+
+Expected JSON: `{"app_version": "0.7.0", "target_schema_version": 5}`.
+The target is release metadata; `/health/ready` and Settings/footer report the
+actual active schema instead. Parse JSON rather than scraping templates or the
+foundation initialization constant. Stop writers and explicitly back up/verify
+installed storage before updating; compare installed schema with this target,
+request confirmation if an upgrade is needed, then run the separate migration.
+Never infer consent from release detection or automatically initialize storage.
+The existing external updater has not been inspected or tested; see the complete
+operator sequence in PHASE_7_REVIEW.md.

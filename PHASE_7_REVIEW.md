@@ -2,10 +2,11 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated code; not assumed audited, secure or correct.
 
-Phase 7 is implemented for review on `phase-7-shared-exercise-library`, based on
+Phase 7 is completed and approved for final merge on `phase-7-shared-exercise-library`, based on
 approved main `b8a35f13e0ae59642e7be4def70639ada11e8f1b`. Target application
-**0.7.0**, persistent schema **5**. No main merge, deployment, server access or
-real-data operation is authorized or performed.
+**0.7.0**, persistent schema **5**. Final verification, merge/push and verified
+branch cleanup are authorized. No deployment, server access, real-data operation
+or Phase 8 is authorized or performed.
 
 ## Shared identities and independent people
 
@@ -89,6 +90,11 @@ reporting. Semantic versions and SQLite schema integers are independent: feature
 releases increment minor during 0.x, compatible fixes increment patch, and only
 persistent schema changes increment the database version.
 
+`python -m workout_tracker release-info` prints JSON from `APP_VERSION` and
+`TARGET_SCHEMA_VERSION` without opening storage or creating a Flask application.
+This lets an updater detect the target before serving an installed schema 4;
+health/Settings/footer still report the actual selected database version.
+
 ## Existing-installation upgrade
 
 **Documentation for the operator after release approval/merge, not commands run
@@ -128,16 +134,32 @@ after Phase 7 has been approved and merged into main:
   cd /root/WorkoutTracker/app
   test "$(git branch --show-current)" = main
   test -z "$(git status --porcelain)"
-  git fetch origin
-  git merge --ff-only origin/main
   docker compose config --quiet
   docker image tag workout-tracker:local "workout-tracker:before-schema5-$(date -u +%Y%m%dT%H%M%SZ)"
-  docker compose build
   docker compose stop web scheduler
+  docker compose run --rm --no-deps web python -m workout_tracker check-storage \
+    --data-root /var/lib/workout-tracker
+  # Explicit verified backup BEFORE code/image replacement. Whole-tree recovery
+  # protection is also required for external config, keys, schedules and accents.
+  docker compose run --rm --no-deps web python -c \
+    'import json; from uuid import uuid4; from workout_tracker.maintenance import backup; r=backup("/var/lib/workout-tracker",uuid4().hex); assert r["status"]=="verified"; print(json.dumps({"backup_id":r["id"],"schema_version":r["schema_version"],"status":r["status"]}))'
+  git fetch origin
+  git merge --ff-only origin/main
+  docker compose build
+  # No data mount: metadata detection never opens or migrates storage.
+  docker run --rm --network=none --read-only --entrypoint python \
+    workout-tracker:local -m workout_tracker release-info
   docker compose run --rm --no-deps web python -m workout_tracker check-storage \
     --data-root /var/lib/workout-tracker
 )
 ```
+
+Expect release metadata `{"app_version":"0.7.0","target_schema_version":5}`
+(whitespace may differ). Parse JSON, compare installed versus target versions,
+and request explicit operator confirmation before the next migration block.
+Refuse missing/unknown targets, downgrades or failed verification. Backup status
+must be verified before continuing; retain its schema-4 backup and all source
+files. Never turn a failed backup into permission to skip protection.
 
 Expect schema **4** on the first upgrade (5 on later compatible updates).
 Anything else or any error means stop and inspect; never create an empty
@@ -195,7 +217,7 @@ whole tree before any recovery. No unsafe automatic rollback script is supplied.
 
 ## Automated verification
 
-Final complete run:
+Earlier implementation run (before final updater-detection verification):
 
 ```sh
 WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q
@@ -210,7 +232,7 @@ retains schema-4 installation/restart checks and adds a stopped-writer explicit
 
 New tests verify shared selection and IDs, distinct person results/recommendations/
 charts, cross-routine matching, incompatible type/unit/meaning exclusion, named
-independent ordered Weight/Time copies, partial-copy rollback, Unicode duplicate
+independent ordered Weight/Time copies, partial-copy rollback, case-insensitive duplicate
 prevention, cross-person rename/archive guards, complete populated schema-4 cell
 preservation (copies, matching names, historical/native completions, NULL, zero,
 audits and active drafts), trigger preservation, resumability, same-schema backup/
@@ -236,15 +258,40 @@ All test databases and containers are disposable; no household storage is used.
   shared selection/copying. No automatic startup upgrade is performed.
 - Registration provenance retains the old column name `person_id` for exact-value
   preservation; it is not used to scope schema-5 library reads or references.
-- Feature branch push succeeded. PR creation with `gh pr create --base main`
-  failed exactly: `Post "https://api.github.com/graphql": Forbidden`. No PR was
-  created and main was not changed. Open
-  https://github.com/natpev/Workout-Tracker-vibe-webapp/pull/new/phase-7-shared-exercise-library
-  and choose base main / compare phase-7-shared-exercise-library to create it
-  manually. The managed GitHub API restriction does not prevent normal Git push.
+- Earlier PR creation was blocked by GitHub API `Forbidden`. The user has since
+  directly approved final merge and cleanup through Git; no PR/API bypass is
+  required. Git push results and remote ancestry are verified before cleanup.
 - Physical iPhone/Safari/VoiceOver, actual server/updater execution and live-data
   verification are outside the managed Chromium/container evidence.
 - Prior backup/offsite, cooperative locking, durability uncertainty, no offline
   input queue and preferences-outside-SQLite-backup limitations still apply.
 
-Stop after feature-branch push and pull-request creation; do not merge or deploy.
+Stop after approved merge, push, remote verification and branch cleanup. Do not
+deploy or begin Phase 8.
+
+
+## Final approved-merge verification
+
+Final approved-merge run: **261 passed in 181.14 seconds; 0 failed, 0 skipped**
+using the complete command above. Breakdown: **236 backend/storage/HTTP tests,
+16 Chromium tests, 9 Docker tests**. All Docker tests used the freshly built
+Phase 7 image. Its release-info command returned application 0.7.0 / target schema
+5 without a storage mount. The operator CLI supports explicit confirmed
+migrate-storage --target-version 5; synthetic schema-4 records, drafts, original
+file bytes, relationships and audit chains survived the candidate upgrade.
+Same-schema backup/restore and failure rollback passed. No live data was used.
+
+Final diff and ancestry checks found no unrelated changes or deleted files.
+Main was an ancestor of the reviewed feature branch; final workflow uses a
+fast-forward, verifies remote commit coverage, then deletes the completed branch.
+Mandatory disclosures, function documentation, Python compilation, documented
+shell syntax, whitespace checks and dependency consistency checks passed.
+The only runtime change at final review was storage-free target detection; no
+new schema or measurement/recovery behavior was introduced.
+The final review found and fixed updater detection with storage-free release-info;
+all Docker smoke tests now target the freshly built phase7-review image (rather
+than the retained phase6-review tag). No existing assertions were removed or
+weakened. Docker upgrade coverage now explicitly verifies a pre-upgrade schema-4
+backup before candidate migration. The external updater remains unavailable and
+is not claimed tested. Source/selection preservation, synthetic backup/restore,
+active drafts and correction/audit tests remain mandatory merge gates.
