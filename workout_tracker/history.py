@@ -90,6 +90,7 @@ def original(db, person_id, identity):
         rows=[dict(row) for row in db.execute('SELECT * FROM historical_entries WHERE session_id=? AND person_id=? ORDER BY position',(identity,person_id))]
         if len(rows)!=parent['entry_count'] or [r['position'] for r in rows]!=list(range(len(rows))):
             raise StorageError('Historical snapshot consistency failed.')
+    parent['routine_deleted'] = db.execute('SELECT 1 FROM routines WHERE id=? AND person_id=?',(parent['routine_id'],person_id)).fetchone() is None
     return parent,rows
 
 

@@ -35,62 +35,67 @@ def connect(path):
 
 
 def logical_check(path,version):
-    """Check complete ordered snapshots and every audit link, beyond SQLite integrity."""
-    from . import history as h
+    """Check all logical invariants through a read-only connection for maintenance."""
     with connect(path) as db:
-        if version>=3:
-            for parent in db.execute('SELECT * FROM workout_sessions'):
-                started=datetime.fromisoformat(parent['started_at'])
-                if started.tzinfo is None or started.astimezone(ZoneInfo(parent['timezone'])).date().isoformat()!=parent['workout_date']:
-                    raise StorageError('Workout date/time consistency failed.')
-                positions=[row[0] for row in db.execute('SELECT position FROM workout_entries WHERE session_id=? ORDER BY position',(parent['id'],))]
-                if positions!=list(range(parent['entry_count'])):
-                    raise StorageError('Workout snapshot count/order verification failed.')
-        if version<4: return
-        # Preparation JSON is durable data too. Verify typed targets and owner
-        # references, and ensure saved historical prescriptions equal that form.
-        from . import catalog as c
-        fields=('exercise_id','name','position','measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')
-        for form in db.execute('SELECT * FROM historical_forms'):
-            snapshots=json.loads(form['snapshots_json'])
-            if not isinstance(snapshots,list) or not snapshots: raise StorageError('Prepared snapshot is empty or malformed.')
-            h.validate_state(form,[],dict(workout_date=form['workout_date'],workout_time=form['workout_time'],occurred_at=form['occurred_at'],entries=[]))
-            for index,row in enumerate(snapshots):
-                if type(row['position']) is not int or row['position']<0 or (index>0 and row['position']<=snapshots[index-1]['position']) or row['person_id']!=form['person_id'] or row['routine_id']!=form['routine_id']:
-                    raise StorageError('Prepared snapshot ownership/order failed.')
-                identity_sql = 'SELECT 1 FROM exercises WHERE id=?' + (' AND person_id=?' if version < 5 else '')
-                identity_args = (row['exercise_id'], form['person_id']) if version < 5 else (row['exercise_id'],)
-                if not db.execute(identity_sql, identity_args).fetchone():
-                    raise StorageError('Prepared exercise identity failed.')
-                values={k:str(row[k]) for k in ('target_sets','target_reps','measurement_type','weight_meaning','notes')}
-                duration=row['target_duration_seconds']
-                if duration is not None: values.update(minutes=str(duration//60),seconds=str(duration%60))
-                configured=c.configure(values)
-                if configured!=tuple(row[k] for k in ('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')):
-                    raise StorageError('Prepared target configuration failed.')
-            # Routine positions can have gaps after removals. Completion keeps
-            # their relative order but normalizes saved positions to 0..n-1.
-            saved=db.execute('SELECT * FROM historical_workouts WHERE form_id=?',(form['id'],)).fetchone()
-            if saved:
-                if any(saved[k]!=form[k] for k in ('person_id','routine_id','routine_name','timezone','workout_date','workout_time','occurred_at')):
-                    raise StorageError('Historical parent differs from its preparation.')
-                actual=db.execute('SELECT * FROM historical_entries WHERE session_id=? ORDER BY position',(saved['id'],)).fetchall()
-                if len(actual)!=len(snapshots) or any(tuple(a[k] for k in fields)!=tuple(dict(b,position=index)[k] for k in fields) for index,(a,b) in enumerate(zip(actual,snapshots))):
-                    raise StorageError('Historical prescriptions differ from their preparation.')
-        expected={(r['id'],r['person_id'],r['id'],None) for r in db.execute("SELECT id,person_id FROM workout_sessions WHERE status='completed'")}
-        expected|={(r['id'],r['person_id'],None,r['id']) for r in db.execute('SELECT id,person_id FROM historical_workouts')}
-        actual={tuple(r) for r in db.execute('SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry')}
-        if actual!=expected: raise StorageError('Workout registry verification failed.')
-        for record in db.execute('SELECT id,person_id FROM workout_registry'):
-            parent,rows=h.original(db,record['person_id'],record['id'])
-            current=h.value_state(parent,rows)
-            h.validate_state(parent,rows,current)
-            for index,audit in enumerate(h.audit(db,record['person_id'],record['id']),1):
-                if audit['revision']!=index or audit['before']!=current:
-                    raise StorageError('Correction audit chain verification failed.')
-                h.validate_state(parent,rows,audit['after'])
-                current=audit['after']
-            h.effective(db,record['person_id'],record['id'])
+        logical_check_connection(db,version)
+
+
+def logical_check_connection(db,version):
+    """Validate snapshots/audits on an existing connection, including before commit."""
+    from . import history as h
+    if version>=3:
+        for parent in db.execute('SELECT * FROM workout_sessions'):
+            started=datetime.fromisoformat(parent['started_at'])
+            if started.tzinfo is None or started.astimezone(ZoneInfo(parent['timezone'])).date().isoformat()!=parent['workout_date']:
+                raise StorageError('Workout date/time consistency failed.')
+            positions=[row[0] for row in db.execute('SELECT position FROM workout_entries WHERE session_id=? ORDER BY position',(parent['id'],))]
+            if positions!=list(range(parent['entry_count'])):
+                raise StorageError('Workout snapshot count/order verification failed.')
+    if version<4: return
+    # Preparation JSON is durable data too. Verify typed targets and owner
+    # references, and ensure saved historical prescriptions equal that form.
+    from . import catalog as c
+    fields=('exercise_id','name','position','measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')
+    for form in db.execute('SELECT * FROM historical_forms'):
+        snapshots=json.loads(form['snapshots_json'])
+        if not isinstance(snapshots,list) or not snapshots: raise StorageError('Prepared snapshot is empty or malformed.')
+        h.validate_state(form,[],dict(workout_date=form['workout_date'],workout_time=form['workout_time'],occurred_at=form['occurred_at'],entries=[]))
+        for index,row in enumerate(snapshots):
+            if type(row['position']) is not int or row['position']<0 or (index>0 and row['position']<=snapshots[index-1]['position']) or row['person_id']!=form['person_id'] or row['routine_id']!=form['routine_id']:
+                raise StorageError('Prepared snapshot ownership/order failed.')
+            identity_sql = 'SELECT 1 FROM exercises WHERE id=?' + (' AND person_id=?' if version < 5 else '')
+            identity_args = (row['exercise_id'], form['person_id']) if version < 5 else (row['exercise_id'],)
+            if not db.execute(identity_sql, identity_args).fetchone():
+                raise StorageError('Prepared exercise identity failed.')
+            values={k:str(row[k]) for k in ('target_sets','target_reps','measurement_type','weight_meaning','notes')}
+            duration=row['target_duration_seconds']
+            if duration is not None: values.update(minutes=str(duration//60),seconds=str(duration%60))
+            configured=c.configure(values)
+            if configured!=tuple(row[k] for k in ('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')):
+                raise StorageError('Prepared target configuration failed.')
+        # Routine positions can have gaps after removals. Completion keeps
+        # their relative order but normalizes saved positions to 0..n-1.
+        saved=db.execute('SELECT * FROM historical_workouts WHERE form_id=?',(form['id'],)).fetchone()
+        if saved:
+            if any(saved[k]!=form[k] for k in ('person_id','routine_id','routine_name','timezone','workout_date','workout_time','occurred_at')):
+                raise StorageError('Historical parent differs from its preparation.')
+            actual=db.execute('SELECT * FROM historical_entries WHERE session_id=? ORDER BY position',(saved['id'],)).fetchall()
+            if len(actual)!=len(snapshots) or any(tuple(a[k] for k in fields)!=tuple(dict(b,position=index)[k] for k in fields) for index,(a,b) in enumerate(zip(actual,snapshots))):
+                raise StorageError('Historical prescriptions differ from their preparation.')
+    expected={(r['id'],r['person_id'],r['id'],None) for r in db.execute("SELECT id,person_id FROM workout_sessions WHERE status='completed'")}
+    expected|={(r['id'],r['person_id'],None,r['id']) for r in db.execute('SELECT id,person_id FROM historical_workouts')}
+    actual={tuple(r) for r in db.execute('SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry')}
+    if actual!=expected: raise StorageError('Workout registry verification failed.')
+    for record in db.execute('SELECT id,person_id FROM workout_registry'):
+        parent,rows=h.original(db,record['person_id'],record['id'])
+        current=h.value_state(parent,rows)
+        h.validate_state(parent,rows,current)
+        for index,audit in enumerate(h.audit(db,record['person_id'],record['id']),1):
+            if audit['revision']!=index or audit['before']!=current:
+                raise StorageError('Correction audit chain verification failed.')
+            h.validate_state(parent,rows,audit['after'])
+            current=audit['after']
+        h.effective(db,record['person_id'],record['id'])
 
 
 def validate(root,path,selection):
@@ -191,7 +196,7 @@ def current_for_restore(root):
         selection=json.loads(active.read_text(),object_pairs_hook=_unique_object)
         if not isinstance(selection,dict) or set(selection)!= {'database','storage_id'}: raise original_error
         storage_id=selection['storage_id'];o.identity(storage_id)
-        match=re.fullmatch(rf'schema-([2345])-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
+        match=re.fullmatch(rf'schema-([23456])-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
         if not match: raise original_error
         path=root/'data'/selection['database'];_regular_file(path)
         for suffix in ('-journal','-wal','-shm'):

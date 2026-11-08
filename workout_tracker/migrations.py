@@ -27,7 +27,7 @@ def _digest(path):
 
 def _upgrade_candidate(connection, target_version=2):
     """Add the requested known schema only to a copied candidate in one transaction."""
-    connection.execute("PRAGMA foreign_keys=" + ("OFF" if target_version == 5 else "ON"))
+    connection.execute("PRAGMA foreign_keys=" + ("OFF" if target_version >= 5 else "ON"))
     connection.execute("PRAGMA synchronous=FULL")
     connection.execute("BEGIN IMMEDIATE")
     try:
@@ -47,10 +47,14 @@ def _upgrade_candidate(connection, target_version=2):
             # them for future correction ownership. Counts are checked below.
             connection.execute("INSERT INTO workout_registry(id,person_id,live_session_id) SELECT id,person_id,id FROM workout_sessions WHERE status='completed'")
             connection.execute("INSERT INTO schema_migrations VALUES (4, 'history_and_corrections')")
-        if target_version == 5:
+        if current < 5 and target_version >= 5:
             from .library_schema import upgrade_library
             upgrade_library(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (5, 'shared_exercise_library')")
+        if target_version == 6:
+            from .deletion_schema import upgrade_deletion
+            upgrade_deletion(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (6, 'permanent_deletion')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -76,7 +80,7 @@ def _migrate_storage(value, target_version=2):
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -185,7 +189,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 
