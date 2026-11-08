@@ -522,6 +522,9 @@ uses **http://10.0.69.9:8001/status** after explicit host installation.
 
 Read [PHASE_8_REVIEW.md](PHASE_8_REVIEW.md) and [deployment/README.md](deployment/README.md)
 for exact first-upgrade, one-time host service setup, v4 and recovery instructions.
+The feature is pushed but its required PR creation is blocked by GitHub API
+Forbidden; main remains Phase 7. Do not run main-based Phase 8 upgrade commands
+until the feature is merged and verified.
 Existing schema 5 needs explicit candidate migration to 6; source databases stay
 unchanged. No real server/data operation was performed during development.
 

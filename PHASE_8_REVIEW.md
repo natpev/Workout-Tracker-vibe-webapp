@@ -198,7 +198,7 @@ and 10 Docker tests**. Tests cover schema-6 exact preservation and failed activa
 same-schema backup/restore resurrection, native/historical deletion and correction
 projection, ownership, actual v4/host-service/Docker integration, no-migration and
 migration update paths, failure/recovery paths, disk guards, passwordless HTTP
-confirmation/CSRF and generated systemd syntax. A final updater/Chromium rerun
+confirmation/CSRF and generated systemd syntax. The final updater/Chromium rerun passed **20 tests in 67.32 seconds**, and
 also checks that a rejected overlapping browser worker cannot clobber a running
 emergency CLI's persistent status.
 
@@ -235,3 +235,33 @@ tag are updated, not assertions weakened.
   global deletion. They remain internally chained for surviving entries; an extra
   value-preserving revision invalidates pre-deletion forms. Pending manual reviews
   referencing deleted identities must be prepared again.
+
+
+## GitHub workflow status — merge blocked at required PR creation
+
+All implementation, documentation and tests are committed on
+`phase-8-lan-management-and-updates`. The feature push to the expected repository
+succeeded. Creating the required pull request with `gh pr create --repo
+natpev/Workout-Tracker-vibe-webapp --base main --head
+phase-8-lan-management-and-updates --body-file ...` failed exactly:
+
+```text
+Post "https://api.github.com/graphql": Forbidden
+```
+
+The repository metadata REST API also returns Forbidden. Git fetch/push work;
+this does not establish permission to create a PR through the blocked API. No
+GitHub connector/browser session is available to complete that step instead.
+Following the requested sequence and instruction not to merge on an unresolved
+blocking issue, **main was not merged or pushed and neither feature branch was
+deleted**. Main remains `7253b044c48ee9e45f479e7130a9dc058c41dac3` (Phase 7).
+The interrupted earlier branch contains unique preserved work and is also retained.
+
+Manual continuation: open
+https://github.com/natpev/Workout-Tracker-vibe-webapp/pull/new/phase-8-lan-management-and-updates
+in your authenticated GitHub browser, create the PR targeting main, inspect its
+diff/test record, and merge using the repository's permitted history-preserving
+method. Verify main contains every feature commit before deleting the completed
+feature branch. Do not deploy or run the documented main-based upgrade commands
+until that merge is verified. No force push, branch-protection bypass or live data
+operation was attempted.
