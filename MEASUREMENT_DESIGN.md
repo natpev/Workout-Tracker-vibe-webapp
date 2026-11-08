@@ -4,14 +4,12 @@
 
 ## Current state and authorization
 
-Phases 1–8 are completed and approved for the verified main merge. Phase 8
-adds passwordless LAN hard deletion, sticky person context and browser/host
-updates; final recovery and Settings-context corrections are included. Application target is 0.8.0 / schema 6;
-no user authentication or HTTPS is introduced. Existing typed measurement,
-draft, history/correction and recovery behavior remains intact except deliberate
-global exercise erasure. Explicit candidate migration preserves originals.
-No server deployment, production data access or Phase 9 is authorized.
-See PHASE_8_REVIEW.md and deployment/README.md for current validation/upgrade steps.
+Phases 1–8 are approved. Phase 9 is authorized for implementation, verification
+and direct main merge without a PR attempt: application 0.9.0 / schema 7 adds
+shared global presets copied once into independent routine configurations,
+normalized duration parts, 24-hour minute-only workout clock presentation and
+UI improvements. No live deployment, real data or Phase 10 is authorized.
+See PHASE_9_REVIEW.md and deployment/README.md for current validation/upgrade steps.
 
 ## Interface and significant data flows
 
@@ -252,3 +250,13 @@ and original migrated databases are preserved; compatible restore can resurrect
 previously deleted results. These actions are passwordless LAN POSTs with CSRF,
 explicit typed confirmation and current impact review, not account authentication.
 Schema 6 is applied only to a verified separate migration candidate, never startup.
+
+
+Phase 9 supersedes the old required-both-parts duration rule throughout actual,
+historical, correction, routine-target and library-default entry. Either part
+may be blank, seconds may exceed 59, and nonnegative whole parts normalize to
+integer total seconds. Two blanks skip actuals only; positive totals and existing
+bounds remain enforced. Clock HH:mm and duration MM:SS are distinct. Minute-only
+workout presentation never rewrites internal timestamp precision or IANA zones.
+Schema 7 adds only preset storage; existing target/result columns and original
+snapshots are untouched. Global preset edits affect future additions only.

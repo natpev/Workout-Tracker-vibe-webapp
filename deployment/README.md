@@ -1,8 +1,8 @@
-# Phase 8 installation, LAN updater v4 and recovery
+# Phase 9 installation, LAN updater v4 and recovery
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.8.0**, full-feature schema **6**. The application remains
+Application **0.9.0**, full-feature schema **7**. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -23,7 +23,9 @@ reverse proxy are installed. Retain trusted-host checks, CSRF and confirmations.
 Initial SSH/root access is required once. The host needs Linux/systemd, Python
 3 with venv/pip support (3.12 tested), Git, Docker Engine/Compose, standard Linux
 utilities and enough free disk space. Install the distribution's Python/venv
-packages if missing; do not change Docker networking/ports to solve a dependency
+packages if missing (for the reported Python 3.12 ensurepip error on Debian/Ubuntu,
+run `apt update` and `apt install python3.12-venv` as root, then rerun the installer;
+no database or partial venv deletion is needed). Do not change Docker networking/ports to solve a dependency
 error. No host SQLite package is needed. The existing root Git credentials must
 support noninteractive fetch of this repository. Credentials are never entered
 into the app or embedded in source. GitHub/PyPI build transport continues using
@@ -34,10 +36,10 @@ example with existing VM/offsite backups). SQLite backups omit external keys,
 settings, accents, schedules and host updater files. Stop external SQLite tools
 before maintenance. Do not initialize installed storage or delete retained files.
 
-## First upgrade from schema 5
+## First upgrade from schema 6
 
-These commands apply after Phase 8 is merged into approved main. Schema 4 can
-also upgrade explicitly to 6 through the same candidate machinery; verify the
+These commands apply after Phase 9 is merged into approved main. Schemas 4/5 can
+also upgrade explicitly to 7 through the same candidate machinery; verify the
 actual installed schema rather than assuming it. The initial step updates source
 only; the currently running image/database remain unchanged until v4 is confirmed.
 
@@ -82,12 +84,12 @@ bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
 It checks approved main, displays the release, asks to install with a verified
-backup, and prompts **MIGRATE 6** if the actual source schema needs upgrading.
+backup, and prompts **MIGRATE 7** if the actual source schema needs upgrading.
 This is a safety confirmation, not authentication. The shared engine stops only
 web/scheduler, verifies a distinct backup, preserves the previous image/commit,
 builds, checks actual release-info, invokes confirmed candidate migration and
-validates schema/original bytes before restart. It then verifies actual app 0.8.0 /
-schema 6 and scheduler status. No unsupported older image is started after schema
+validates schema/original bytes before restart. It then verifies actual app 0.9.0 /
+schema 7 and scheduler status. No unsupported older image is started after schema
 activation. The parent .env is copied atomically/private into app/.env with the
 same contents, as explicitly requested; paths, ports and values are not changed.
 
@@ -112,7 +114,7 @@ docker compose --project-directory /root/WorkoutTracker/app \
 docker compose --project-directory /root/WorkoutTracker/app \
   --env-file /root/WorkoutTracker/.env \
   -f /root/WorkoutTracker/app/compose.yaml exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.8.0",schema_version=6)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.9.0",schema_version=7)'
 ```
 
 Open **http://10.0.69.9:8000/settings/updates**. No login or certificate action
@@ -123,7 +125,7 @@ is read-only; update control is not exposed there.
 
 ## Routine browser updates
 
-1. Settings → Application Updates → Check for Updates.
+1. Settings → Administration → Application Updates → Check for Updates.
 2. Review the approved version, full commit, release notes and required schema.
 3. Open View Update Progress and Logs (the independent HTTP page) in its own tab.
 4. Acknowledge Install Update. If schema changes, explicitly check the migration
@@ -220,3 +222,31 @@ private folder); build, backup, migration, container restart, peer UID checks an
 HTTP status are real. Actual systemd syntax is verified offline; no live systemd
 unit or production installation is changed. Your server's Git credentials,
 firewall, Python packages and permissions still need the one-time operator checks.
+
+
+## Phase 9 compatibility and already-installed host runtime
+
+V4 remains the supported wrapper; it reads approved release targets dynamically
+and invokes the new image's explicit migration CLI. Tests cover 0.9.0/schema 7,
+code-only schema-7 updates, actual schema-6→7 Docker upgrades and original-byte
+preservation. The host engine's safety and fixed operation protocol are unchanged.
+Only host status timestamp presentation was standardized to explicit 24-hour UTC.
+The separately installed Phase 8 host engine can already deliver this release.
+To copy the latest host presentation code too, explicitly rerun:
+
+```sh
+bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh   --upgrade-service --lan-address 10.0.69.9   --app-url http://10.0.69.9:8000 --status-port 8001
+```
+
+This refreshes only the independent host runtime; it does not initialize or
+migrate workout storage. A first installation still uses --install-service as
+above. Keep the existing .env timezone America/Indiana/Indianapolis; do not replace
+it with a UTC offset or change the normal HTTP port. Backup schedule timezone is
+configured independently in Administration and is not silently overwritten.
+
+Migration adds exercise_defaults on a separate candidate, initializes neutral
+Weight/3×12/pounds presets for old identities, and verifies old cells, source
+hashes, exact DDL, integrity/FKs and completeness before activation. Existing
+routine settings and historical snapshots are unchanged. Schema-6 backups stay
+retained but Restore accepts only the exact currently selected schema; do not
+silently downgrade a schema-7 installation. No application startup migration.

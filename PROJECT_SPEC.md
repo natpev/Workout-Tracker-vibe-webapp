@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–8 are implemented and approved. Final recovery and selected-person corrections passed all 310 tests (zero failed/skipped); normal fast-forward merge/push/cleanup is authorized (direct Git is explicitly allowed if PR creation remains unavailable). No deployment/live-data operation or Phase 9 is authorized. See PHASE_8_REVIEW.md for final test and workflow evidence.
-**Current scope:** application 0.8.0 / schema 6 adds confirmed hard deletion, sticky selected-person context and passwordless LAN browser updates using an independent host worker. No administrator accounts, passwords, roles, user login, HTTPS, certificate provisioning or reverse proxy are allowed. Anyone who can reach the private LAN app may confirm updates/deletion; network isolation is the trust boundary.
+**Project status:** Phases 1–9 are implemented and approved; final verification passed all 342 tests (zero failed/skipped). Direct fast-forward merge/push and cleanup are explicitly authorized. Do not create or attempt a pull request. No live deployment, production data or Phase 10.
+**Current scope:** application 0.9.0 / schema 7. Global defaults, grouped passwordless Administration, compact navigation, twelve accents, consistent labels/clocks/duration normalization and original local favicons. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -57,7 +57,7 @@
 - Keep a **snapshot** of exercise names, order, measurement type, target sets, target reps or duration, unit/weight meaning, optional exercise notes, and related prescribed routine information in every saved session; changes to routines never alter old sessions.
 - A user's previous weights/increase flags must be drawn only from that user's logged exercise history; copied routine ownership must not leak values from another person.
 - Prevent accidental duplicate workouts if Finish & Save is tapped twice or retried.
-- Time exercises have a target duration per set entered as minutes and seconds, and one actual duration per exercise regardless of set count. Store both target and actual durations as integer seconds, not decimal minutes; do not multiply actual duration by sets. Phase 3 actual duration must be at least 1 second: zero seconds is invalid, and empty duration stores SQL NULL for a skipped exercise. Both minutes and seconds must be supplied for a performed duration; partially blank or malformed input is a validation error. Fully blank means SQL NULL. Phase 3 uses the signed 64-bit SQLite integer storage limit and bounds form strings to 100 characters; it does not change retained Phase 2 databases.
+- Time exercises have a target duration per set entered as minutes and seconds, and one actual duration per exercise regardless of set count. Store both target and actual durations as integer seconds, not decimal minutes; do not multiply actual duration by sets. Phase 3 actual duration must be at least 1 second: zero seconds is invalid, and empty duration stores SQL NULL for a skipped exercise. Phase 9 accepts minutes only, seconds only, or both; a blank part is zero when another is supplied. Seconds may exceed 59 and total seconds are normalized. Reject malformed/negative/zero-total/overflow values. Fully blank means SQL NULL. Phase 3 uses the signed 64-bit SQLite integer storage limit and bounds form strings to 100 characters; it does not change retained Phase 2 databases.
 - Allow one active draft per user. Allow completing an entirely skipped workout only after confirmation.
 
 ## 4. Manual historical entry and history
@@ -169,12 +169,12 @@ These directories must be outside the Git repository and the ephemeral Docker im
 ## 11. Open design / implementation decisions (not yet approved)
 
 - Exact server operating system, Proxmox VM/container layout and binding LAN interface/port. Installed checkout/storage/updater paths were supplied with Phase 7 and are recorded in section 18.
-- Statistics are highest logged weight or longest logged duration in the selected date range, with separated exercise/type/unit/meaning. Any additional personal-record definitions and future product-specific upper bound remain undecided. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, require both minute/second parts, reject zero, and treat two blank parts as SQL NULL.
+- Statistics are highest logged weight or longest logged duration in the selected date range, with separated exercise/type/unit/meaning. Any additional personal-record definitions and future product-specific upper bound remain undecided. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, accept either nonnegative whole part, normalize seconds above 59, reject zero totals and preserve two blanks as SQL NULL.
 - Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
 - Household backup frequency/time/zone must be explicitly configured; scheduling starts disabled. Phase 5 implements local calendar-day cadence, earlier fold, first valid gap minute, and at-most-one missed-run handling. On corruption, startup must refuse unsafe storage rather than replace it.
-- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–6, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
+- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–7, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
@@ -538,3 +538,78 @@ unverified changed bytes/selection stops recovery without restoring older data.
 Settings backup/detail/delete/restore and filtered/paged logs preserve URL-selected
 person/accent; restore redirects to a read-only recorded result, making refresh
 safe. This remains navigation context, never authentication or a remembered account.
+
+
+## 20. Phase 9 — interface, Administration and shared defaults
+
+Application 0.9.0 uses schema 7 for one new exercise_defaults table; no old table
+or immutable trigger is rewritten. Existing IDs, routines/configurations, drafts,
+measurements including NULL/zero, preparations and correction chains remain exact.
+The explicit candidate upgrade validates every original cell, source bytes, exact
+DDL, migration record, one preset per exercise, integrity/FKs and history/audit
+logic before atomic activation. Schema-7 backups/restores retain defaults. Older
+backups stay retained but exact-schema restore never silently downgrades.
+
+Existing definitions initially get neutral Weight/3 sets/12 reps/pounds defaults,
+empty meaning and notes; migration never chooses one person's configuration as a
+household-wide standard. Library registration/editing uses the existing validated
+Weight/Time fields, sets, reps or target duration, pounds, meaning and notes.
+Pounds is the supported weight unit; no kilogram conversion is introduced.
+Add from Library copies the preset once into a new owned routine configuration.
+Existing routine settings and snapshots never track later preset edits. Routine
+copying preserves its actual configuration while sharing the global exercise ID.
+
+Settings keeps personal appearance separate from Administration. Administration
+groups Updates, Logs, backup settings/history, deliberate restore, actual versions
+and maintenance/diagnostics. One administrative_access boundary is shared by all
+application maintenance routes and explicitly permits everyone today. It creates
+no accounts/roles/login/passwords or TLS. CSRF, generation checks, typed decisions,
+host command restrictions and candidate safeguards remain. Future authentication
+would change that centralized boundary after separate approval; the independent
+read-only host status would also require review before remote exposure.
+
+Hamburger destinations are Routines, Exercise Library, History & Progress and
+Settings. Without selection, person-specific destinations lead to People. Remove
+global page tabs; show only History | Progress inside their shared existing URL
+area. All navigation retains URL-selected person/accent and browser Back support.
+Active workout guard/save/exit behavior remains. Exercise deletion and Cancel
+return Library, successful deletion flashes a committed success; routine deletion
+returns the owner's routines. Delete behavior and correction reconciliation stay
+unchanged, including backup resurrection warnings.
+
+Keep six existing accent keys as Soft colors and add vibrant-blue/teal/green/
+purple/orange/red; existing preferences are untouched. Saturated variants remain
+readable in Light/Dark/Auto with rounded mobile controls. Each person owns their
+preference independently of SQLite backups. Favicons are original local SVG,
+16/32 PNG, 16/32 ICO and 180 PNG Apple touch icon, linked in the shared template.
+
+Measurement labels are Weight (lb), Minutes, Seconds across active/historical/
+correction forms. Named exercise groups provide screen-reader context. Clock
+entry/display is explicit HH:mm in 24-hour form, not locale-dependent native time
+widgets; exercise duration remains MM:SS. Internal instants retain seconds and
+microseconds. Measurement-only corrections preserve a native timestamp's hidden
+precision when its displayed minute/fold was not changed. Existing IANA zones,
+DST handling and installation America/Indiana/Indianapolis remain; diagnostic
+seconds use explicitly labeled 24-hour UTC. Never substitute a fixed UTC offset.
+
+One duration parser accepts nonnegative whole minutes and/or seconds. Examples:
+blank+120=120, 1+90=150, 2+blank=120, 3+150=330. Targets and actuals store total
+integer seconds, never multiply by sets. Two blanks skip only actual entry;
+performed totals must be positive. Actual totals retain SQLite signed-64-bit
+bounds; targets retain 359999 seconds and all strings remain bounded. Client
+forms allow either part and large seconds; server revalidates all workflows.
+
+V4 remains the emergency script and browser updates keep the independent host
+engine. No new updater script is needed: approved source/release-info metadata
+already detects application 0.9.0 and schema 7. Explicitly confirm migration,
+verify backup and original/candidate, preserve recovery inputs and health-check.
+Host status changes only its 24-hour timestamp presentation. Installing/upgrading
+that separately copied host runtime is always an explicit operator command.
+
+Run all Phase 1–9 tests, Chromium/mobile, Docker, candidate/fault/restore, actual
+v4 flows and failure/recovery checks. Preserve earlier assertions except explicit
+contract changes; add positive normalization tests rather than dropping coverage.
+After verification, commit/push feature, fetch current main, reconcile safely if
+needed, directly fast-forward/push main, verify remote commits/targets/assets,
+then delete only the completed branch. No PR API calls, force push, deployment,
+production database operation, or Phase 10 is authorized.
