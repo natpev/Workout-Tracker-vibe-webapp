@@ -92,7 +92,7 @@ def test_csrf_ownership_conflicts_and_validation(phase2_client, phase2_root):
     assert client.post(path, data={**token, "action": "rename", "name": "Stale"}).status_code == 409
     assert submit(client, path, {"action": "delete"}).status_code == 400
     assert submit(client, path, {"action": "add", "name": "Bad", "measurement_type": "time", "target_sets": "3",
-                                 "minutes": "0", "seconds": "60"}).status_code == 400
+                                 "minutes": "0", "seconds": "-60"}).status_code == 400
     with database_session(phase2_root) as db:
         assert db.execute("SELECT name FROM routines WHERE id=?", (r,)).fetchone()[0] == "Updated"
         assert db.execute("SELECT count(*) FROM exercises").fetchone()[0] == 0

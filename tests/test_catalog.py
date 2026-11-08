@@ -61,8 +61,8 @@ def test_typed_configuration_identity_edit_remove_and_reorder(phase2_root):
     weight(target_sets="0"), weight(target_sets="1.5"), weight(target_sets="-1"), weight(target_sets="1001"),
     weight(target_reps=""), weight(target_reps="0"), weight(target_reps="1.5"), weight(target_reps="10001"),
     weight(measurement_type="distance"), weight(notes="x" * 2001), weight(weight_meaning="x" * 201),
-    timed(minutes="-1"), timed(minutes="0.5"), timed(minutes=""), timed(seconds=""),
-    timed(seconds="60"), timed(seconds="1.5"), timed(minutes="0", seconds="0"), timed(minutes="6000"),
+    timed(minutes="-1"), timed(minutes="0.5"), timed(minutes="bad"), timed(seconds="bad"),
+    timed(seconds="-60"), timed(seconds="1.5"), timed(minutes="0", seconds="0"), timed(minutes="6000"),
 ])
 def test_invalid_configuration_rejected_before_insert(phase2_root, values):
     """Malformed typed targets fail with no exercise definition or item inserted."""

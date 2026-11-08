@@ -75,18 +75,10 @@ def weight_tenths(value):
 
 
 def duration_seconds(minutes, seconds):
-    """Require both parts or neither: partial input is an error, not a skip."""
-    if minutes == seconds == '':
-        return None
-    if not re.fullmatch('[0-9]+', minutes) or not re.fullmatch('[0-9]+', seconds):
-        raise catalog.ValidationError("Enter both whole minutes and seconds, or leave both blank to skip.")
-    m, s = int(minutes), int(seconds)
-    if not 0 <= s <= 59:
-        raise catalog.ValidationError("Seconds must be between 0 and 59.")
-    result = m * 60 + s
-    if not 1 <= result <= MAX_INTEGER:
-        raise catalog.ValidationError("Actual duration must be at least 1 second and within the storage limit.")
-    return result
+    """Normalize optional minute/second parts while preserving two-blank skips."""
+    from .durations import parse_duration
+    try:return parse_duration(minutes,seconds,MAX_INTEGER)
+    except ValueError as error:raise catalog.ValidationError(str(error)) from error
 
 
 def measurement(entry, values):
@@ -246,5 +238,5 @@ def display_measurement(entry):
     if weight is not None:
         return f"{weight // 10}.{weight % 10} lb"
     if duration is not None:
-        return f"{duration // 60}:{duration % 60:02d}"
+        return f"{duration // 60:02d}:{duration % 60:02d}"
     return 'Skipped'

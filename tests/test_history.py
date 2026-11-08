@@ -82,7 +82,7 @@ def test_chronology_filters_series_separation_and_zero_records(phase4_root):
         assert [point['raw'] for point in weights['points']]==[409,0]
         assert weights['highest']['label']=='40.9 lb' and len(weights['records'])==3
         assert [point['raw'] for point in times['points']]==[65,45]
-        assert times['highest']['label']=='1:05'
+        assert times['highest']['label']=='01:05'
         c.update_entry(db,a,r,item,dict(measurement_type='weight',target_sets='3',target_reps='12',weight_meaning='total barbell'))
         manual(db,a,r,'2023-01-01',weight_0='100')
         assert len([g for g in h.chart_series(db,a,{}) if g['kind']=='weight'])==2
@@ -137,7 +137,7 @@ def test_native_completed_protection_and_correction_registry(phase4_root):
         with pytest.raises(sqlite3.IntegrityError): db.execute("UPDATE workout_sessions SET workout_date='2020-01-01' WHERE id=?",(identity,))
 
 
-@pytest.mark.parametrize('values',[{'minutes_1':'0','seconds_1':'0'},{'minutes_1':'1','seconds_1':''},{'weight_0':'-1'},{'weight_0':'NaN'}])
+@pytest.mark.parametrize('values',[{'minutes_1':'0','seconds_1':'0'},{'minutes_1':'1','seconds_1':'bad'},{'weight_0':'-1'},{'weight_0':'NaN'}])
 def test_invalid_manual_entry_rolls_back_and_keeps_current_draft(phase4_root,values):
     """Invalid form data cannot leave a partial historical completion."""
     with database_session(phase4_root,write=True) as db:

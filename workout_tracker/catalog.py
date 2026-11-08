@@ -110,13 +110,46 @@ def update_person(connection, identity, name, action):
         raise ValidationError("Unknown person action.")
 
 
-def create_definition(connection, person_id, name):
-    """Create a permanent library ID; person_id records registration provenance."""
+def create_definition(connection, person_id, name, values=None):
+    """Validate a global preset before inserting its identity and defaults together.
+
+    person_id records provenance, not ownership. The caller owns the transaction;
+    schema-7 inputs are validated before the first write so a rejected preset
+    cannot leave an identity missing its required default row.
+    """
     person(connection, person_id)
+    configuration=(configure(values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
+                   if connection.execute('PRAGMA user_version').fetchone()[0]>=7 else None)
     identity = uuid4().hex
     connection.execute("INSERT INTO exercises(id,person_id,name) VALUES (?,?,?)",
                        (identity, person_id, unique_name(connection, person_id, name)))
+    if configuration is not None:
+        connection.execute('INSERT INTO exercise_defaults VALUES (?,?,?,?,?,?,?,?)',(identity,*configuration))
     return identity
+
+
+def exercise_defaults(connection,person_id,identity):
+    """Read a shared preset; never derive another person's recorded performance."""
+    if connection.execute('PRAGMA user_version').fetchone()[0]<7:
+        raise ValidationError('Library defaults require explicit schema-7 migration.')
+    definition(connection,person_id,identity)
+    row=connection.execute('SELECT * FROM exercise_defaults WHERE exercise_id=?',(identity,)).fetchone()
+    if row is None:raise ValidationError('Library defaults require schema 7.')
+    return row
+
+
+def update_defaults(connection,person_id,identity,values):
+    """Validate and change only global defaults; existing routines stay independent."""
+    exercise_defaults(connection,person_id,identity)
+    configuration=configure(values)
+    connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE exercise_id=?',(*configuration,identity))
+
+
+def default_values(row):
+    """Convert a stored preset into the same validated inputs routine editing uses."""
+    result=dict(row);duration=row['target_duration_seconds']
+    if duration is not None:result.update(minutes=duration//60,seconds=duration%60)
+    return result
 
 
 def update_definition(connection, person_id, identity, name, action):
@@ -160,17 +193,17 @@ def configure(values):
     if len(notes) > 2000:
         raise ValidationError("Notes must contain at most 2000 characters.")
     if kind == "weight":
+        if values.get("unit","lb")!="lb":raise ValidationError("Weight unit must be pounds (lb).")
         reps = integer(values.get("target_reps", ""), "Target reps", 1, 10000)
         meaning = str(values.get("weight_meaning", "")).strip()
         if len(meaning) > 200:
             raise ValidationError("Weight meaning must contain at most 200 characters.")
         return kind, sets, reps, None, "lb", meaning, notes
     if kind == "time":
-        minutes = integer(values.get("minutes", ""), "Minutes", 0, 5999)
-        seconds = integer(values.get("seconds", ""), "Seconds", 0, 59)
-        duration = minutes * 60 + seconds
-        if duration == 0:
-            raise ValidationError("Target duration must be greater than zero.")
+        from .durations import parse_duration
+        try:duration=parse_duration(values.get('minutes',''),values.get('seconds',''),359999)
+        except ValueError as error:raise ValidationError(str(error)) from error
+        if duration is None:raise ValidationError('Specify a positive target duration.')
         return kind, sets, None, duration, None, "", notes
     raise ValidationError("Choose Weight or Time.")
 
@@ -178,12 +211,14 @@ def configure(values):
 def add_entry(connection, person_id, routine_id, values):
     """Add a configuration linked to an existing or newly created permanent exercise."""
     routine(connection, person_id, routine_id)
-    configuration = configure(values)
     exercise_id = values.get("exercise_id")
+    if exercise_id and values.get("use_library_defaults")=="yes":
+        values=default_values(exercise_defaults(connection,person_id,exercise_id))
+    configuration = configure(values)
     if exercise_id:
         definition(connection, person_id, exercise_id)
     else:
-        exercise_id = create_definition(connection, person_id, values.get("name"))
+        exercise_id = create_definition(connection, person_id, values.get("name"), values)
     identity = uuid4().hex
     position = connection.execute(
         "SELECT coalesce(max(position),-1)+1 FROM routine_exercises WHERE routine_id=?", (routine_id,)

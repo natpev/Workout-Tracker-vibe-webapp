@@ -51,10 +51,14 @@ def _upgrade_candidate(connection, target_version=2):
             from .library_schema import upgrade_library
             upgrade_library(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (5, 'shared_exercise_library')")
-        if target_version == 6:
+        if current < 6 and target_version >= 6:
             from .deletion_schema import upgrade_deletion
             upgrade_deletion(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (6, 'permanent_deletion')")
+        if current < 7 and target_version >= 7:
+            from .defaults_schema import upgrade_defaults
+            upgrade_defaults(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (7, 'exercise_defaults')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -80,7 +84,7 @@ def _migrate_storage(value, target_version=2):
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5, 6) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6, 7) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -115,6 +119,8 @@ def _migrate_storage(value, target_version=2):
                     existing += list(WORKOUT_TABLES)
                 if source["schema_version"] >= 4:
                     existing += list(HISTORY_TABLES)
+                if source['schema_version'] >= 7:
+                    existing.append('exercise_defaults')
                 for name in existing:
                     before = source_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
                     after = target_connection.execute(f"SELECT * FROM {name} ORDER BY 1").fetchall()
@@ -189,7 +195,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5, 6) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6, 7) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 

@@ -59,7 +59,7 @@ def check_storage(data_root):
 @main.command("migrate-storage")
 @click.option("--data-root", required=True, type=click.Path(path_type=str))
 @click.option("--confirm-upgrade", is_flag=True)
-@click.option("--target-version", type=click.Choice(["2", "3", "4", "5", "6"]), default="3", show_default=True)
+@click.option("--target-version", type=click.Choice(["2", "3", "4", "5", "6", "7"]), default="3", show_default=True)
 def migrate(data_root, confirm_upgrade, target_version):
     """Copy and upgrade a known schema to the requested target, never the original."""
     from .migrations import migrate_storage

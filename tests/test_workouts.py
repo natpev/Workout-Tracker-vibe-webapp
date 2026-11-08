@@ -50,9 +50,9 @@ def test_duration_conversion(minutes, seconds, expected):
     assert w.duration_seconds(minutes, seconds) == expected
 
 
-@pytest.mark.parametrize('minutes,seconds', [('0','0'),('','1'),('1',''),('-1','1'),('1','60'),('1','1.5'),('x','0')])
+@pytest.mark.parametrize('minutes,seconds', [('0','0'),('-1',''),('','-1'),('-1','1'),('1','-60'),('1','1.5'),('x','0')])
 def test_duration_partial_zero_and_invalid(minutes, seconds):
-    """Partially blank, zero and malformed durations must never become skips."""
+    """Negative, zero and malformed durations must never become skips."""
     with pytest.raises(c.ValidationError):
         w.duration_seconds(minutes, seconds)
 
@@ -118,7 +118,7 @@ def test_failed_later_update_keeps_previous_commit(phase3_root):
     with pytest.raises(c.ValidationError):
         with database_session(phase3_root,write=True) as db:
             payload=data(db,a,identity)
-            payload.update(entry_id=w.entries(db,a,identity)[1]['id'],minutes='1',seconds='')
+            payload.update(entry_id=w.entries(db,a,identity)[1]['id'],minutes='1',seconds='bad')
             w.update(db,a,identity,payload)
     with database_session(phase3_root) as db:
         assert w.entries(db,a,identity)[0]['actual_weight_tenths_lb']==425
@@ -194,7 +194,7 @@ def test_previous_history_never_mixes_tracking_types_or_users(phase3_root):
         third,_=w.start(db,a,r,'UTC')
         row=w.entries(db,a,third)[0]
         prior,performed=w.previous(db,a,w.session(db,a,third),row)
-        assert w.display_measurement(prior)=='0:01' and performed['increase_next_time']==1
+        assert w.display_measurement(prior)=='00:01' and performed['increase_next_time']==1
         assert w.entries(db,a,identity)[0]['actual_weight_tenths_lb']==0
         assert w.entries(db,a,identity)[0]['measurement_type']=='weight'
         with pytest.raises(c.MissingRecord):

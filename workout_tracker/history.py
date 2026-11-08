@@ -305,6 +305,11 @@ def correct(db, person_id, identity, values):
     if values.get('correction_revision')!=str(parent['correction_revision']):
         raise w.RevisionConflict('This workout was corrected in another page. Reload before applying changes.')
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),parent['timezone'],w.field(values,'fold'))
+    # The UI edits clock minutes only. An unchanged displayed minute must not
+    # erase original seconds/microseconds during a measurement-only correction.
+    if len(w.field(values,'workout_time'))==5 and day==parent['workout_date'] and clock and parent['workout_time'] and clock[:5]==parent['workout_time'][:5] and stamp and parent['occurred_at']:
+        if datetime.fromisoformat(stamp).replace(second=0,microsecond=0)==datetime.fromisoformat(parent['occurred_at']).replace(second=0,microsecond=0):
+            clock,stamp=parent['workout_time'],parent['occurred_at']
     same_instant = (stamp is None and parent['occurred_at'] is None) or (stamp is not None and parent['occurred_at'] is not None and datetime.fromisoformat(stamp).replace(microsecond=0)==datetime.fromisoformat(parent['occurred_at']).replace(microsecond=0))
     if day==parent['workout_date'] and clock==parent['workout_time'] and same_instant:
         # Preserve native fractional seconds only when the chosen instant is
