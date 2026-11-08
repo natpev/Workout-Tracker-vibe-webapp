@@ -133,7 +133,7 @@ def dashboard(person_id):
 
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
 def exercises(person_id):
-    """Manage a person's reusable exercise names independently of routine settings."""
+    """Manage the shared library; routine targets and historical names stay separate."""
     with connection(write=request.method == "POST") as db:
         selected = catalog.person(db, person_id)
         if request.method == "POST":
@@ -144,8 +144,7 @@ def exercises(person_id):
                     confirmation()
                 catalog.update_definition(db, person_id, request.form.get("exercise_id"),
                                           request.form.get("name"), request.form.get("action"))
-        rows = db.execute("SELECT * FROM exercises WHERE person_id=? AND archived=0 ORDER BY name,id",
-                          (person_id,)).fetchall()
+        rows = catalog.definitions(db, person_id)
     if request.method == "POST":
         return redirect(url_for("manage.exercises", person_id=person_id), code=303)
     return render_template("exercises.html", person=selected, exercises=rows)
@@ -178,8 +177,7 @@ def edit_routine(person_id, routine_id):
         else:
             rows = db.execute("SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id "
                               "WHERE re.routine_id=? ORDER BY re.position", (routine_id,)).fetchall()
-            definitions = db.execute("SELECT * FROM exercises WHERE person_id=? AND archived=0 ORDER BY name,id",
-                                     (person_id,)).fetchall()
+            definitions = catalog.definitions(db, person_id)
             revision = routine_token(db, person_id, routine_id)
             version = db.execute("PRAGMA user_version").fetchone()[0]
             from .workouts import active

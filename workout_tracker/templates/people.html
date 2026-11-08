@@ -9,7 +9,7 @@
 <div class="menu-wrap"><button type="button" class="icon-button secondary" data-menu-button aria-label="Menu for {{ row.name }}" aria-expanded="false" aria-controls="person-menu-{{ row.id }}">☰</button><div class="menu-panel" id="person-menu-{{ row.id }}" hidden>
 {% if not row.archived %}<a href="{{ url_for('manage.dashboard',person_id=row.id,manage=1) }}">Manage routines</a>{% endif %}
 <a href="{{ url_for('history.index',person_id=row.id) }}">History for {{ row.name }}</a><a href="{{ url_for('history.progress',person_id=row.id) }}">Progress for {{ row.name }}</a>
-{% if not row.archived %}<a href="{{ url_for('manage.exercises',person_id=row.id) }}">Exercise names</a>{% endif %}
+{% if not row.archived %}<a href="{{ url_for('manage.exercises',person_id=row.id) }}">Exercise Library</a>{% endif %}
 <a href="{{ url_for('settings.index',person_id=row.id) }}">Person appearance</a>
 <form method="post" action="{{ url_for('manage.manage_person',person_id=row.id) }}">{{ security() }}<input type="hidden" name="action" value="rename"><label>Rename {{ row.name }}<input name="name" value="{{ row.name }}" maxlength="100" required></label><button>Save name</button></form>
 <form method="post" action="{{ url_for('manage.manage_person',person_id=row.id) }}">{{ security() }}{% if row.archived %}<button name="action" value="reactivate">Reactivate person</button>{% else %}<label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required>Archive this person and keep their records</label><button class="secondary" name="action" value="archive">Archive person</button>{% endif %}</form>

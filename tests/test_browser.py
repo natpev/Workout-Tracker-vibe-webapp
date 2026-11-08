@@ -162,7 +162,7 @@ def test_management_workflow_modes_order_copy_and_phone_layout(management_page):
     expect(page.get_by_role("heading", name="Independent", exact=True)).to_be_visible()
     expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
     page.get_by_role("button",name="Open navigation",exact=True).click()
-    page.get_by_role("link", name="Exercise names", exact=True).click()
+    page.get_by_role("link", name="Exercise Library", exact=True).click()
     rename_form = page.locator("form").filter(has=page.locator('input[name="name"][value="Bench"]'))
     rename_form.get_by_label("Exercise name", exact=True).fill("Copy bench")
     rename_form.get_by_role("button", name="Rename exercise").click()

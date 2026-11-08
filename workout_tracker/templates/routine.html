@@ -21,7 +21,7 @@
 </section>{% else %}<p>This routine has no exercises yet.</p>{% endfor %}
 <section><h3>Add exercise</h3>
 <form method="post" data-configuration>{{ security(revision) }}<input type="hidden" name="action" value="add">
-<label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id"><option value="">Create a new exercise name</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }}</option>{% endfor %}</select>
+<label for="exercise-identity">Reuse an exercise name</label><select id="exercise-identity" name="exercise_id"><option value="">Create a new exercise name</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }} · {{ exercise.id }}</option>{% endfor %}</select>
 <label>New exercise name (when not reusing) <input name="name" maxlength="100"></label>
 {{ configuration() }}<button>Add exercise</button>
 </form></section>

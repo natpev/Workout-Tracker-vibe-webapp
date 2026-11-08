@@ -15,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.7.0"
 
 
 def create_app(test_config=None):
@@ -63,6 +63,19 @@ def create_app(test_config=None):
             emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker stopped")
     if not app.testing:
         atexit.register(shutdown_event)
+
+    @app.context_processor
+    def version_information():
+        """Read active schema for display; report unavailable rather than guessing.
+
+        A failed recovery page must remain usable even if its selected database
+        is damaged. Version strings have one application source of truth.
+        """
+        try:
+            schema = inspect_storage(app.config['WORKOUT_DATA_ROOT'])['schema_version']
+        except StorageError:
+            schema = 'Unavailable'
+        return dict(application_version=APP_VERSION, active_schema_version=schema)
 
     @app.context_processor
     def appearance_helpers():

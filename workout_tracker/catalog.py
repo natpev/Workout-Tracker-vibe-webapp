@@ -56,12 +56,37 @@ def routine(connection, person_id, routine_id):
     return row
 
 
-def definition(connection, person_id, exercise_id):
-    """Read only an active exercise definition owned by the selected person."""
+def shared_library(connection):
+    """Read the actual schema; legacy schemas retain their original ownership rules."""
+    return connection.execute("PRAGMA user_version").fetchone()[0] >= 5
+
+
+def definitions(connection, person_id):
+    """List selectable IDs globally on schema 5, or locally on retained old schemas."""
     person(connection, person_id)
-    row = connection.execute(
-        "SELECT * FROM exercises WHERE id=? AND person_id=? AND archived=0", (exercise_id, person_id)
-    ).fetchone()
+    clause, args = ("", ()) if shared_library(connection) else (" AND person_id=?", (person_id,))
+    return connection.execute("SELECT * FROM exercises WHERE archived=0" + clause + " ORDER BY name COLLATE NOCASE,id", args).fetchall()
+
+
+def unique_name(connection, person_id, name, excluding=None):
+    """Prevent new case-insensitive duplicates, without merging old identities.
+
+    Python casefold handles Unicode names; archived definitions also reserve a
+    name. Existing migrated duplicates stay separately selectable by permanent ID.
+    """
+    name = text(name, "Exercise name")
+    if shared_library(connection):
+        for row in connection.execute("SELECT id,name FROM exercises"):
+            if row['id'] != excluding and row['name'].casefold() == name.casefold():
+                raise ValidationError("This exercise name is already registered. Select its existing library entry or choose a distinct name.")
+    return name
+
+
+def definition(connection, person_id, exercise_id):
+    """Read a shared active identity; old schemas still enforce local ownership."""
+    person(connection, person_id)
+    clause, args = ("", (exercise_id,)) if shared_library(connection) else (" AND person_id=?", (exercise_id, person_id))
+    row = connection.execute("SELECT * FROM exercises WHERE id=? AND archived=0" + clause, args).fetchone()
     if row is None:
         raise MissingRecord("Exercise not found for this person.")
     return row
@@ -86,11 +111,11 @@ def update_person(connection, identity, name, action):
 
 
 def create_definition(connection, person_id, name):
-    """Create a permanent person-owned exercise, with no historical data."""
+    """Create a permanent library ID; person_id records registration provenance."""
     person(connection, person_id)
     identity = uuid4().hex
     connection.execute("INSERT INTO exercises(id,person_id,name) VALUES (?,?,?)",
-                       (identity, person_id, text(name, "Exercise name")))
+                       (identity, person_id, unique_name(connection, person_id, name)))
     return identity
 
 
@@ -98,15 +123,15 @@ def update_definition(connection, person_id, identity, name, action):
     """Rename everywhere this identity is reused; archive without cascading deletes."""
     definition(connection, person_id, identity)
     if action == "rename":
-        connection.execute("UPDATE exercises SET name=? WHERE id=? AND person_id=?",
-                           (text(name, "Exercise name"), identity, person_id))
+        connection.execute("UPDATE exercises SET name=? WHERE id=?",
+                           (unique_name(connection, person_id, name, identity), identity))
     elif action == "archive":
         used = connection.execute(
             "SELECT 1 FROM routine_exercises re JOIN routines r ON r.id=re.routine_id "
             "WHERE re.exercise_id=? AND r.archived=0 LIMIT 1", (identity,)).fetchone()
         if used:
             raise ValidationError("Remove this exercise from active routines before archiving it.")
-        connection.execute("UPDATE exercises SET archived=1 WHERE id=? AND person_id=?", (identity, person_id))
+        connection.execute("UPDATE exercises SET archived=1 WHERE id=?", (identity,))
     else:
         raise ValidationError("Unknown exercise action.")
 
@@ -226,11 +251,10 @@ def move(connection, table, owner_column, owner_id, identity, direction):
 
 
 def copy_routine(connection, source_person, source_id, destination_person, name):
-    """Copy definitions/settings only; create fresh routine/item/exercise identities.
+    """Copy settings into fresh routine/items; schema 5 reuses global exercise IDs.
 
-    A map preserves repeated exercise identity within the copy while sharing
-    nothing with the source. There are no workout/result/indicator columns to
-    copy. The caller's one transaction rolls back every inserted row on failure.
+    No results, drafts or recommendations are copied. Older schemas retain their
+    local definition copy behavior. Caller commits or rolls back the whole copy.
     """
     routine(connection, source_person, source_id)
     person(connection, destination_person)
@@ -241,7 +265,8 @@ def copy_routine(connection, source_person, source_id, destination_person, name)
         "WHERE re.routine_id=? ORDER BY re.position", (source_id,)).fetchall()
     for row in rows:
         if row["exercise_id"] not in definitions:
-            definitions[row["exercise_id"]] = create_definition(connection, destination_person, row["name"])
+            definitions[row["exercise_id"]] = (row["exercise_id"] if shared_library(connection)
+                else create_definition(connection, destination_person, row["name"]))
         duration = row["target_duration_seconds"] or 0
         add_entry(connection, destination_person, new_routine, {
             "exercise_id": definitions[row["exercise_id"]], "measurement_type": row["measurement_type"],

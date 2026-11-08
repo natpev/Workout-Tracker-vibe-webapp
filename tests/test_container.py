@@ -328,7 +328,7 @@ def test_scheduler_long_running_service_needs_no_browser_and_stops_cleanly(phase
 
 
 def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypatch):
-    """Exercise README's parent mount, schema-4 CLI and both real Compose services.
+    """Exercise parent bootstrap, schema-4 compatibility, explicit upgrade to 5 and Compose.
 
     Paths are temporary. A test-only override removes ports and networking;
     production bind addresses are checked separately without exposing anything.
@@ -388,7 +388,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
                 if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
                 time.sleep(.2)
             docker(*isolated,'exec','-T','web','python','-c',
-                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.6.0',schema_version=4)")
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.7.0',schema_version=4)")
             for identity in ids.values():
                 inspected=json.loads(docker('inspect',identity).stdout)[0]
                 assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'
@@ -414,6 +414,26 @@ assert b'Installation fixture' in page
                 docker(*isolated,'exec','-T','web','python','-c',"import urllib.request; assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
                 assert storage_bytes(root)==retained
             docker(*isolated,'stop')
+        # Existing installed schema 4 upgrades explicitly with both writers
+        # stopped. Verify source bytes, candidate selection and container versions.
+        old_selection=json.loads((root/'config'/'active.json').read_text())
+        original=root/'data'/old_selection['database'];original_bytes=original.read_bytes()
+        docker(*isolated,'run','--rm','--no-deps','web','python','-m','workout_tracker','migrate-storage',
+               '--data-root','/var/lib/workout-tracker','--confirm-upgrade','--target-version','5')
+        assert original.read_bytes()==original_bytes
+        assert json.loads((root/'config'/'active.json').read_text())!=old_selection
+        checked=docker(*isolated,'run','--rm','--no-deps','web','python','-m','workout_tracker','check-storage','--data-root','/var/lib/workout-tracker')
+        assert 'schema version 5' in checked.stdout
+        docker(*isolated,'up','-d','--no-build')
+        deadline=time.monotonic()+45
+        while True:
+            identity=docker(*isolated,'ps','-q','web').stdout.strip()
+            if json.loads(docker('inspect',identity).stdout)[0]['State']['Health']['Status']=='healthy': break
+            if time.monotonic()>=deadline: pytest.fail('Upgraded schema-5 Compose service did not become healthy')
+            time.sleep(.2)
+        docker(*isolated,'exec','-T','web','python','-c',
+               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.7.0',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+        docker(*isolated,'stop')
         assert any('Scheduler process started' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
     finally:
         docker(*isolated,'down',check=False)
