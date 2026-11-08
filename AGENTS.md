@@ -5,7 +5,7 @@ AGENTS.md — Workout Tracker
 Read this first
 
 • PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Current status: Phases 1–6 are completed and approved. The user authorizes final Phase 6 verification, approval documentation, full regression testing, fast-forward merge into main, remote verification and cleanup of the fully merged feature branch. Stop afterward; no additional development phase, actual deployment/server access, live data operations, Compose/.env changes on the server, networking changes or authentication is authorized.
+• Current status: Phases 1–6 are completed and approved. Phase 7 is authorized on phase-7-shared-exercise-library only: global Exercise Library, shared IDs with independent person histories, named routine copies reusing IDs, explicit candidate schema 5, version display and documentation/tests. Push and open a PR for review; do not merge, deploy, access the server/live data or start another phase.
 • Phases 1–4 remain intact. Phase 5 keeps schema 4 unchanged; operations settings/backup history/restore audit use private external atomic JSON and logs use private daily JSONL. The scheduler is a separate process, disabled until Settings explicitly enables it. All backup/restore/config writes coordinate with the existing storage-root lock. Log writes use a separate logs lock and must not prevent workout commits.
 • Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
 • The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
@@ -33,7 +33,7 @@ People, routines, exercises
 
 • Phase 6 replaces the original expanded People layout with person-selection cards and separate accessible action menus. Open app → People → routine selection → Start workout; editing is secondary. Do not automatically select a previous person or add account-style tabs. No login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
 • Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including sets and target reps (Weight) or target duration per set (Time), selected with a segmented Weight/Time control.
-• A routine may be copied from a different user or duplicated within the same user. The result is an independent snapshot, not a shared/live link. Do not copy weight/history/increase state.
+• A routine may be copied from a different user or duplicated within the same user. On schema 5 the new routine/settings are independent; its permanent global exercise IDs are deliberately shared. Retained schemas 2–4 keep their earlier local-identity behavior. Do not copy weight/history/increase state.
 • Historical workouts must retain exercise name, order, measurement type, prescribed sets/reps or duration, and results even after routine editing or deletion.
 
 Workout entry
@@ -81,7 +81,7 @@ Settings, diagnostics, security
 
 • Settings includes a read-only log viewer: text search, severity and category/date filters, refresh, expandable error details, configurable retention (suggested default 30 days). Log meaningful app, workout-save, backup, integrity, migration, scheduler, and exception events, without noisy sensitive data dumps.
 • Keep logs and backup schedules/settings persistent, separate from replaceable containers. Never expose paths that allow arbitrary file reads or writes.
-• Restore accepts only server-listed verified backups of the same storage identity and exact current schema (2–4); no silent downgrade. Preserve a present damaged active file only on explicit recovery with a valid manifest; refuse missing files/identity or readable newer/foreign storage. Never replay interrupted maintenance tokens. Forms are bound to the selected dataset and checked again inside the write lock.
+• Restore accepts only server-listed verified backups of the same storage identity and exact current schema (2–5); no silent downgrade. Preserve a present damaged active file only on explicit recovery with a valid manifest; refuse missing files/identity or readable newer/foreign storage. Never replay interrupted maintenance tokens. Forms are bound to the selected dataset and checked again inside the write lock.
 • No public-facing bind by default. LAN-only without passwords means LAN users can see and alter shared household data; document this. If remote access is added later, revisit authentication, HTTPS, rate limiting, and access controls before enabling it.
 • Standard web safeguards still apply: server-side ownership checks (even though selector has no auth), CSRF protection on mutating forms, escaping, input validation, least-privilege file access, and safe backup/restore path handling.
 
@@ -92,3 +92,13 @@ Tests, review, and working style
 • Before changes to schema, data storage, backup, restore, or session completion, explain the risk, data path, validation, and rollback approach.
 • Make changes in small reviewable phases/branches/PRs. Record test results and limitations; never silently deploy to the live home server.
 • Update PROJECT_SPEC.md when the user approves new requirements. Keep undecided implementation details in its “Open decisions” section rather than deciding unasked.
+
+
+Phase 7 shared-library contract
+
+• Schema 5 uses global exercises with immutable IDs. exercises.person_id is retained registration provenance only, never an ownership filter. Preserve every old ID, name, archive flag and provenance; matching names from old schemas remain distinct. New registrations/renames reject casefolded duplicate names, including archived definitions; display IDs to distinguish legacy duplicates.
+• All active people can select/rename library definitions. Archive checks active routine references across the entire household, including archived people. Historical names/configuration remain immutable. Routine ownership and workout/history/chart ownership remain person-specific.
+• Named copies get new routine/item IDs but reuse global exercise IDs. Never copy measurements/drafts/flags. Previous performance matches person + exercise + type + unit + weight meaning across routines, with effective corrections and chronology.
+• Candidate schema 5 changes only three exercise reference constraints. Rebuild only candidate tables with exact cell copying and reinstall identical immutable triggers before validation/activation; no application connections can see this intermediate state. Preserve source bytes and old manifests; verify all original tables, NULLs, logical snapshots/audits, exact DDL/integrity/FKs. Explicit --target-version 5 only; startup never upgrades.
+• App version 0.7.0 follows semantic versioning; database version increments only for persistent schema changes. Footer and Settings obtain the active schema dynamically and application version from APP_VERSION, never duplicated template constants. No visible repeated AI banner.
+• Existing schema-4 operators must explicitly upgrade once; an updater recognizing only 4 must be revised to require confirmed candidate migration to 5. See PHASE_7_REVIEW.md; do not assume access to /root/WorkoutTracker or its update script.

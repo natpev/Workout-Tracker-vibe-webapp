@@ -4,20 +4,14 @@
 
 ## Current state and authorization
 
-Phase 1, this design and Phase 2 are reviewed and approved. Phase 2 implements people, permanent
-exercise definitions and the typed routine editor, plus the minimal safe
-schema-1 → schema-2 migration prerequisite. Phase 3 is reviewed, approved and
-merged into main, including typed workout entry, snapshots, server drafts,
-recovery, previous performance, atomic completion/discard and candidate schema 3.
-Phase 4 is completed and approved for inclusion in main:
-history, local SVG charts, independent historical completion and append-only
-correction revisions. Phases 1–5 are completed and approved for main, including
-Phase 5 verified backups, deliberate restore, separate scheduling and persistent
-safe logs. No schema-5 change is needed. Phase 6 mobile UI/UX redesign is completed and approved for main, following
-final regression verification and fast-forward merge. No actual deployment,
-live database operation or additional development phase is authorized. No deployment or production data access is authorized. See PHASE_3_REVIEW.md.
-The validation record at the end describing the earlier documentation branch
-is historical, not the current implementation result.
+Phases 1–6 are completed, approved and merged into main. Their typed measurements,
+server drafts, history/charts, append-only corrections, recovery/scheduling/logs
+and mobile interface remain intact. Phase 7 is authorized on
+`phase-7-shared-exercise-library` for shared exercise identities, named routine
+copies reusing IDs, schema-5 candidate migration and version displays. Push and
+open a PR for review; no merge, deployment or live-data access is authorized.
+Historical implementation evidence remains in the phase review documents; the
+current upgrade and validation record is PHASE_7_REVIEW.md.
 
 ## Interface and significant data flows
 
@@ -229,3 +223,16 @@ transaction to preserve a resumable draft. Autosave/navigation/exit still wait f
 server acknowledgment, with visible failure and stale-tab protection. Person
 accent/theme changes are presentation only: private external preferences do not
 modify SQL, prescriptions, snapshots or audits and need no schema migration.
+
+
+## Phase 7 global identity, unchanged measurement semantics
+
+Schema 5 shares permanent exercise IDs across people and copied routines. Legacy
+person_id on definitions is retained registration provenance, not ownership.
+History/previous-performance/charts still filter by person, global exercise ID,
+measurement type, unit and weight meaning; matching crosses routines. Renames
+never rewrite saved snapshots. Candidate migration preserves all exact integer,
+NULL, flag, prescription and audit values. Copies share only definition IDs;
+targets/notes/order are independent and results/drafts are never copied. Schema-4
+backups cannot silently restore over schema 5; use explicit same-schema recovery.
+See PHASE_7_REVIEW.md for candidate migration and installation instructions.

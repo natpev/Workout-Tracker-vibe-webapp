@@ -2,8 +2,10 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Documentation and disposable checks do not constitute a real-server deployment or an independent audit.
 
-> Historical record: this verifies the pre-redesign 0.5.0 installation. Current
+> Historical record: this verifies the pre-redesign 0.5.0 installation. Phase 6
 > mobile UX/version 0.6.0 evidence is in [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md).
+
+> Current Phase 7 application 0.7.0 / schema 5 verification is in [PHASE_7_REVIEW.md](PHASE_7_REVIEW.md); the original record below remains historical.
 
 ## Authorized scope
 
@@ -126,3 +128,13 @@ Additional verification:
   backups, synchronous locked maintenance, explicit migration and retained failed
   evidence. Restore rehearsal must use disposable data. No application behavior
   or safety protections were relaxed by this guide.
+
+
+## Phase 7 upgrade addendum
+
+Application 0.7.0 targets schema 5; the installation evidence above is historical,
+not an instruction to keep the active database at schema 4. See
+[PHASE_7_REVIEW.md](PHASE_7_REVIEW.md) for the confirmed candidate migration,
+exact installed /root/WorkoutTracker paths, updated schema-4-only updater
+requirements and current automated verification. No live installation or updater
+was accessed. Existing schema-4 source files and old backups must be retained.

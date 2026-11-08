@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–6 and the installation guide are completed and approved for main. Phase 6 is approved for final verification, fast-forward merge and verified branch cleanup. Stop afterward; no additional phase, actual deployment/server access, live database operations or Compose port/network changes are authorized.
-**Current scope:** existing management/tracking/history plus Settings, verified backups, deliberate candidate restore, dedicated scheduling and persistent diagnostics. Workout schema remains 4; operations settings/audits use external private JSON and logs use daily private JSONL.
+**Project status:** Phases 1–6 are completed and approved. Phase 7 is authorized for implementation and PR review on phase-7-shared-exercise-library; no merge or deployment is authorized.
+**Current scope:** application 0.7.0 / schema 5 adds a shared household Exercise Library and ID-preserving named routine copies. Person-owned routines, drafts, history, charts, corrections and recovery remain intact. Only explicit confirmed candidate migration upgrades schema 4; operations state remains external.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -25,7 +25,7 @@
 - **Copy from user:** select a different user and a routine, create an independent copy of the routine definition. No persistent link between copies; no copied logged weights, increase flags, or workout history.
 - **Duplicate own routine:** same independence behavior for a copy within one user.
 - Modifying/deleting a routine must never rewrite or remove already completed workout history.
-- Maintain permanent, person-owned exercise identities; historical snapshots survive edits/removal. Optional exercise notes are included. Archive users who have workout history.
+- Maintain permanent, global exercise identities; historical snapshots survive edits/removal. Optional exercise notes are included. Archive users who have workout history.
 
 ## 3. Everyday workflow: agreed behavior
 
@@ -102,12 +102,12 @@
 - Theme options: **Auto** (follow phone/computer appearance, the default), **Light**, **Dark**, with a manual override stored for that device/browser rather than changing the theme unexpectedly on another device.
 - Phone primarily for workout entry; PC primarily for routine editing, history tables and charts, but both should remain usable everywhere.
 
-## 6. Data model (schema 4 adds history without modifying schema-3 objects)
+## 6. Data model (schema 5 shares exercise identities)
 
 - **Users (`people`)** — permanent UUID, display name, archive flag. Phase 2 always archives rather than deletes people, preserving records whether or not history exists.
-- **Exercises (`exercises`)** — permanent person-owned UUIDs, names and archive status, independent of future historical snapshots. Renaming a reused identity updates this person’s routine displays; independent copies receive new identities.
+- **Exercises (`exercises`)** — permanent global UUIDs, names and archive status. person_id retains original registration provenance only. Renaming updates current displays across people; historical snapshots retain their names. Copies reuse IDs. Legacy matching names are not merged.
 - **Routines (`routines`)** — permanent UUID, owner, name, archive status and ordering. Delete removes from active lists by archiving, never reuses an identity.
-- **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite foreign keys enforce matching ownership. Type is selected on the routine exercise, not inferred from its name.
+- **Routine exercises (`routine_exercises`)** — ordered permanent exercise references, measurement type (`weight` or `time`), positive target sets, mutually exclusive target reps or integer target-duration seconds, optional notes/weight-meaning labels, and pounds for Weight (NULL unit for Time). Composite routine/session foreign keys enforce person ownership; schema 5 exercise foreign keys reference the global exercise ID alone. Type is selected on the routine exercise, not inferred from its name.
 - **Workout sessions (`workout_sessions`)** — permanent ID, person/routine ownership, routine-name snapshot, UTC started/updated/finished/discarded timestamps, workout date, IANA timezone, draft/completed/discarded status, revision, snapshot entry count and current position. A unique partial index permits only one draft per person.
 - **Workout entries (`workout_entries`)** — ordered per-exercise snapshot (name, sets/reps, equipment/weight meaning), separate nullable integer **actual_weight_tenths_lb** (tenths of a pound, including valid 0) and integer **actual_duration_seconds** (minimum 1 when non-NULL), snapshotted measurement type, sets, reps or duration target, nullable/non-applicable increase flag, optional notes. Only the applicable actual measurement may be non-NULL; both are NULL for a skip. Routine edits do not change snapshots. Completed/discarded entry updates and entry deletion are blocked by schema-3 triggers; Phase 4 corrections append separate revisions and never disable those triggers.
 - **Backup/scheduler metadata** — settings and run status persist independently of code deployment; avoid coupling fragile critical state to a DB migration.
@@ -125,7 +125,7 @@ The final SQL must enforce referential integrity, preserve past sessions when a 
 
 Integrity verification should include `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, expected schema version, and key data counts/relationships. Never silently create a blank DB if an existing database is broken. Plan for SQLite journal/WAL handling, open connections, and an atomic active-DB switch. A code rollback after entering new workouts can lose visibility of those new workouts if pointed at an older DB: clearly disclose this and do not attempt automatic data merging.
 
-Suggested **host** directory organization (location/configurable path still undecided):
+Persistent **host** directory organization (configurable root; supplied installation paths are recorded in section 18):
 
 ```text
 workout-tracker-data/
@@ -168,17 +168,17 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 ## 11. Open design / implementation decisions (not yet approved)
 
-- Exact server operating system, Proxmox VM/container layout, binding LAN interface/port, and on-host storage paths.
+- Exact server operating system, Proxmox VM/container layout and binding LAN interface/port. Installed checkout/storage/updater paths were supplied with Phase 7 and are recorded in section 18.
 - Statistics are highest logged weight or longest logged duration in the selected date range, with separated exercise/type/unit/meaning. Any additional personal-record definitions and future product-specific upper bound remain undecided. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, require both minute/second parts, reject zero, and treat two blank parts as SQL NULL.
 - Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
 - Household backup frequency/time/zone must be explicitly configured; scheduling starts disabled. Phase 5 implements local calendar-day cadence, earlier fold, first valid gap minute, and at-most-one missed-run handling. On corruption, startup must refuse unsafe storage rather than replace it.
-- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–4, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
+- Restore confirmation and backup deletion are implemented. Restore requires checkbox plus typed RESTORE, accepts only the same storage identity and exact selected schema 2–5, and rejects silent older-schema recovery. Any future offline cross-version recovery workflow requires separate review.
 
 **Never treat these open decisions as permission to change the agreed core requirements.** Seek review where they materially affect data safety or the workout experience.
 
-## 12. Phased plan (Phases 1–6 completed and approved; further development requires authorization)
+## 12. Phased plan (Phases 1–6 completed and approved; Phase 7 authorized for review)
 
 1. **Foundation and Storage Safeguards:** Flask skeleton, Docker Compose, configuration, responsive theme, test harness, external durable paths, explicit first-install initialization, read-only compatibility checks. Only storage metadata tables; no workout tables or real data. Missing, unreadable, corrupt, or incompatible storage must fail safely. Ordinary startup never initializes, repairs, migrates, backs up, or overwrites storage.
 2. **People and routines:** person selection, permanent exercises, routine editing/ordering, Weight/Time segmented selector, sets plus type-specific targets and notes, independent copies; ownership, type/target validation, accessibility, and copy-isolation tests.
@@ -186,6 +186,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 4. **History (completed and approved):** charts/tables, manual past sessions, confirmed validated corrections, date ordering, pounds/time chart labels, typed previous-performance lookup, snapshot preservation after type/target edits, NULL exclusions, and user isolation tests.
 5. **Backups and recovery (completed and approved):** schema-versioned upgrade/copy/validation, manual/scheduled backups (disabled until configured), required safe restore UI, log viewer; corruption/interruption/DST and recovery tests, plus preservation of type, integer duration, weight, explicit zero weight, and all original NULL measurements. The minimum schema-1 → schema-2 migration was brought forward into Phase 2 as a safety prerequisite; full migration/recovery expansion remains here.
 6. **Mobile UI/UX redesign (completed and approved; no live deployment):** compact People/routine selection, tab-scoped workout focus/save-and-exit, compact one-exercise layout, Settings appearance, neutral themes and persistent person accents; actual screenshot and browser viewport testing. Further installation, real-world testing and final polish: responsive/accessibility review, regression/integration tests, README/operator documentation, disposable deployment/recovery rehearsals. Live deployment requires separate authorization.
+7. **Shared Exercise Library (authorized; pending PR review):** global IDs, independent person histories, named ID-preserving copies, candidate schema 5 and actual version displays. No merge/deployment authorization.
 
 Build in small, reviewed increments after explicit authorization. Never deploy silently.
 
@@ -215,8 +216,7 @@ limits, not decisions about future actual-measurement limits or precision.
 Switching mode clears incompatible stored fields. Native radio controls provide
 the segmented selector; numeric inputs configure sets/targets. Routines may be
 empty while being edited. An exercise definition cannot be archived while used
-by an active routine; remove it there first. Routine copying always creates new
-exercise identities, including duplication within the same person.
+by an active routine; remove it there first. On retained schemas 2–4, routine copying creates new exercise identities. Schema 5 deliberately supersedes that behavior: reuse global IDs for same-person and cross-person copies.
 
 Management POSTs require signed-session CSRF tokens, ownership checks, and server
 validation. Routine edit forms include a state fingerprint and reject stale
@@ -396,3 +396,47 @@ desktop 1280×900. Layout allows ordinary scrolling with enlarged text or a redu
 keyboard viewport rather than clipping controls. Real Chromium screenshots and
 coverage/limits are documented in PHASE_6_UX_REVIEW.md. No real iPhone/Safari or
 production deployment is implied by emulated browser checks.
+
+
+## 18. Phase 7 shared household Exercise Library
+
+Global Exercise Library → person-specific routines → person-specific history.
+New definitions are immediately selectable by all active people. Create/rename/archive
+through Exercise Library; current library names update every referencing routine,
+while workout snapshots are unchanged. Trim and casefold names to reject new
+accidental duplicates, including archived names; never merge existing matching
+names. Show permanent IDs in library and selectors to distinguish legacy duplicates.
+Archive is refused if any active routine across any person still references it.
+
+Copy requires a nonblank chosen name, new routine/item UUIDs and independent
+sets/reps/duration/unit/meaning/notes/order, but the same global exercise IDs.
+Neither history nor active drafts nor measurements/flags are copied. Compatible
+personal previous performance therefore follows the exercise across routines,
+not across people; matching also includes type, unit and weight meaning.
+
+Schema 4 → 5 preserves every existing table cell, exercise ID/provenance,
+relationship, draft, historical preparation, registry, snapshot and correction.
+The candidate-only migration rebuilds only routine_exercises, workout_entries and
+historical_entries to change exercise foreign keys from (ID, person) to global ID.
+All other DDL and immutable triggers remain identical. Candidate-only trigger
+reinstallation happens in the maintenance transaction, never on the original or
+an application connection. Full structure/integrity/FK/identity/migration-history,
+cell equality and logical history/audit checks precede atomic selection. Original
+files/manifests remain recoverable; failures retain the original selection.
+Restore requires the exact current schema and identity: schema-4 backups remain
+retained but cannot silently downgrade schema 5. No startup migration is allowed.
+
+Application version 0.7.0 uses semantic versioning (major.minor.patch). After
+1.0, breaking public-contract changes increment major, compatible features minor
+and compatible fixes patch. During 0.x, feature releases increment minor and
+compatible fixes patch; breaking changes need explicit release notes.
+Application and schema versions are independent. Increment schema only for
+persistent schema changes, not every release. Settings About and every page footer
+read APP_VERSION and the verified active database schema; unavailable storage is
+reported honestly. Footer is small, in document flow, with no repeated AI banner.
+
+The installed paths supplied by the user are /root/WorkoutTracker/app and
+/root/WorkoutTracker/data/storage; the updater is
+/root/WorkoutTracker/update_workout_tracker.sh. These are documentation context,
+not permission to access them. Exact upgrade and schema-4-only updater requirements
+are in PHASE_7_REVIEW.md. Do not merge or deploy before review.
