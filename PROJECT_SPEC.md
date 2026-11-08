@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–7 are approved on main; revised Phase 8 is implemented and verified (294 passing tests) on phase-8-lan-management-and-updates. The user authorizes merge/cleanup after verification; see PHASE_8_REVIEW.md for GitHub workflow status. No deployment/live-data operation or Phase 9 is authorized.
+**Project status:** Phases 1–8 are implemented and approved. Final recovery and selected-person corrections passed all 310 tests (zero failed/skipped); normal fast-forward merge/push/cleanup is authorized (direct Git is explicitly allowed if PR creation remains unavailable). No deployment/live-data operation or Phase 9 is authorized. See PHASE_8_REVIEW.md for final test and workflow evidence.
 **Current scope:** application 0.8.0 / schema 6 adds confirmed hard deletion, sticky selected-person context and passwordless LAN browser updates using an independent host worker. No administrator accounts, passwords, roles, user login, HTTPS, certificate provisioning or reverse proxy are allowed. Anyone who can reach the private LAN app may confirm updates/deletion; network isolation is the trust boundary.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
@@ -119,7 +119,7 @@ The final SQL must enforce referential integrity, preserve past sessions when a 
 
 **Three distinct operations:**
 
-1. **Normal code update without schema change:** replace/restart app code only. **No DB copy, backup, migration, replacement, or overwrite** is triggered by the update.
+1. **Ordinary code/container replacement without schema change:** replace/restart app code only. **No DB copy, backup, migration, replacement, or overwrite** occurs implicitly. The separately confirmed Phase 8 browser/v4 maintenance workflow explicitly includes a verified backup, even without migration.
 2. **Actual schema upgrade:** compare schema versions; stop new writes; safely snapshot old DB into a **new distinct versioned database**, migrate only the new one, verify both structural integrity and logical data equivalence; activate the new copy only after validation. Original remains intact and available. Failed upgrade leaves original active and displays/logs error. Major redesign may create new DB and import old data with the same safeguards.
 3. **Backup or restore:** triggered by a manual UI action or by the separately configured backup schedule; must never happen *merely* because code was updated.
 
@@ -528,3 +528,13 @@ The actual available v3 script was inspected. V4 is committed at
  deployment/update_workout_tracker_v4.sh; it dispatches to the installed shared
 host engine and explicitly installs/upgrades the service when requested. Initial
 SSH upgrade and recovery commands are in deployment/README.md and PHASE_8_REVIEW.md.
+
+
+Final Phase 8 corrections require all recovery inputs and a private manifest/hash/
+image/version record before shutdown. Reverify the same storage after shutdown;
+probe retained images read-only using the installation's writer UID/GID and require
+actual web/scheduler health before reporting recovery. Any incompatibility or
+unverified changed bytes/selection stops recovery without restoring older data.
+Settings backup/detail/delete/restore and filtered/paged logs preserve URL-selected
+person/accent; restore redirects to a read-only recorded result, making refresh
+safe. This remains navigation context, never authentication or a remembered account.

@@ -247,7 +247,7 @@ docker compose run --rm --no-deps web python -m workout_tracker check-storage \
   --data-root /var/lib/workout-tracker
 ```
 
-Expect `Schema 6 verified` / `Storage verified; schema version 5.` The migration
+Expect `Schema 6 verified` / `Storage verified; schema version 6.` The migration
 retains the schema-1 original, creates schema 6 in another file, provisions the
 private signing key, and atomically selects only a verified candidate. Do not
 omit `--target-version 6`: the CLI's backward-compatible default is **3**.
@@ -511,8 +511,8 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–7 are approved. Revised Phase 8 is implemented and verified on its feature
-branch, targeting **application 0.8.0 / schema 6** (294 tests passed):
+Phases 1–8 are completed and approved. Final Phase 8 verification passed **310
+tests (0 failed/skipped)**. Current release: **application 0.8.0 / schema 6**:
 permanent global exercise deletion, routine deletion retaining history, sticky
 selected-person context and passwordless trusted-LAN browser updates. No user
 accounts, administrator passwords, login, HTTPS/certificates or reverse proxy are
@@ -522,9 +522,9 @@ uses **http://10.0.69.9:8001/status** after explicit host installation.
 
 Read [PHASE_8_REVIEW.md](PHASE_8_REVIEW.md) and [deployment/README.md](deployment/README.md)
 for exact first-upgrade, one-time host service setup, v4 and recovery instructions.
-The feature is pushed but its required PR creation is blocked by GitHub API
-Forbidden; main remains Phase 7. Do not run main-based Phase 8 upgrade commands
-until the feature is merged and verified.
+The final authorization permits a normal Git fast-forward merge if GitHub PR
+creation remains unavailable. See the review record for verification and workflow
+evidence; no force push or branch-protection bypass is permitted.
 Existing schema 5 needs explicit candidate migration to 6; source databases stay
 unchanged. No real server/data operation was performed during development.
 
@@ -543,7 +543,7 @@ and limitations are in [PHASE_5_REVIEW.md](PHASE_5_REVIEW.md).
 - `storage.py`: external-path validation, explicit first install, schema verification and per-transaction locking. Every database connection enables foreign keys.
 - `schema.py`: exact schema-2 definitions; no performance tables.
 - `workout_schema.py`: schema-3 session/entry snapshots, one-draft index and immutable-finalized-record triggers.
-- `operations.py`, `maintenance.py`: private external settings/history and verified backup/restore candidates; no schema-5 migration.
+- `operations.py`, `maintenance.py`: private external settings/history and verified backup/restore candidates; schema upgrades remain in the separate migrator.
 - `scheduler.py`: dedicated background CLI process, independent of Gunicorn/browser.
 - `diagnostics.py`, `settings_views.py`: protected structured logs, safe paginated viewer and confirmed maintenance forms.
 - `library_schema.py`: schema-5 global references and candidate-only table rebuilds, preserving every original cell and trigger.

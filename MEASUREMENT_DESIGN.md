@@ -4,9 +4,9 @@
 
 ## Current state and authorization
 
-Phases 1–7 are completed and approved on main. Revised Phase 8 is authorized on
-phase-8-lan-management-and-updates for passwordless LAN hard deletion, sticky
-person context and browser/host updates. Application target is 0.8.0 / schema 6;
+Phases 1–8 are completed and approved for the verified main merge. Phase 8
+adds passwordless LAN hard deletion, sticky person context and browser/host
+updates; final recovery and Settings-context corrections are included. Application target is 0.8.0 / schema 6;
 no user authentication or HTTPS is introduced. Existing typed measurement,
 draft, history/correction and recovery behavior remains intact except deliberate
 global exercise erasure. Explicit candidate migration preserves originals.

@@ -187,23 +187,28 @@ initialize storage, alter .env values, change port 8000 or discard Git history.
 
 ## Automated verification
 
-The complete suite passed **294 tests, 0 failed, 0 skipped**, in **266.55 seconds**:
+The complete final suite passed **310 tests, 0 failed, 0 skipped**, in
+**354.76 seconds** after all recovery and context corrections:
 
 ```sh
-WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q
+WORKOUT_CONTAINER_TESTS=1 /workspace/phase1-venv/bin/python -m pytest -q --tb=short --show-capture=no
 ```
 
-This includes **265 backend/database/updater tests, 19 real Chromium browser tests,
-and 10 Docker tests**. Tests cover schema-6 exact preservation and failed activation,
+This includes **277 backend/database/updater tests, 21 real Chromium browser tests,
+and 12 Docker tests**. Tests cover schema-6 exact preservation and failed activation,
 same-schema backup/restore resurrection, native/historical deletion and correction
 projection, ownership, actual v4/host-service/Docker integration, no-migration and
 migration update paths, failure/recovery paths, disk guards, passwordless HTTP
-confirmation/CSRF and generated systemd syntax. The final updater/Chromium rerun passed **20 tests in 67.32 seconds**, and
-also checks that a rejected overlapping browser worker cannot clobber a running
-emergency CLI's persistent status.
+confirmation/CSRF and generated systemd syntax. Earlier 294-test and 20-test
+runs preceded the final corrections; the 310-test run supersedes those results.
+The separate targeted checks also passed: 12 injected recovery boundaries,
+33 updater/Settings checks, 2 phone/desktop context workflows, and 3 real Docker
+success/recovery/refusal rehearsals. These overlap the full suite, not additional
+unique tests. The full final run includes the configured-writer-UID fix.
 
 Docker rehearsal uses real build, verified backup, schema-5→6 candidate, preserved
-original bytes, container restart/versions and actual host Unix peer communication
+original bytes, real shutdown-failure recovery health, post-activation recovery
+refusal, container restart/versions and actual host Unix peer communication
 through the existing data mount. Git approved-source metadata and the cloud-specific
 rootless-daemon disk path probe are simulated (test UID cannot traverse that private
 folder); they are independently checked by engine/source/disk tests. No app ports
@@ -237,31 +242,62 @@ tag are updated, not assertions weakened.
   referencing deleted identities must be prepared again.
 
 
-## GitHub workflow status — merge blocked at required PR creation
+## Final corrections and merge authorization
 
-All implementation, documentation and tests are committed on
-`phase-8-lan-management-and-updates`. The feature push to the expected repository
-succeeded. Creating the required pull request with `gh pr create --repo
-natpev/Workout-Tracker-vibe-webapp --base main --head
-phase-8-lan-management-and-updates --body-file ...` failed exactly:
+The earlier feature push succeeded but PR creation failed with:
 
 ```text
 Post "https://api.github.com/graphql": Forbidden
 ```
 
-The repository metadata REST API also returns Forbidden. Git fetch/push work;
-this does not establish permission to create a PR through the blocked API. No
-GitHub connector/browser session is available to complete that step instead.
-Following the requested sequence and instruction not to merge on an unresolved
-blocking issue, **main was not merged or pushed and neither feature branch was
-deleted**. Main remains `7253b044c48ee9e45f479e7130a9dc058c41dac3` (Phase 7).
-The interrupted earlier branch contains unique preserved work and is also retained.
+The final correction request explicitly authorizes a normal Git fast-forward
+merge if the PR API remains unavailable. This supersedes the earlier instruction
+to pause at PR creation. Reattempt the PR after all tests pass, fetch current main,
+verify ancestry, fast-forward and push without force, verify remote commit/tree
+and release targets, then remove only the completed feature branch. The final
+completion report records the verified main SHA and actual cleanup outcome.
+The interrupted older branch still contains unique work and must remain retained.
 
-Manual continuation: open
-https://github.com/natpev/Workout-Tracker-vibe-webapp/pull/new/phase-8-lan-management-and-updates
-in your authenticated GitHub browser, create the PR targeting main, inspect its
-diff/test record, and merge using the repository's permitted history-preserving
-method. Verify main contains every feature commit before deleting the completed
-feature branch. Do not deploy or run the documented main-based upgrade commands
-until that merge is verified. No force push, branch-protection bypass or live data
-operation was attempted.
+### Recovery corrections
+
+Every failure-handler input is initialized at the start of installation. Before
+any shutdown command, retain the image/version, Git commit, original database
+hash and manifest, and a private OPERATION_ID.recovery.json. Mark shutdown as
+attempted before invoking Docker, because a failed stop may have partly succeeded.
+After successful shutdown, reverify storage/selection before refreshing the hash:
+a legitimate workout may have committed just before writers stopped.
+
+Recovery is isolated from the original exception path. It must quiesce both
+services, verify the same selection/bytes/config, run the preserved image's
+read-only storage checker **as the configured Compose UID/GID**, then start and
+verify its actual application version/schema and scheduler. Recovery exceptions
+and precise refusal reasons remain in private diagnostics. Failed recovery health
+triggers another stop. Changed selections/bytes, failed storage checks or inability
+to stop safely require inspection; never restore old backups or run an
+incompatible image. The custom-UID Docker rehearsal discovered and fixed the
+previous image-default-UID probe bug without relaxing storage permissions.
+
+Regression injections cover before stop, failed/partial stop, after shutdown,
+post-stop verification, backup, migration, restart, health, failed recovery health,
+changed selection/bytes and failed cleanup. Actual Docker tests additionally prove
+compatible recovery starts and serves health, and post-activation recovery refuses
+to restart the old image while retaining both database versions.
+
+### Person-context corrections
+
+Every Settings template uses one URL-selected person read for that request.
+Backup/detail/delete/restore links and redirects carry person_id; log-filter GET
+forms retain a hidden context field and pagination carries it too. The context is
+never a global/session identity and does not introduce login. If a restored dataset
+no longer contains that person, or damaged storage prevents resolving them, recovery
+pages remain usable without silently substituting another person.
+
+Restore POST redirects to a read-only, server-listed outcome URL. Refreshing the
+result never resubmits restoration or a stale pre-restore CSRF token; successful
+results still return 200 and failed outcomes 503 on their GET page. Existing tests
+retain all prior assertions and additionally check the 303/read-only result flow.
+Real Chromium navigation covers both purple/teal people, phone/desktop, all themes,
+Settings, update-check redirects, backup history/details/deletion, confirmed restore
+and refresh without another attempt, filtered/paged logs and active-workout
+save/exit/resume. The existing tab guard still returns attempts to select another
+person to the current workout.

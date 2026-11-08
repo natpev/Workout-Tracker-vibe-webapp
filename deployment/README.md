@@ -178,14 +178,18 @@ systemctl status workout-tracker-updater.service --no-pager
 journalctl -u workout-tracker-updater.service -n 80 --no-pager
 ```
 
-Safe status records name the failed stage and preserve previous commit/image,
+A private `OPERATION_ID.recovery.json` saves the original manifest/hash and retained
+image/version/commit before any stop attempt. Safe status records name the failed stage and preserve previous commit/image,
 backup ID, database filename and operation ID. Detailed host-only output is in
 `/root/WorkoutTracker/updater/OPERATION_ID.private.log`. Do not publish .env or
 private diagnostics blindly. Existing app logs remain available in Settings.
 
 Before migration activation, safe recovery can retag/start the preserved image
 only when the selection and original bytes are unchanged, configuration matches,
-the old image verifies storage, and actual old web/scheduler health is checked.
+the old image verifies storage read-only using the configured Compose UID/GID,
+and actual old web/scheduler health is checked. Failed recovery checks are logged
+without masking the initial failure. A changed dataset or failed cleanup requires
+manual inspection; storage permissions are never relaxed.
 The Git checkout can remain on newer approved main while that retained old image
 runs; no commits are reset/discarded. A later retry rebuilds the reviewed release.
 After schema activation, a failed startup/readiness check leaves both services
