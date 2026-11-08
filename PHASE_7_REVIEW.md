@@ -236,9 +236,12 @@ All test databases and containers are disposable; no household storage is used.
   shared selection/copying. No automatic startup upgrade is performed.
 - Registration provenance retains the old column name `person_id` for exact-value
   preservation; it is not used to scope schema-5 library reads or references.
-- GitHub API access in this managed environment returned `Forbidden`; branch push
-  uses Git independently. PR creation may require the supplied manual GitHub
-  comparison link if that API restriction persists.
+- Feature branch push succeeded. PR creation with `gh pr create --base main`
+  failed exactly: `Post "https://api.github.com/graphql": Forbidden`. No PR was
+  created and main was not changed. Open
+  https://github.com/natpev/Workout-Tracker-vibe-webapp/pull/new/phase-7-shared-exercise-library
+  and choose base main / compare phase-7-shared-exercise-library to create it
+  manually. The managed GitHub API restriction does not prevent normal Git push.
 - Physical iPhone/Safari/VoiceOver, actual server/updater execution and live-data
   verification are outside the managed Chromium/container evidence.
 - Prior backup/offsite, cooperative locking, durability uncertainty, no offline
