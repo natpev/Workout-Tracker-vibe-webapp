@@ -2,7 +2,7 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.10.1**, full-feature schema **7**. The application remains
+Application **0.10.2**, full-feature schema **7**. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -88,7 +88,7 @@ backup, and prompts **MIGRATE 7** if the actual source schema needs upgrading.
 This is a safety confirmation, not authentication. The shared engine stops only
 web/scheduler, verifies a distinct backup, preserves the previous image/commit,
 builds, checks actual release-info, invokes confirmed candidate migration and
-validates schema/original bytes before restart. It then verifies actual app 0.10.1 /
+validates schema/original bytes before restart. It then verifies actual app 0.10.2 /
 schema 7 and scheduler status. No unsupported older image is started after schema
 activation. The parent .env is copied atomically/private into app/.env with the
 same contents, as explicitly requested; paths, ports and values are not changed.
@@ -114,7 +114,7 @@ docker compose --project-directory /root/WorkoutTracker/app \
 docker compose --project-directory /root/WorkoutTracker/app \
   --env-file /root/WorkoutTracker/.env \
   -f /root/WorkoutTracker/app/compose.yaml exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.10.1",schema_version=7)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.10.2",schema_version=7)'
 ```
 
 Open **http://10.0.69.9:8000/settings/updates**. No login or certificate action
@@ -255,7 +255,7 @@ silently downgrade a schema-7 installation. No application startup migration.
 
 **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.**
 
-Release **0.10.1 / target schema 7** is code-only for an existing schema-7 database.
+Release **0.10.2 / target schema 7** is code-only for an existing schema-7 database.
 V4 remains supported. Install Update opens one independent status tab with a
 popup-blocked fallback; Check opens none. The new live console requires changed
 host Python modules and local status.js/status.css, copied by the existing explicit
@@ -303,7 +303,7 @@ curl --fail http://10.0.69.9:8001/status.json
 systemctl status workout-tracker-updater.service --no-pager
 ```
 
-Ready JSON should report app_version 0.10.1 / schema_version 7; host status JSON
+Ready JSON should report app_version 0.10.2 / schema_version 7; host status JSON
 should include console_protocol 1. Open http://10.0.69.9:8001/status for retained
 console output and Administration → Application Updates for future browser updates.
 A missing ensurepip/venv error requires the matching distro Python venv package
@@ -343,3 +343,13 @@ review → confirmed Install Update workflow, or v4. A schema-7 installation nee
 no migration or new host runtime beyond Phase 10. The existing verified backup,
 original selection/bytes, health, recovery and fixed-source protections remain.
 No updater script or server Compose/.env changes are required for this patch.
+
+
+## Patch 0.10.2 compatibility
+
+The hamburger fix changes only application CSS and release metadata. Existing
+browser/v4 updates detect 0.10.2 and target schema 7 through the unchanged release
+protocol. No schema migration, new host runtime, Compose/.env change or extra
+installation command is needed for an existing Phase 10 installation. Existing
+backup, source verification, recovery and health checks remain. Routine-ordering
+patch 0.10.1 is included; its changes are not overwritten or downgraded.

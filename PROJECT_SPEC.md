@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–10 are implemented. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
-**Current scope:** application 0.10.1 / unchanged schema 7. Patch 0.10.1 sorts routine cards by the latest completed workout; see section 22. Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–10 are implemented; latest patch suite passed all 406 tests (zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
+**Current scope:** application 0.10.2 / unchanged schema 7. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -714,3 +714,27 @@ after Phase 10. Add synthetic ordering/ownership/copy/tie/correction/read-only a
 responsive browser regression tests and run the entire suite including Docker.
 Direct fast-forward merge/push and completed-branch deletion are authorized after
 verification, with no PR attempt, deployment, real data or new development phase.
+
+
+## 23. Patch 0.10.2 — viewport-safe hamburger dropdown
+
+The global navigation dropdown must remain fully visible in narrow mobile, iPhone
+portrait/landscape, tablet and desktop layouts. Anchor the absolute panel to the
+full existing sticky header, rather than right-aligning it to the narrow button.
+Keep the current button location. With a selected person the button is near the
+brand, so align the menu to the header's left edge; without a person the button
+is on the right, so keep right alignment. Header-relative maximum width and CSS
+safe-area margins prevent crossing either screen edge, even with long names or
+when the header wraps. Keep the panel below the header, above cards and vertically
+scrollable. Preserve all four links, current person/accent, Light/Dark/Auto and
+existing tap/outside/Escape/ArrowDown/focus/aria-expanded behavior. No JavaScript
+change or unrelated page redesign is needed.
+
+Test 390×844, 320×568, 844×390, 768×1024 and 1280×900 in Light/Dark, including full
+panel/link bounds, real frontmost hit targets, click navigation, sticky scroll,
+closing/reopening, safe-area geometry and reflow while already open. Preserve
+existing assertions and run the complete backend/browser/Docker/updater suite.
+Version 0.10.2 follows verified merged 0.10.1; schema stays 7 and updater metadata/
+protocol is unchanged. No new host upgrade or server configuration is required.
+After verification, direct main fast-forward/push and branch cleanup are authorized;
+no PR attempt, force push, live data, deployment or unrelated development phase.

@@ -107,6 +107,18 @@ dialog::backdrop { background:#0008; }
 
 /* Keep the selected identity visible without adding another navigation bar. */
 .app-header { position:sticky; top:0; z-index:30; background:var(--background); flex-wrap:wrap; }
+/* Anchor only the global dropdown to the full sticky header, not its 44px
+   button. The button is beside the brand with a person, and at the right without
+   one. Header-relative bounds keep both layouts on-screen without JavaScript. */
+.app-header .menu-wrap { position:static; }
+#main-menu {
+  --menu-safe-left:env(safe-area-inset-left,0px);
+  --menu-safe-right:env(safe-area-inset-right,0px);
+  max-width:calc(100% - var(--menu-safe-left) - var(--menu-safe-right));
+  margin-left:var(--menu-safe-left); margin-right:var(--menu-safe-right);
+  max-height:calc(75svh - env(safe-area-inset-bottom,0px));
+}
+.app-header:has(.selected-person) #main-menu { left:0; right:auto; }
 .selected-person { order:1; margin-left:auto; }
 .person-accent { color:var(--accent); }
 .danger { background:#a5192d; color:#fff; }
