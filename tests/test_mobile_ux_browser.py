@@ -98,7 +98,13 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     page.goto(base+'/people');page.get_by_role('link',name='Alex',exact=True).click()
     page.get_by_role('link',name='Resume or discard unfinished workout',exact=True).click()
     page.get_by_role('link',name='Resume workout',exact=True).click()
+    # Resume uses the persisted Next checkpoint, even after revisiting Bench.
+    # Verify both saved actuals, and that Back cannot create extra progress.
+    expect(page.locator('#workout-progress')).to_have_attribute('value','1')
+    expect(page.get_by_label('Seconds')).to_have_value('55')
+    page.get_by_role('link',name='Back',exact=True).click()
     expect(page.get_by_label('Weight (lb)')).to_have_value('42.5')
+    expect(page.locator('#workout-progress')).to_have_attribute('value','1')
     page.get_by_role('link',name='Next',exact=True).click()
     expect(page.get_by_label('Seconds')).to_have_value('55')
     page.get_by_role('button',name='Finish & Save',exact=True).click()

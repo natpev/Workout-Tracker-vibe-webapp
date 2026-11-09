@@ -1,4 +1,4 @@
 {# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
    Shared preset form posts CSRF/revision to catalog; existing routine rows never change. #}
 {% extends 'base.html' %}{% from 'macros.html' import security,configuration with context %}
-{% block content %}<h1>{{ definition.name }}</h1><h2>Global exercise defaults</h2><p>New routine additions copy these settings. Existing routines and workout history remain independent.</p><form method="post" data-configuration>{{ security(revision) }}{{ configuration(item) }}<button>Save library defaults</button></form><a href="{{ url_for('manage.exercises',person_id=person.id) }}">Back to Exercise Library</a>{% endblock %}
+{% block content %}<h1>{{ definition.name }}</h1><h2>Global exercise defaults</h2><form method="post" data-configuration>{{ security(revision) }}{{ configuration(item,scope='library') }}<button>Save library defaults</button></form><a href="{{ url_for('manage.exercises',person_id=person.id) }}">Back to Exercise Library</a>{% endblock %}

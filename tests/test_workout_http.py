@@ -44,7 +44,7 @@ def test_start_resume_autosave_restart_cursor_and_atomic_finish(phase3_app,phase
     retry=client.post(routine_path+'/start',data=fields(client.get(routine_path)))
     assert retry.location==path+'/resume'
     assert b'Resume workout' in client.get(retry.location).data
-    payload=fields(page);payload.update(weight='40.99',increase='1',current_position='1')
+    payload=fields(page);payload.update(weight='40.99',increase='1',current_position='1',navigation_action='next')
     assert client.post(path+'/draft',data={}).status_code==400
     saved=client.post(path+'/draft',data=payload)
     assert saved.status_code==200 and saved.json['weight']=='40.9'

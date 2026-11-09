@@ -117,4 +117,6 @@ def test_skipped_historical_confirmation_and_chart_exclusion(history_page):
     expect(page.locator('.progress-series')).to_have_count(2)
     expect(page.locator('circle.chart-point')).to_have_count(0)
     page.get_by_text('Chart data (including skipped entries)',exact=True).first.click()
-    expect(page.get_by_text('Skipped',exact=False).first).to_be_visible()
+    # Check the actual expanded chart record, rather than unrelated explanatory
+    # text (the collapsed CSV chooser also explains skipped measurements).
+    expect(page.locator('.progress-series').first.locator('details li').filter(has_text='Skipped').first).to_be_visible()

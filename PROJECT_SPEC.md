@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–10 are implemented; latest patch suite passed all 416 tests (zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
-**Current scope:** application 0.10.3 / unchanged schema 7. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–10 are implemented; latest patch suite passed all 439 tests (375 backend/script, 51 Chromium, 13 Docker; zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
+**Current scope:** application 0.10.4 / unchanged schema 7. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -46,7 +46,7 @@
 - Phase 3 rule: weight defaults to pounds with at most **one decimal place**. Truncate additional digits, **never round**: 40.99 → 40.9; 42.56 → 42.5; whole 40 displays as 40.0. Store integer tenths of a pound (`actual_weight_tenths_lb`), so 40.9 lb = 409. Parse decimal input exactly rather than using binary floating-point rounding. Explicit zero is valid, stores 0, and counts as entered; empty input stores SQL NULL. This is implemented in Phase 3; retained Phase 2 databases are not altered in place.
 - When the user finishes/saves, **each exercise from the session's routine snapshot gets a saved workout-entry record**, even if its applicable measurement was never entered.
 - If skipped, the applicable measurement must be true SQL **`NULL`**: weight for Weight exercises or duration for Time exercises. `NULL` ≠ `0` and ≠ the previous measurement; a skipped exercise must **not be omitted** from the saved workout.
-- A blank measurement does not count toward the workout progress bar. Progress means **number of exercises with non-NULL applicable measurements / total exercises**, across both types. Explicit zero weight counts as entered. Navigating to an exercise does not mark it done.
+- The workout bar uses the furthest acknowledged Next destination, independent of measurements. Weight, duration, flags and ordinary autosave never raise it; Back/Jump do not add progress and revisits do not count twice. Skipped exercises advance through Next. Performed counts still distinguish true NULL from valid zero for completion confirmation/statistics. This supersedes the former measurement-population bar.
 - Tables display skipped entries clearly as **Skipped** or an em dash; charts omit/gap skipped measurements rather than plotting zero. Skipped entries remain visible in history and are excluded from numeric progress calculations.
 - Show the previous session's matching measurement and increase indicator. If that session skipped the exercise, show that fact plus the last successfully performed matching measurement, including an explicitly entered zero weight. Do not compare or inherit recommendations across Weight/Time type changes.
 - Increase-next-time note applies to a performed exercise; do not invent a new increase recommendation when its applicable measurement is NULL. Use “Increase weight next time” or “Increase duration next time” according to type.
@@ -359,7 +359,7 @@ support disclosure state, keyboard focus, Escape, outside-click and focus dismis
 Routines offer Start workout without entering the editor. New browser sessions
 always open People rather than a remembered account.
 
-The compact workout screen shows routine, exercise/count, non-NULL progress,
+The compact workout screen shows routine, exercise/count and navigation progress (0.10.4 supersedes the original non-NULL bar),
 previous measurement, conditional Increase ↑, one actual input, current increase
 checkbox, Back/Next, then Save draft/Finish. More contains jump/overview/details,
 validated Exit Workout and confirmed Discard. No global person-switch link appears
@@ -767,3 +767,54 @@ Run the full backend/Chromium/Docker/updater suite. Version is 0.10.3 from verif
 main 0.10.2; schema remains 7 with no migration. Existing browser/v4 protocols remain
 compatible, with no extra host upgrade. Verified direct fast-forward/push/cleanup
 is authorized with no PR attempt, live data, deployment or unrelated development.
+
+
+## 25. Patch 0.10.4 — navigation progress, configuration scope and CSV
+
+Use the existing current_position as the furthest Next destination (0 initially).
+Validate an explicit Next action and adjacent destination; store max(old, target)
+in the same revision-checked transaction as pending actuals. Back/revisits cannot
+raise or double-count it. Jump changes the viewed exercise only; subsequent Next
+uses that following exercise as its destination. Refresh retains URL view and
+checkpoint; Resume opens the checkpoint. Existing draft cursors are preserved as
+the initial checkpoint, because earlier navigation cannot be reconstructed.
+No new table/migration is needed. Performed counts remain separate for all-skipped
+confirmation and actual-value summaries. Autosave acknowledgments expose both
+counts; only navigation_progress controls the bar. Finish retains atomic/idempotent
+completion, NULL records and confirmation. The current view is separate from the
+checkpoint so Save draft does not unexpectedly switch a revisited page.
+
+Configuration forms show the exact routine-only or global-default explanation
+requested by the user. Include routine add/edit and library add/edit screens;
+use muted readable styling. No defaults, routine independence or snapshots change.
+
+Progress offers a compact collapsible multi-ID CSV chooser with Select All/Clear,
+retaining existing preset/custom ranges and the chart's independent single filter.
+Export only checked IDs, for the current person and selected dates. Empty selection,
+invalid range/IDs or no matching completed workouts return inline validation with
+choices retained, not an empty/misleading attachment. GET export is read-only.
+Use completed live/manual effective records, including latest correction actuals
+and occurrence; never current defaults or obsolete measurements. Sort oldest first
+with the existing deterministic chronology and a unique workout ID for same-time
+records. A row exists only when at least one selected exercise was present, even
+if all its actuals were skipped. Missing selected exercises have two blank cells;
+present skips retain the historical target and blank actual. No previous values
+or zeros substitute for skips; explicit zero stays 0.
+
+CSV columns begin Date (ISO), Time (HH:mm or blank unknown), Routine, Workout ID.
+Each Weight pair is Name — Weight (lb), Name — Sets × Reps. Each Time pair is
+Name — Duration, Name — Sets × Target Duration. Weight is exact stored tenths,
+whole weights omit .0, and durations/targets use total minutes:two-digit seconds.
+Targets describe the historical prescription, never actual set-by-set repetitions.
+Column groups separate ID/type/unit/weight meaning; duplicate names include full
+IDs, and repeated same-group entries get occurrence-number columns rather than
+overwriting values. Keep selection order, then deterministic group/slot ordering.
+Standard comma-separated UTF-8 with BOM, CRLF and CSV quoting opens in common
+spreadsheets. Prefix formula-like user text (including leading whitespace/control
+variants) with an apostrophe; escape names/headers/routine text as well as cells.
+Filename is workout-progress-LOCAL-TODAY.csv. No PDF/workbook/cloud/reporting extras
+or orphan exercise investigation/cleanup. Schema remains 7; existing browser/v4
+updates work without new host runtime. Full tests and direct verified main merge/
+push/branch cleanup are authorized, with no PR, deployment or production data.
+
+Selected exercises absent throughout a range still retain blank column pairs, using their historical configurations for headings; no out-of-range data rows are added.

@@ -158,3 +158,9 @@ dialog::backdrop { background:#0008; }
 .routine-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.15rem 1rem; }
 .routine-activity { grid-column:1 / -1; font-size:.8rem; margin:0; }
 .routine-card > div { min-width:0; }
+
+/* Compact checkboxes preserve the date controls and keep long IDs readable. */
+.csv-choices { border:0; padding:0; }
+.csv-choices label { flex-wrap:wrap; overflow-wrap:anywhere; }
+.csv-choices small { flex-basis:100%; margin-left:2rem; font-size:.7rem; }
+.settings-scope { margin:.5rem 0 1rem; }

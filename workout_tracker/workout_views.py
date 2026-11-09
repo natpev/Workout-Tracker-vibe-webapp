@@ -51,7 +51,7 @@ def page_context(person_id, session_id, message=None):
         current = rows[position]
         prior, performed = workouts.previous(db, person_id, parent, current)
         return dict(person=owner, workout=parent, entries=rows, current=current, position=position,
-                    previous=prior, last_performed=performed, completed=workouts.count_performed(rows),
+                    previous=prior, last_performed=performed, completed=workouts.count_performed(rows), navigation_progress=len(rows) if parent['status']=='completed' else parent['current_position'],
                     display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))
 
@@ -89,7 +89,7 @@ def autosave(person_id, session_id):
         parent = workouts.update(db, person_id, session_id, request.form)
         rows = workouts.entries(db, person_id, session_id)
         row = next(row for row in rows if row['id'] == request.form['entry_id'])
-        response = dict(entry_id=row['id'], measurement_display=workouts.display_measurement(row), revision=parent['revision'], completed=workouts.count_performed(rows), total=len(rows),
+        response = dict(entry_id=row['id'], measurement_display=workouts.display_measurement(row), revision=parent['revision'], completed=workouts.count_performed(rows), total=len(rows), navigation_progress=parent['current_position'],
                         updated_at=parent['updated_at'], current_position=parent['current_position'],
                         weight='' if row['actual_weight_tenths_lb'] is None else f"{row['actual_weight_tenths_lb'] // 10}.{row['actual_weight_tenths_lb'] % 10}",
                         minutes='' if row['actual_duration_seconds'] is None else str(row['actual_duration_seconds'] // 60),
@@ -103,7 +103,7 @@ def save(person_id, session_id):
     """Provide an explicit form save as well as JavaScript autosave."""
     with connection(write=True) as db:
         workouts.update(db, person_id, session_id, request.form)
-    return redirect(url_for('workout.show', person_id=person_id, session_id=session_id), code=303)
+    return redirect(url_for('workout.show', person_id=person_id, session_id=session_id,position=request.form.get('view_position')), code=303)
 
 
 @bp.post('/people/<person_id>/workouts/<session_id>/finish')

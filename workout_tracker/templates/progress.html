@@ -5,12 +5,20 @@
 {% block content %}
 <h1>Exercise progress</h1>
 <script src="{{ url_for('static',filename='progress.js') }}" defer></script>
+<script src="{{ url_for('static',filename='csv_export.js') }}" defer></script>
 <p>{{ range_description }}</p>
-<form method="get" id="progress-filter"><label for="progress-exercise">Exercise</label><select id="progress-exercise" name="exercise"><option value="">All exercises (separate charts)</option>{% for id,name in exercises.items() %}<option value="{{ id }}" {% if filters.get('exercise')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+<form method="get" id="progress-filter" action="{{ url_for('history.progress',person_id=person.id) }}"><label for="progress-exercise">Exercise</label><select id="progress-exercise" name="exercise"><option value="">All exercises (separate charts)</option>{% for id,name in exercises.items() %}<option value="{{ id }}" {% if filters.get('exercise')==id %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
 <div class="range-buttons" aria-label="Progress date range">{% for value,label in range_options %}<button type="submit" name="range" value="{{ value }}" class="{{ 'primary' if range_token==value else 'secondary' }}" aria-pressed="{{ 'true' if range_token==value else 'false' }}">{{ label }}</button>{% endfor %}</div>
 <input type="hidden" name="previous_range" value="{{ applied.get('range','30') }}"><input type="hidden" name="previous_from" value="{{ applied.get('from','') }}"><input type="hidden" name="previous_to" value="{{ applied.get('to','') }}">
 {% if range_token=='custom' %}<div class="duration"><label>From date<input type="{{ 'text' if 'from' in invalid_dates else 'date' }}" {% if range_errors %}aria-invalid="true" aria-describedby="progress-range-error"{% endif %} name="from" value="{{ filters.get('from','') }}"></label><label>To date<input type="{{ 'text' if 'to' in invalid_dates else 'date' }}" {% if range_errors %}aria-invalid="true" aria-describedby="progress-range-error"{% endif %} name="to" value="{{ filters.get('to','') }}"></label></div>{% endif %}
-{% if range_errors %}<p id="progress-range-error" role="alert" class="field-error">* {{ range_errors.range }}</p>{% endif %}<button name="range" value="{{ range_token }}">Update progress</button></form>
+{% if range_errors %}<p id="progress-range-error" role="alert" class="field-error">* {{ range_errors.range }}</p>{% endif %}<button name="range" value="{{ range_token }}">Update progress</button>
+<details class="management-details" {% if export_error %}open{% endif %}><summary>CSV export — choose exercises</summary>
+<p class="input-hint">One row per completed workout; adjacent actual and historical target columns for each exercise. Blank actuals mean missing/skipped, never zero. Sets/reps are prescriptions, not performed repetitions.</p>
+<fieldset class="csv-choices"><legend>Exercises to export</legend>{% for id,name in exercises.items() %}<label class="acknowledge"><input type="checkbox" name="export_exercise" value="{{ id }}" {% if id in selected_export %}checked{% endif %}> {{ name }} <small class="muted">{{ id }}</small></label>{% endfor %}</fieldset>
+<div class="actions"><button type="button" class="secondary" data-csv-select="all">Select All</button><button type="button" class="secondary" data-csv-select="none">Clear Selection</button></div>
+{% if export_error %}<p role="alert" class="field-error">{{ export_error }}</p>{% endif %}
+<button name="range" value="{{ range_token }}" formaction="{{ url_for('history.export_csv',person_id=person.id) }}">Export CSV</button>
+</details></form>
 {% for chart in series %}{% set chart_index=loop.index %}<section class="progress-series" data-kind="{{ chart.kind }}">
 <h3>{{ chart.name }} — {{ 'Weight (lb)' if chart.kind=='weight' else 'Time (minutes:seconds)' }}{% if chart.meaning %} · {{ chart.meaning }}{% endif %}</h3>
 {% if chart.highest %}<p>{{ 'Highest logged weight' if chart.kind=='weight' else 'Longest logged duration' }} in this date range: <strong>{{ chart.highest.label }}</strong> ({{ chart.highest.date }})</p>

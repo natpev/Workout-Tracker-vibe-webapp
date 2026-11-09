@@ -198,7 +198,7 @@ page=response.read().decode()
 fields=dict(re.findall(r'name="(csrf_token|revision|entry_id|current_position)" value="([^"]*)"',page))
 fields.update(weight='40.99',increase='1')
 result=json.load(opener.open(base+path+'/draft',urllib.parse.urlencode(fields).encode()))
-assert result['weight']=='40.9' and result['completed']==1
+assert result['weight']=='40.9' and result['completed']==1 and result['navigation_progress']==0
 print(path)
 """
                 session_path=docker('exec',container,'python','-c',script).stdout.strip()
@@ -216,7 +216,8 @@ def test_history_correction_survives_container_replacement(phase4_root):
     from workout_tracker.storage import database_session
     with database_session(phase4_root,write=True) as db:
         person=c.create_person(db,'History container fixture');routine=c.create_routine(db,person,'Past workout')
-        c.add_entry(db,person,routine,dict(name='Bench',measurement_type='weight',target_sets='3',target_reps='12'))
+        item=c.add_entry(db,person,routine,dict(name='Bench',measurement_type='weight',target_sets='3',target_reps='12'))
+        exercise=c.entry(db,person,routine,item)['exercise_id']
         form=h.prepare(db,person,routine,dict(workout_date='2020-01-01',workout_time=''),'UTC')
         identity=h.complete_historical(db,person,form,{'weight_0':'40.99'})
     originals={path:path.read_bytes() for path in (phase4_root/'data').glob('schema-[123]-*.sqlite3')}
@@ -245,6 +246,10 @@ assert b'42.5 lb' in page and b'Correction 1' in page
                 docker('exec',container,'python','-c',script)
             docker('exec',container,'python','-c',
                 f"import urllib.request; page=urllib.request.urlopen('http://127.0.0.1:8000/people/{person}/progress?range=all').read(); assert b'42.5 lb' in page and b'<svg ' in page")
+            # Real attachment HTTP inside the replacement image keeps effective
+            # corrections and snapshotted targets, without changing storage.
+            docker('exec',container,'python','-c',
+                f"import csv,io,urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/people/{person}/progress.csv?range=all&export_exercise={exercise}'); assert r.headers.get_content_type()=='text/csv'; rows=list(csv.reader(io.StringIO(r.read().decode('utf-8-sig')))); assert rows[1][4:]==['42.5','3 × 12']")
             assert all(path.read_bytes()==content for path,content in originals.items())
         finally: docker('rm','-f',container)
     with database_session(phase4_root) as db:
@@ -388,7 +393,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
                 if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
                 time.sleep(.2)
             docker(*isolated,'exec','-T','web','python','-c',
-                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.10.3',schema_version=4)")
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.10.4',schema_version=4)")
             for identity in ids.values():
                 inspected=json.loads(docker('inspect',identity).stdout)[0]
                 assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'
@@ -421,7 +426,7 @@ assert b'Installation fixture' in page
         release=json.loads(docker('run','--rm','--network=none','--read-only',
                                   '--entrypoint','python','workout-tracker:phase8-review',
                                   '-m','workout_tracker','release-info').stdout)
-        assert release==dict(app_version='0.10.3',target_schema_version=7)
+        assert release==dict(app_version='0.10.4',target_schema_version=7)
         # Before migration, explicitly back up/verify the installed schema-4
         # fixture while both services are stopped; never downgrade it later.
         backup=json.loads(docker(*isolated,'run','--rm','--no-deps','web','python','-c',
@@ -443,7 +448,7 @@ assert b'Installation fixture' in page
             if time.monotonic()>=deadline: pytest.fail('Upgraded schema-5 Compose service did not become healthy')
             time.sleep(.2)
         docker(*isolated,'exec','-T','web','python','-c',
-               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.10.3',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.10.4',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
         docker(*isolated,'stop')
         assert any('Scheduler process started' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
     finally:

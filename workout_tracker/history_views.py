@@ -5,7 +5,7 @@ All app writes use schema-4 locked transactions. CSRF protects preparations,
 manual completions and append-only corrections. GETs never create records.
 """
 
-from flask import Blueprint, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, redirect, render_template, request, url_for, Response
 
 from . import catalog as c, history as h, workouts as w
 from .storage import database_session
@@ -66,11 +66,13 @@ def detail(person_id,workout_id):
 
 
 @bp.get('/people/<person_id>/progress')
+@bp.get('/people/<person_id>/progress.csv',endpoint='export_csv')
 def progress(person_id):
     """Apply URL ranges without altering chart calculations or historical identities."""
     from zoneinfo import ZoneInfo
     today=w.now().astimezone(ZoneInfo(current_app.config['WORKOUT_TIMEZONE'])).date()
-    errors={};status=200;requested=request.args.to_dict()
+    errors={};status=200;requested=request.args.to_dict();export_error=None
+    selected_export=request.args.getlist('export_exercise')
     # Revealing Custom Range is not yet an edited range: start with the last
     # valid preset bounds so merely opening the controls keeps the graph intact.
     if requested.get('range')=='custom' and 'from' not in requested and 'to' not in requested:
@@ -88,9 +90,22 @@ def progress(person_id):
                           **{'from':request.args.get('previous_from',''),'to':request.args.get('previous_to','')})
             try:chart_filters,_,_=ranges.selection(previous,today)
             except c.ValidationError:chart_filters,_,_=ranges.selection({'exercise':request.args.get('exercise','')},today)
+        # Successful downloads do not need to prepare SVG charts. Errors below
+        # still render the original filters and previous valid chart state.
+        if request.path.endswith('/progress.csv'):
+            if not errors:
+                from .csv_export import wide_csv
+                try:
+                    text=wide_csv(db,person_id,filters,selected_export)
+                    return Response(text.encode('utf-8-sig'),content_type='text/csv; charset=utf-8',
+                                    headers={'Content-Disposition':f'attachment; filename="workout-progress-{today.isoformat()}.csv"','Cache-Control':'no-store'})
+                except c.ValidationError as error:export_error=str(error)
+            else:export_error='Correct the date range before exporting.'
+            status=400
         series=h.chart_series(db,person_id,chart_filters)
         _,exercises=h.choices(db,person_id)
     return render_template('progress.html',person=person,series=series,exercises=exercises,filters=filters,
+                           selected_export=selected_export,export_error=export_error,
                            range_token=token,range_description=description,range_options=ranges.RANGES,range_errors=errors,
                            invalid_dates={key for key in ('from','to') if not ranges.valid_date(filters.get(key,''))},
                            applied=chart_filters,progress_context=dict(progress_range=chart_filters.get('range','30'),progress_from=chart_filters.get('from',''),progress_to=chart_filters.get('to',''),progress_exercise=chart_filters.get('exercise',''))),status

@@ -154,7 +154,7 @@ def revision(parent, value):
 
 
 def update(db, person_id, session_id, values):
-    """Persist only the current entry and cursor with compare-and-swap revision."""
+    """Persist actuals and a Next-only navigation checkpoint with revision protection."""
     parent = session(db, person_id, session_id)
     if parent['status'] != 'draft':
         raise RevisionConflict("This workout is no longer a draft. Reload to view its final state.")
@@ -165,11 +165,21 @@ def update(db, person_id, session_id, values):
     if current is None:
         raise catalog.MissingRecord("Workout exercise not found in this person's snapshot.")
     position = catalog.integer(field(values, 'current_position'), 'Exercise position', 0, len(rows) - 1)
+    action = field(values, 'navigation_action')
+    if action not in ('', 'next', 'back', 'jump'):
+        raise catalog.ValidationError('Choose a valid workout navigation action.')
+    if action == 'next' and position != current['position'] + 1:
+        raise catalog.ValidationError('Next must move to the following exercise.')
+    if action == 'back' and position != current['position'] - 1:
+        raise catalog.ValidationError('Back must move to the previous exercise.')
+    # This existing column is the furthest acknowledged Next destination, not
+    # a measurement count. Repeated/revisited Next requests cannot count twice.
+    checkpoint = max(parent['current_position'], position) if action == 'next' else parent['current_position']
     weight, duration, increase = measurement(current, values)
     db.execute("UPDATE workout_entries SET actual_weight_tenths_lb=?,actual_duration_seconds=?,increase_next_time=? "
                "WHERE id=? AND session_id=? AND person_id=?", (weight, duration, increase, entry_id, session_id, person_id))
     db.execute("UPDATE workout_sessions SET revision=revision+1,current_position=?,updated_at=? WHERE id=? AND person_id=?",
-               (position, now().isoformat(), session_id, person_id))
+               (checkpoint, now().isoformat(), session_id, person_id))
     return session(db, person_id, session_id)
 
 

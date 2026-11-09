@@ -5,7 +5,8 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% if revision %}<input type="hidden" name="revision" value="{{ revision }}">{% endif %}
 {% endmacro %}
-{% macro configuration(item=none) %}
+{% macro configuration(item=none,scope='routine') %}
+<p class="input-hint settings-scope">{% if scope=='library' %}These are the default settings for this exercise. Changes will apply to newly added routine exercises. Existing routines will not change.{% else %}These settings apply only to this routine. Changes will not affect Exercise Library defaults or other routines.{% endif %}</p>
 <fieldset class="mode" aria-label="Tracking mode">
   <legend>Tracking mode</legend>
   <label><input type="radio" name="measurement_type" value="weight" {% if not item or item.measurement_type == 'weight' %}checked{% endif %}> <span>Weight</span></label>

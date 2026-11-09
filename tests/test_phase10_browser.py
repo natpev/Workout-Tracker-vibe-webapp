@@ -130,7 +130,11 @@ def test_progress_range_state_tooltips_and_themes(phase10_page,width):
     expect(page.locator('.chart-point')).to_have_count(4)
     page.get_by_label('Exercise',exact=True).select_option(e);page.get_by_role('button',name='Update progress',exact=True).click()
     expect(page.locator('.chart-point')).to_have_count(3)
-    page.get_by_role('link',name='History',exact=True).click();page.reload()
+    # Explicitly finish document swaps before reload/Back; these checks should
+    # test persisted filters rather than race Chromium's navigation protocol.
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('link',name='History',exact=True).click()
+    page.reload()
     page.get_by_role('link',name='Progress',exact=True).click()
     expect(page.get_by_role('button',name='All Time',exact=True)).to_have_attribute('aria-pressed','true')
     expect(page.get_by_label('Exercise',exact=True)).to_have_value(e)
@@ -142,10 +146,14 @@ def test_progress_range_state_tooltips_and_themes(phase10_page,width):
     expect(page.get_by_label('Exercise',exact=True)).to_have_value(e)
     expect(page.locator('.chart-point')).to_have_count(3)
     page.get_by_label('From date',exact=True).fill('2026-11-01');page.get_by_label('To date',exact=True).fill('2026-11-01')
-    page.get_by_role('button',name='Update progress',exact=True).click();page.reload()
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('button',name='Update progress',exact=True).click()
+    page.reload()
     expect(page.locator('.chart-point')).to_have_count(1)
     single=page.url
-    page.get_by_role('button',name='All Time',exact=True).click();page.go_back()
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('button',name='All Time',exact=True).click()
+    page.go_back()
     expect(page.locator('.chart-point')).to_have_count(1)
     assert 'range=custom' in page.url
     for theme in ('light','dark','auto'):
@@ -158,7 +166,13 @@ def test_progress_range_state_tooltips_and_themes(phase10_page,width):
         box=tip.bounding_box();assert box['x']>=0 and box['x']+box['width']<=width
         page.mouse.move(0,0);expect(tip).to_be_hidden()
         point.focus();expect(tip).to_be_visible();point.press('Escape');expect(tip).to_be_hidden()
-        point.tap();expect(tip).to_be_visible();page.locator('h1').tap();expect(tip).to_be_hidden()
+        point.tap();expect(tip).to_be_visible()
+        # Browser focus may queue a scroll event after touch activation. The
+        # visible point must keep its label through that delayed notification.
+        page.evaluate("window.dispatchEvent(new Event('scroll'))")
+        point.dispatch_event('mouseleave')
+        expect(tip).to_be_visible()
+        page.locator('h1').tap();expect(tip).to_be_hidden()
         assert page.evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth')
     page.goto(base+f'/people/{a}/progress?range=all')
     for point in page.locator('.chart-point').all():
@@ -188,7 +202,11 @@ def test_install_tab_safe_live_output_refresh_and_web_offline(lan_browser,width,
         finally:engine.console=None
     engine.install=install
     page.goto(base+f'/settings/updates?person_id={a}')
-    page.get_by_role('button',name='Check for Updates',exact=True).click();page.reload()
+    # Let the POST/redirect finish before issuing an explicit reload. Starting
+    # reload during a document swap can detach Chromium's automation target.
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('button',name='Check for Updates',exact=True).click()
+    page.reload()
     assert len(page.context.pages)==1
     page.get_by_role('button',name='Install Update',exact=True).click()
     assert len(page.context.pages)==1 and engine.state()['status']=='Available'

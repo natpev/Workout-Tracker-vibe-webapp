@@ -4,9 +4,9 @@
 "use strict";
 document.querySelectorAll('.progress-series').forEach(section=>{
   const tooltip=section.querySelector('[data-chart-tooltip]');if(!tooltip)return;
-  let current=null;
+  let current=null,pinned=false;
   // Remove both the visible bubble and its association with the last selected dot.
-  const hide=()=>{tooltip.hidden=true;if(current)current.removeAttribute('aria-describedby');current=null;};
+  const hide=()=>{tooltip.hidden=true;if(current)current.removeAttribute('aria-describedby');current=null;pinned=false;};
   // Reuse the escaped point metadata and clamp the bubble inside the viewport.
   const show=point=>{
     if(current&&current!==point)current.removeAttribute('aria-describedby');current=point;
@@ -18,10 +18,22 @@ document.querySelectorAll('.progress-series').forEach(section=>{
   };
   // All interaction methods call the same show/hide functions; no measurements change.
   section.querySelectorAll('.chart-point').forEach(point=>{
-    point.addEventListener('mouseenter',()=>show(point));point.addEventListener('mouseleave',hide);
+    point.addEventListener('mouseenter',()=>{pinned=false;show(point);});
+    // Touch can synthesize mouseleave after click. An activated label stays
+    // open until outside click, blur, Escape or scrolling its point offscreen.
+    point.addEventListener('mouseleave',()=>{if(!pinned)hide();});
     point.addEventListener('focus',()=>show(point));point.addEventListener('blur',hide);
-    point.addEventListener('click',event=>{event.stopPropagation();show(point);});
+    point.addEventListener('click',event=>{event.stopPropagation();pinned=true;show(point);});
     point.addEventListener('keydown',event=>{if(event.key==='Escape')hide();if(event.key==='Enter'||event.key===' '){event.preventDefault();show(point);}});
   });
-  document.addEventListener('click',hide);window.addEventListener('resize',hide);window.addEventListener('scroll',hide,{passive:true});
+  document.addEventListener('click',hide);window.addEventListener('resize',hide);
+  // Tapping/focusing a point can scroll it into view after the click arrives.
+  // Keep its bubble attached while the point is visible instead of letting a
+  // delayed browser scroll immediately erase the just-opened touch tooltip.
+  window.addEventListener('scroll',()=>{
+    if(!current)return;
+    const dot=current.getBoundingClientRect();
+    if(dot.bottom<0||dot.top>innerHeight||dot.right<0||dot.left>innerWidth)hide();
+    else show(current);
+  },{passive:true});
 });

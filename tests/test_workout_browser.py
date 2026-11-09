@@ -55,7 +55,7 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     page.get_by_label('Increase weight next time',exact=True).check()
     expect(page.get_by_label('Weight (lb)')).to_have_value('40.9')
     expect(page.locator('#save-status')).to_have_text('✓ Saved')
-    expect(page.locator('#workout-progress')).to_have_attribute('value','1')
+    expect(page.locator('#workout-progress')).to_have_attribute('value','0')
     page.get_by_text('More',exact=True).click()
     page.get_by_text('Workout overview',exact=True).click()
     expect(page.locator('[data-entry-state]').first).to_have_text('40.9 lb')
@@ -71,7 +71,7 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     expect(page.locator('#save-error')).to_contain_text('Not saved:')
     page.get_by_label('Seconds').fill('5')
     expect(page.locator('#save-status')).to_have_text('✓ Saved')
-    expect(page.locator('#workout-progress')).to_have_attribute('value','2')
+    expect(page.locator('#workout-progress')).to_have_attribute('value','1')
     page.get_by_text('More',exact=True).click()
     page.select_option('#exercise-jump','0')
     expect(page.get_by_role('heading',name='Bench',exact=True)).to_be_visible()
@@ -101,10 +101,10 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
 
 
 def test_discard_cancel_ok_and_all_skipped_confirmation(workout_page):
-    """Navigation does not count; Cancel retains draft; OK requires acknowledgment."""
+    """Skipped Next advances navigation; Cancel retains draft; OK needs acknowledgment."""
     page,routine_path,root=workout_page;expect=pw.expect
     page.get_by_role('link',name='Next',exact=True).click()
-    expect(page.locator('#workout-progress')).to_have_attribute('value','0')
+    expect(page.locator('#workout-progress')).to_have_attribute('value','1')
     page.get_by_text('More',exact=True).click()
     page.get_by_role('link',name='Discard Workout',exact=True).click()
     expect(page.get_by_role('dialog')).to_be_visible()

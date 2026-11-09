@@ -23,13 +23,15 @@
   const status = document.getElementById("save-status");
   const revision = form.elements.namedItem("revision");
   const cursor = form.elements.namedItem("current_position");
+  let navigationAction = "";
   let dirty = false, sequence = 0, timer, pending = null, draining = null, conflict = false, submitting = false, allowSubmit = false;
 
-  const flush = (position = null) => {
+  const flush = (position = null, action = "") => {
     // Serialize fetches; edits typed while awaiting a response are saved next.
     // Never replace newer local text with a normalized response for older text.
     clearTimeout(timer);
-    if (position !== null && cursor.value !== String(position)) {
+    if (position !== null && position !== undefined) {
+      navigationAction = action || "jump";
       cursor.value = String(position);
       dirty = true;
       sequence += 1;
@@ -42,6 +44,8 @@
     while (dirty) {
       const sentSequence = sequence;
       const body = new URLSearchParams(new FormData(form));
+      // Only an explicit Next action may raise the saved navigation checkpoint.
+      body.set("navigation_action", navigationAction);
       status.textContent = "Saving…";
       pending = (async () => {
         try {
@@ -54,17 +58,20 @@
             throw new Error(data.error || `Save failed (${response.status}). Reload if your session expired.`);
           }
           if (!Number.isSafeInteger(data.revision) || !Number.isSafeInteger(data.completed) ||
-              !Number.isSafeInteger(data.total) || data.completed < 0 || data.completed > data.total ||
+              !Number.isSafeInteger(data.total) || !Number.isSafeInteger(data.navigation_progress) ||
+              data.navigation_progress < 0 || data.navigation_progress > data.total || data.completed < 0 || data.completed > data.total ||
               typeof data.updated_at !== "string") throw new Error("Invalid server acknowledgment.");
           revision.value = String(data.revision);
           document.querySelectorAll("[data-entry-state]").forEach((element) => {
             if (element.dataset.entryState === data.entry_id) element.textContent = data.measurement_display;
           });
-          document.getElementById("workout-progress").value = data.completed;
-          document.getElementById("progress-text").textContent = `${data.completed} / ${data.total} done`;
+          document.getElementById("workout-progress").value = data.navigation_progress;
+          document.getElementById("progress-text").textContent = `${data.navigation_progress} / ${data.total} advanced`;
           if (data.completed !== 0) document.getElementById("all-skipped-confirmation").hidden = true;
           document.getElementById("confirmed-at").textContent = data.updated_at;
           if (sequence === sentSequence) {
+            cursor.value = String(data.current_position);
+            navigationAction = "";
             for (const name of ["weight", "minutes", "seconds"]) {
               const input = form.elements.namedItem(name);
               if (input) input.value = data[name];
@@ -131,7 +138,7 @@
       event.preventDefault();
       if (submitting) return;
       submitting = true;
-      if (await flush(link.dataset.position)) window.location.assign(link.href);
+      if (await flush(link.dataset.position, link.dataset.navigationAction || "jump")) window.location.assign(link.href);
       else submitting = false;
     });
   });
@@ -139,7 +146,7 @@
   jump.addEventListener("change", async () => {
     if (submitting) return;
     submitting = true;
-    if (await flush(jump.value)) window.location.assign(jump.selectedOptions[0].dataset.url);
+    if (await flush(jump.value, "jump")) window.location.assign(jump.selectedOptions[0].dataset.url);
     else submitting = false;
   });
   window.addEventListener("beforeunload", (event) => {
