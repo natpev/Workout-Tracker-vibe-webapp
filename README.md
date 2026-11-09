@@ -15,7 +15,7 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.10.2**. Current full-feature database schema:
+Current application version: **0.10.3**. Current full-feature database schema:
 **7**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.2" and d["schema_version"]==7'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.3" and d["schema_version"]==7'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.10.2`, `schema_version: 7`.
+Expected fields are `status: ready`, `app_version: 0.10.3`, `schema_version: 7`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -513,11 +513,13 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–10 are implemented. Current target: **application 0.10.2 / schema 7**.
-Latest patch verification: **406 passed, 0 failed, 0 skipped**, including Chromium and Docker.
+Phases 1–10 are implemented. Current target: **application 0.10.3 / schema 7**.
+Latest verification: **416 passed, 0 failed, 0 skipped**, including Chromium and Docker.
+Previous patch verification: **406 passed, 0 failed, 0 skipped**.
 Previous Phase 10 verification: **384 passed, 0 failed, 0 skipped**.
 Routine-order patch 0.10.1 verification is in [PATCH_0_10_1_REVIEW.md](PATCH_0_10_1_REVIEW.md);
 menu patch 0.10.2 verification is in [MENU_POSITION_REVIEW.md](MENU_POSITION_REVIEW.md).
+The header/date patch 0.10.3 is recorded in [HEADER_ROUTINE_DATES_REVIEW.md](HEADER_ROUTINE_DATES_REVIEW.md).
 Phase 10 results and known limits are recorded in
 [PHASE_10_REVIEW.md](PHASE_10_REVIEW.md). Existing Phase 1–9 functionality remains;
 Phase 10 adds form-preserving historical errors, structured optional time,
@@ -593,7 +595,7 @@ export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.10.2`, and schema version `7`. Schema 1 still opens
+`status: ready`, app version `0.10.3`, and schema version `7`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -976,7 +978,7 @@ remote authentication or public exposure in this phase. See
 
 ## Application and database versioning
 
-The application uses semantic versions, currently **0.10.2**: major.minor.patch.
+The application uses semantic versions, currently **0.10.3**: major.minor.patch.
 After 1.0, breaking public-contract changes increment major, compatible features
 increment minor, and compatible fixes increment patch. During 0.x development,
 feature releases increment minor and compatible fixes increment patch; any
@@ -1004,7 +1006,7 @@ docker run --rm --network=none --read-only --entrypoint python \
   workout-tracker:local -m workout_tracker release-info
 ```
 
-Expected JSON: `{"app_version": "0.10.2", "target_schema_version": 7}`.
+Expected JSON: `{"app_version": "0.10.3", "target_schema_version": 7}`.
 The target is release metadata; `/health/ready` and Settings/footer report the
 actual active schema instead. Parse JSON rather than scraping templates or the
 foundation initialization constant. Stop writers and explicitly back up/verify
@@ -1098,7 +1100,7 @@ dependencies. See static/icons/README.md for the original artwork/export details
 
 ## Phase 10 historical entry, Progress and live updates
 
-Phases 1–10 are implemented; current release is **0.10.2 / schema 7**. Phase 10
+Phases 1–10 are implemented; current release is **0.10.3 / schema 7**. Phase 10
 needs **no database migration for an existing schema-7 installation**. No exercise
 identity or chart calculation changes are made; the separately reported duplicate/
 orphaned exercise issue is explicitly untouched.
@@ -1178,3 +1180,26 @@ This is a CSS-only positioning fix plus the patch-version update. Schema is stil
 when already using Phase 10. The existing browser updater/v4 can install it. See
 [MENU_POSITION_REVIEW.md](MENU_POSITION_REVIEW.md) for the measured cause, viewport
 coverage, full-suite results and limits.
+
+
+## Patch 0.10.3 — rightmost navigation and routine activity dates
+
+The hamburger stays at the far right of one compact sticky header row. Branding
+is unchanged; the selected person's accent and name use the remaining space. Long
+names truncate with an ellipsis and retain the full name in a title/accessibility
+text instead of moving or wrapping the button. Header and dropdown reserve iPhone
+safe-area insets; the menu opens to the right below the header with all four links.
+Existing keyboard, focus and outside-click behavior is unchanged. Focused active
+workouts keep their existing restricted header rather than gaining global navigation.
+
+Routine cards show **Last completed: November 6, 2026**, or **Never completed**, in
+a compact muted row below the name/actions. The exact completed-workout record
+used by sorting supplies its ISO date and English label. Live and historical dates,
+corrections, person ownership, unique routine IDs and independent copies follow the
+existing rules. Drafts/discards/unfinished preparations do not count; deleted
+definitions stay absent. No new history query or stored completion field is added.
+The full-width date row avoids a tall narrow column beside Start Workout.
+
+Application **0.10.3**, schema **7 unchanged**. Use the existing browser updater or
+v4; no migration or additional host upgrade is needed on a Phase 10 installation.
+[Review and test evidence](HEADER_ROUTINE_DATES_REVIEW.md).

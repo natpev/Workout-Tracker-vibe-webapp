@@ -106,20 +106,21 @@ dialog::backdrop { background:#0008; }
 @media(min-width:768px) { main { padding:0 2rem 2rem; } .people-list { display:grid; grid-template-columns:1fr 1fr; gap:0 1rem; } .add-person { max-width:32rem; } .primary-nav { max-width:34rem; } .page-heading { margin-top:2rem; } }
 
 /* Keep the selected identity visible without adding another navigation bar. */
-.app-header { position:sticky; top:0; z-index:30; background:var(--background); flex-wrap:wrap; }
-/* Anchor only the global dropdown to the full sticky header, not its 44px
-   button. The button is beside the brand with a person, and at the right without
-   one. Header-relative bounds keep both layouts on-screen without JavaScript. */
-.app-header .menu-wrap { position:static; }
+.app-header { position:sticky; top:0; z-index:30; background:var(--background); flex-wrap:nowrap; padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+/* Keep one compact header row: branding does not shrink, the person's name
+   uses remaining space with ellipsis, and the button always stays at the right.
+   The dropdown remains anchored to the full sticky header for safe bounds. */
+.app-header .brand { flex-shrink:0; }
+.app-header .menu-wrap { position:static; order:1; margin-left:auto; }
 #main-menu {
+  left:auto; right:0;
   --menu-safe-left:env(safe-area-inset-left,0px);
   --menu-safe-right:env(safe-area-inset-right,0px);
   max-width:calc(100% - var(--menu-safe-left) - var(--menu-safe-right));
   margin-left:var(--menu-safe-left); margin-right:var(--menu-safe-right);
   max-height:calc(75svh - env(safe-area-inset-bottom,0px));
 }
-.app-header:has(.selected-person) #main-menu { left:0; right:auto; }
-.selected-person { order:1; margin-left:auto; }
+.selected-person { order:0; flex:1; min-width:0; max-width:none; margin-left:0; }
 .person-accent { color:var(--accent); }
 .danger { background:#a5192d; color:#fff; }
 .destructive-notice { border-left:4px solid #b3263d; padding:.8rem; }
@@ -152,3 +153,8 @@ dialog::backdrop { background:#0008; }
 .chart-point { cursor:pointer; stroke:transparent; stroke-width:18px; pointer-events:all; }
 .chart-point:focus { outline:none; stroke:var(--accent); stroke-width:3px; }
 .duration>div { flex:1; min-width:0; }
+
+/* Activity is presentation metadata, sharing the existing muted theme color. */
+.routine-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.15rem 1rem; }
+.routine-activity { grid-column:1 / -1; font-size:.8rem; margin:0; }
+.routine-card > div { min-width:0; }

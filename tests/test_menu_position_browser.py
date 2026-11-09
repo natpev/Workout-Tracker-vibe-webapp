@@ -25,6 +25,18 @@ def assert_usable_menu(page, width, height):
     panel = page.locator('#main-menu')
     pw.expect(panel).to_be_visible()
     box = panel.bounding_box()
+    header = page.locator('.app-header').bounding_box()
+    button = page.get_by_role('button', name='Open navigation', exact=True).bounding_box()
+    padding = page.locator('.app-header').evaluate('(n)=>parseFloat(getComputedStyle(n).paddingRight)')
+    assert abs(button['x'] + button['width'] - (header['x'] + header['width'] - padding)) < 1
+    assert header['height'] <= 65 and button['y'] >= header['y']
+    assert button['y'] + button['height'] <= header['y'] + header['height']
+    selected = page.locator('.selected-person')
+    if selected.count():
+        info = selected.bounding_box()
+        assert info['width'] > 20 and info['x'] >= page.locator('header .brand').bounding_box()['x'] + page.locator('header .brand').bounding_box()['width']
+        assert info['x'] + info['width'] <= button['x'] - 8
+        pw.expect(selected).to_be_visible()
     assert 8 <= box['x'] and box['x'] + box['width'] <= width - 8
     assert box['y'] >= page.locator('.app-header').bounding_box()['y'] + page.locator('.app-header').bounding_box()['height']
     assert box['y'] + box['height'] <= height - 8

@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–10 are implemented; latest patch suite passed all 406 tests (zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
-**Current scope:** application 0.10.2 / unchanged schema 7. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–10 are implemented; latest patch suite passed all 416 tests (zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
+**Current scope:** application 0.10.3 / unchanged schema 7. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -738,3 +738,32 @@ Version 0.10.2 follows verified merged 0.10.1; schema stays 7 and updater metada
 protocol is unchanged. No new host upgrade or server configuration is required.
 After verification, direct main fast-forward/push and branch cleanup are authorized;
 no PR attempt, force push, live data, deployment or unrelated development phase.
+
+
+## 24. Patch 0.10.3 — rightmost header and last routine completion dates
+
+The hamburger remains at the header's far right in phone portrait/landscape,
+tablet and desktop layouts. Keep a single compact sticky row: branding does not
+shrink, selected-person text occupies remaining space with ellipsis/full-name
+title, accent stays visible and the button cannot wrap. Reserve safe-area padding.
+Right-align the existing viewport/header-bounded dropdown beneath it, above content.
+Keep all links, keyboard/focus/toggle/outside behavior and themes; no navigation
+JavaScript change. Active workouts retain their existing restricted focused header.
+
+Cards display Last completed: Month D, YYYY or Never completed in smaller muted
+text below their name/actions. Return ISO date and deterministic English label
+from the exact routine-ID maximum already used by sorting, in one read pass.
+Keep all existing date/timestamp/alpha tie rules; include completed live/manual
+workouts and effective corrections, never historical entry times, drafts, discarded
+sessions or unfinished preparations. People and copied routine IDs remain independent.
+Deleted/archived definitions stay excluded. Use a full-width activity row so dates
+do not create tall narrow columns; preserve Start/Edit, names, accents and mobile
+controls. No positions, history, dates or audits are written by listing/rendering.
+
+Test date formatting, matching sort order, historical chronology, ignored incomplete
+records, copies/people/deletions, corrections, exact read-only SQL state, compact
+card height and all required header/menu geometry in Light/Dark plus card Auto.
+Run the full backend/Chromium/Docker/updater suite. Version is 0.10.3 from verified
+main 0.10.2; schema remains 7 with no migration. Existing browser/v4 protocols remain
+compatible, with no extra host upgrade. Verified direct fast-forward/push/cleanup
+is authorized with no PR attempt, live data, deployment or unrelated development.

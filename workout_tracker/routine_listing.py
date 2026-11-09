@@ -3,15 +3,25 @@
 
 The route supplies its locked SQLite connection. Existing effective history
 provides completed live/manual occurrences, including date/time corrections.
-Only the returned card order changes; no positions, snapshots or dates are written.
+Only card order and display metadata change; no positions, snapshots or dates are written.
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from . import catalog, history
 
 
+MONTHS = ('January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December')
+
+
+def completion_label(day):
+    """Format an ISO workout date in English, without locale or leading-zero days."""
+    chosen = date.fromisoformat(day)
+    return f'{MONTHS[chosen.month - 1]} {chosen.day}, {chosen.year}'
+
+
 def selectable_routines(db, person_id):
-    """Return active owned routines, newest completion first, then name for ties.
+    """Return active owned cards with their last date, newest first, then name for ties.
 
     Use actual workout dates and live completion/historical occurrence times,
     never historical entry/audit timestamps. An
@@ -47,7 +57,14 @@ def selectable_routines(db, person_id):
         occurrence = (workout['workout_date'], clock)
         identity = workout['routine_id']
         latest[identity] = max(latest.get(identity, ('', '')), occurrence)
+    # Attach display-only metadata from the exact maximum used by sorting.
+    # Copies/people without a completion keep None; no extra query or DB write.
+    cards = []
+    for row in routines:
+        day = latest[row['id']][0] if row['id'] in latest else None
+        cards.append(dict(row, last_completed_date=day,
+                          last_completed_label=completion_label(day) if day else None))
     # Python's stable second sort retains the alphabetical order for equal keys.
     # The ID is a final deterministic fallback when names also match exactly.
-    alphabetical = sorted(routines, key=lambda row: (row['name'].casefold(), row['name'], row['id']))
+    alphabetical = sorted(cards, key=lambda row: (row['name'].casefold(), row['name'], row['id']))
     return sorted(alphabetical, key=lambda row: latest.get(row['id'], ('', '')), reverse=True)
