@@ -12,6 +12,7 @@ import secrets
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for, g
 
 from . import catalog
+from .routine_listing import selectable_routines
 from .storage import StorageError, database_session
 
 bp = Blueprint("manage", __name__)
@@ -122,8 +123,7 @@ def dashboard(person_id):
             version = db.execute("PRAGMA user_version").fetchone()[0]
             from .workouts import active
             draft = active(db, person_id) if version >= 3 else None
-            routines = db.execute("SELECT * FROM routines WHERE person_id=? AND archived=0 ORDER BY position",
-                                  (person_id,)).fetchall()
+            routines = selectable_routines(db, person_id)
             sources = db.execute("SELECT r.*,p.name AS person_name FROM routines r JOIN people p ON r.person_id=p.id "
                                  "WHERE r.archived=0 AND p.archived=0 ORDER BY p.name,r.position").fetchall()
     if request.method == "POST":

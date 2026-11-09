@@ -3,7 +3,7 @@
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
 **Project status:** Phases 1–10 are implemented. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
-**Current scope:** application 0.10.0 / unchanged schema 7. Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Current scope:** application 0.10.1 / unchanged schema 7. Patch 0.10.1 sorts routine cards by the latest completed workout; see section 22. Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -683,3 +683,34 @@ candidate-only migration, original preservation and recovery safeguards. No live
 storage, deployment, login/TLS, PR attempt or Phase 11 is authorized. After full
 backend/Chromium/Docker verification, the user authorizes feature push, direct
 history-preserving main merge/push, remote verification and completed-branch deletion.
+
+
+## 22. Patch 0.10.1 — routines by latest completed workout
+
+The selected person's routine-selection cards are sorted server-side by their
+latest completed workout: actual effective workout date descending, then available
+live Finish timestamp or historical occurrence timestamp descending, then routine
+name alphabetically. For a live workout with a deliberately corrected occurrence,
+that effective corrected timestamp supersedes the original Finish stamp. Compare
+known timestamps in UTC with full stored precision. Known times precede unknown
+times on the same date; do not substitute historical entry or correction time.
+Names compare by casefold, exact name, then permanent routine ID for stable ties.
+Never-completed routines come last alphabetically.
+
+Include completed live and saved historical sessions, including entirely skipped
+completed workouts. Ignore active/unfinished/discarded/canceled sessions and
+uncompleted historical preparations. Match person plus permanent routine ID,
+never the routine name or shared exercise IDs. Copies are independent; renamed
+routines retain their own history, and deleted/archived definitions stay excluded.
+Keep existing cards, actions, layout and within-routine exercise order. Do not
+write routine positions, dates, workout snapshots or audit records while listing.
+
+Reuse the existing effective correction/history reader on schema 4–7. Retained
+schema 3 uses completed live sessions only; schema 2 has no workout history and
+falls back to alphabetical routine cards without initializing/migrating anything.
+Application 0.10.1 keeps schema 7. Existing browser/v4 code-only updates retain all
+backup, recovery and consent safeguards. No new host-service upgrade is needed
+after Phase 10. Add synthetic ordering/ownership/copy/tie/correction/read-only and
+responsive browser regression tests and run the entire suite including Docker.
+Direct fast-forward merge/push and completed-branch deletion are authorized after
+verification, with no PR attempt, deployment, real data or new development phase.

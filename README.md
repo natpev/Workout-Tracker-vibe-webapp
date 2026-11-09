@@ -15,7 +15,7 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.10.0**. Current full-feature database schema:
+Current application version: **0.10.1**. Current full-feature database schema:
 **7**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.0" and d["schema_version"]==7'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.1" and d["schema_version"]==7'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.10.0`, `schema_version: 7`.
+Expected fields are `status: ready`, `app_version: 0.10.1`, `schema_version: 7`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -513,8 +513,9 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–10 are implemented. Current target: **application 0.10.0 / schema 7**.
-Final verification: **384 passed, 0 failed, 0 skipped** (including Chromium and Docker).
+Phases 1–10 are implemented. Current target: **application 0.10.1 / schema 7**.
+Previous Phase 10 verification: **384 passed, 0 failed, 0 skipped**.
+Patch 0.10.1 verification is recorded in [PATCH_0_10_1_REVIEW.md](PATCH_0_10_1_REVIEW.md).
 Phase 10 results and known limits are recorded in
 [PHASE_10_REVIEW.md](PHASE_10_REVIEW.md). Existing Phase 1–9 functionality remains;
 Phase 10 adds form-preserving historical errors, structured optional time,
@@ -590,7 +591,7 @@ export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.10.0`, and schema version `7`. Schema 1 still opens
+`status: ready`, app version `0.10.1`, and schema version `7`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -973,7 +974,7 @@ remote authentication or public exposure in this phase. See
 
 ## Application and database versioning
 
-The application uses semantic versions, currently **0.10.0**: major.minor.patch.
+The application uses semantic versions, currently **0.10.1**: major.minor.patch.
 After 1.0, breaking public-contract changes increment major, compatible features
 increment minor, and compatible fixes increment patch. During 0.x development,
 feature releases increment minor and compatible fixes increment patch; any
@@ -1001,7 +1002,7 @@ docker run --rm --network=none --read-only --entrypoint python \
   workout-tracker:local -m workout_tracker release-info
 ```
 
-Expected JSON: `{"app_version": "0.10.0", "target_schema_version": 7}`.
+Expected JSON: `{"app_version": "0.10.1", "target_schema_version": 7}`.
 The target is release metadata; `/health/ready` and Settings/footer report the
 actual active schema instead. Parse JSON rather than scraping templates or the
 foundation initialization constant. Stop writers and explicitly back up/verify
@@ -1095,7 +1096,7 @@ dependencies. See static/icons/README.md for the original artwork/export details
 
 ## Phase 10 historical entry, Progress and live updates
 
-Phases 1–10 are implemented; current release is **0.10.0 / schema 7**. Phase 10
+Phases 1–10 are implemented; current release is **0.10.1 / schema 7**. Phase 10
 needs **no database migration for an existing schema-7 installation**. No exercise
 identity or chart calculation changes are made; the separately reported duplicate/
 orphaned exercise issue is explicitly untouched.
@@ -1137,3 +1138,25 @@ See [exact installed-server steps](deployment/README.md#phase-10-existing-instal
 and [PHASE_10_REVIEW.md](PHASE_10_REVIEW.md) for implementation, tests and limits.
 V4 remains the emergency script; no v5 script, deployment or startup migration is
 introduced. Keep your existing Compose/.env and timezone settings.
+
+
+## Patch 0.10.1 — routine selection order
+
+The selected person's routine cards now show the most recently completed workout
+first. Actual workout date is primary; live Finish timestamps and known historical
+occurrence times resolve same-day ties. Corrections to occurrence date/time apply.
+Equal timestamps and unknown times use alphabetical routine names; routines never
+completed appear last, alphabetically. Names are compared without case, with the
+exact name and permanent ID as deterministic fallbacks.
+
+Only completed live/historical workouts count. Drafts, discarded workouts and
+unfinished historical preparations do not. Each person and routine ID has an
+independent history; copies do not inherit completion rank. Deleted/archived routine
+definitions do not appear as cards. Card controls/layout and exercise ordering are
+unchanged. This is a read-only server listing, not a rewrite of stored positions
+or workout dates. Schema stays **7** and requires **no migration** for schema 7.
+
+The existing browser updater/v4 supports this code-only patch. If already using
+the Phase 10 host runtime, no additional host-service upgrade is required. Older
+hosts still need the previously documented Phase 10 upgrade for live console logs.
+See [patch review and tests](PATCH_0_10_1_REVIEW.md).

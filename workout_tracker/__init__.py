@@ -15,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.10.0"
+APP_VERSION = "0.10.1"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
 TARGET_SCHEMA_VERSION = 7
