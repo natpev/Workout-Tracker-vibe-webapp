@@ -18,6 +18,9 @@
       buttons.forEach((other) => close(other));
       panel.hidden = !opening;
       button.setAttribute("aria-expanded", String(opening));
+      // A bottom-of-page Library row may need a small vertical scroll so both
+      // actions are reachable. CSS alone controls width and name truncation.
+      if (opening && panel.classList.contains("library-menu")) panel.scrollIntoView({block:"nearest",inline:"nearest"});
     });
     button.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown") { event.preventDefault(); if (panel.hidden) button.click(); panel.querySelector("a,input,button")?.focus(); }

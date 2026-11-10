@@ -4,8 +4,8 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
-**Current scope:** Phase 12 application 0.12.0 / unchanged schema 8. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
+**Current scope:** Patch 0.12.1 / unchanged schema 8. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -942,3 +942,20 @@ Run all existing/new backend, browser/mobile/themes, Docker, installation, updat
 backup/restore and database-integrity tests without weakening assertions. After
 verification, direct main merge/push/verification and feature cleanup are authorized
 without a PR, force push, deployment, production data or another development phase.
+
+
+## 28. Patch 0.12.1 — Exercise Library three-dot menu
+
+Replace separate Library action buttons with a fixed, touch-friendly ⋯ disclosure
+to the right of each name. Edit Defaults opens the existing name/default editor;
+Delete Exercise opens the unchanged permanent-deletion review and confirmations.
+Names stay on one line with visual CSS ellipsis and full accessible/title/editor
+text. Anchor panels to the full row, constrain them to the viewport and keep them
+above content. Reuse existing tap, keyboard, focus, Escape, outside-close and
+one-open-at-a-time behavior. Preserve IDs, configurations, history, people and
+legacy archival behavior. No schema migration or unrelated identity cleanup.
+
+Application 0.12.1, schema 8. Verify 320/390/844/768/1280 widths in Light/Dark and
+all existing tests, review README commands/version/links and concise versioned
+notes before direct main merge/push/verification/cleanup without a PR or deployment.
+See LIBRARY_MENU_REVIEW.md. Existing Phase 12 host services need no new refresh.

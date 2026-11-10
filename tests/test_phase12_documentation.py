@@ -57,8 +57,12 @@ def test_disclosure_and_permanent_release_rules():
 def test_current_release_notes_and_readme_review_record_exist():
     """Every release has version-matched user notes and a documented review checklist."""
     note=(ROOT/'releases'/f'{APP_VERSION}.json').read_text()
-    data=json.loads(note);assert data['version']==APP_VERSION and len(data['notes'])>=4
-    assert 'Simplified exercise' in read_notes(APP_VERSION,note)
+    data=json.loads(note);assert data['version']==APP_VERSION and len(data['notes'])>=1
+    assert read_notes(APP_VERSION,note).startswith('• ')
+    # Retain the original Phase 12 content checks independently of newer releases.
+    original=(ROOT/'releases/0.12.0.json').read_text()
+    assert len(json.loads(original)['notes'])>=4
+    assert 'Simplified exercise' in read_notes('0.12.0',original)
     assert not re.search(r'[0-9a-f]{40}',note)
     for technical in ('schema','workout_tracker/','git commit'):assert technical not in note.lower()
     assert 'Commands were checked against Compose' in (ROOT/'PHASE_12_REVIEW.md').read_text()

@@ -57,6 +57,8 @@ def test_library_name_editing_ids_choices_and_month_ranges(phase12_page,width,he
     page.set_viewport_size(dict(width=width,height=height))
     page.goto(base+f'/people/{a}/exercises')
     listing=page.locator('.library-exercise').filter(has=page.get_by_role('heading',name='Weighted carry',exact=True))
+    expect(listing.get_by_role('link',name='Edit Defaults',exact=True)).to_be_hidden()
+    listing.get_by_role('button',name='Actions for Weighted carry',exact=True).click()
     expect(listing.get_by_role('link',name='Edit Defaults',exact=True)).to_be_visible()
     assert e not in page.locator('body').inner_text()
     expect(page.get_by_role('button',name='Rename exercise',exact=True)).to_have_count(0)

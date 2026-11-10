@@ -1,0 +1,6 @@
+{
+  "version": "0.12.1",
+  "notes": [
+    "Improved the Exercise Library with a cleaner three-dot menu and better handling of long exercise names."
+  ]
+}

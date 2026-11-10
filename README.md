@@ -15,8 +15,9 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.12.0**. Database schema: **8**. Updating from 0.11.0 with
-schema 8 needs **no database migration**.
+Current application: **0.12.1**. Database schema: **8**. Updating from 0.11.0 or 0.12.0 with
+schema 8 needs **no database migration**. This patch also needs no host updater
+refresh if you already completed the Phase 12 host-service setup.
 
 ### 1. Choose a server
 
@@ -190,7 +191,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.12.0",schema_version=8)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.12.1",schema_version=8)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -203,7 +204,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.12.0 / database 8**. Check all three themes in Settings.
+should report **0.12.1 / database 8**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -257,14 +258,16 @@ Deleting a routine preserves completed history; active drafts block deletion.
 
 ## Exercise Library
 
-Use **Edit Defaults** beside an exercise to edit its name and defaults. Its Library
+Open the **⋯** menu beside an exercise, then choose **Edit Defaults** to edit its
+name and defaults. Long names shorten visually to keep the menu accessible; the
+complete name stays in the editor and its tooltip. Its Library
 ID is shown only on that detail screen, for troubleshooting. Ordinary selectors
 show names; matching names get numbered options without changing their identities.
 
 Renaming updates the shared name and current routine displays for everyone.
 Historical workouts keep their original names. Defaults apply only when an exercise
 is newly added to a routine; changing them does not change existing routine settings.
-**Permanently Delete Exercise** is different: it deliberately erases that identity
+**Delete Exercise** in the menu opens a separate permanent-deletion review: it deliberately erases that identity
 and its history across all people after an impact preview and confirmation. Older
 backups can resurrect deleted records on deliberate compatible restore.
 
@@ -346,7 +349,7 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-An existing schema-8 installation needs no migration for 0.12.0. Confirmed updates
+An existing schema-8 installation needs no migration for 0.12.1. Confirmed updates
 still create a verified backup. Never initialize a database as part of an update.
 
 ### One-time browser updater installation
@@ -417,9 +420,10 @@ input closed before Saved. Do not casually remove schema archives or old backups
 See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
 [measurement design](MEASUREMENT_DESIGN.md), [release-note format](releases/README.md),
 [deployment/recovery](deployment/README.md), [developer reference](docs/DEVELOPER_REFERENCE.md),
-and [Phase 12 verification](PHASE_12_REVIEW.md). Older phase reviews retain their
+[Phase 12 verification](PHASE_12_REVIEW.md), and
+[current Library menu verification](LIBRARY_MENU_REVIEW.md). Older phase reviews retain their
 historical results and limitations. Current release verification is recorded in
-PHASE_12_REVIEW.md; no physical-server or live-data testing is implied.
+LIBRARY_MENU_REVIEW.md; no physical-server or live-data testing is implied.
 
 Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this
