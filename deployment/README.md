@@ -1,8 +1,8 @@
-# Phase 10 installation, LAN updater v4 and recovery
+# Workout Tracker installation, LAN updater v4 and recovery (Phase 11)
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.10.4**, full-feature schema **7**. The application remains
+Application **0.11.0**, full-feature schema **8**. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -38,8 +38,8 @@ before maintenance. Do not initialize installed storage or delete retained files
 
 ## First upgrade from schema 6
 
-These commands apply after Phase 10 is merged into approved main. Schemas 4/5 can
-also upgrade explicitly to 7 through the same candidate machinery; verify the
+These commands apply after Phase 11 is merged into approved main. Schemas 4/5 can
+also upgrade explicitly to 8 through the same candidate machinery; verify the
 actual installed schema rather than assuming it. The initial step updates source
 only; the currently running image/database remain unchanged until v4 is confirmed.
 
@@ -84,12 +84,12 @@ bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
 It checks approved main, displays the release, asks to install with a verified
-backup, and prompts **MIGRATE 7** if the actual source schema needs upgrading.
+backup, and prompts **MIGRATE 8** if the actual source schema needs upgrading.
 This is a safety confirmation, not authentication. The shared engine stops only
 web/scheduler, verifies a distinct backup, preserves the previous image/commit,
 builds, checks actual release-info, invokes confirmed candidate migration and
-validates schema/original bytes before restart. It then verifies actual app 0.10.4 /
-schema 7 and scheduler status. No unsupported older image is started after schema
+validates schema/original bytes before restart. It then verifies actual app 0.11.0 /
+schema 8 and scheduler status. No unsupported older image is started after schema
 activation. The parent .env is copied atomically/private into app/.env with the
 same contents, as explicitly requested; paths, ports and values are not changed.
 
@@ -114,7 +114,7 @@ docker compose --project-directory /root/WorkoutTracker/app \
 docker compose --project-directory /root/WorkoutTracker/app \
   --env-file /root/WorkoutTracker/.env \
   -f /root/WorkoutTracker/app/compose.yaml exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.10.4",schema_version=7)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.11.0",schema_version=8)'
 ```
 
 Open **http://10.0.69.9:8000/settings/updates**. No login or certificate action
@@ -371,3 +371,84 @@ existing cursor stores the Next checkpoint; no DDL or migration is introduced.
 CSV is an in-memory, person-scoped read-only download. No new host service, server
 Compose/.env changes, PDF/Excel dependencies or export storage are required. Keep
 the existing confirmation, verified backup, original storage and health safeguards.
+
+
+## Phase 11 schema 7 to 8 upgrade
+
+**SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.**
+Current release is **0.11.0 / schema 8**. Earlier Phase 9/10 and patch instructions
+above document their historical release targets, not a schema-7 code-only update
+for this release. Existing schema 7 must explicitly migrate a separate candidate.
+
+For a working installed Phase 10 browser updater:
+
+1. Open Settings → Administration → Application Updates → Check for Updates.
+2. Review approved main, application 0.11.0 and target schema 8.
+3. Confirm installation and the schema migration, then press Install Update.
+4. Watch the independent http://10.0.69.9:8001/status tab through backup, build,
+   candidate migration and health verification. Do not close it or start another job.
+5. Reopen the app; Settings/footer and /health/ready must show 0.11.0 / schema 8.
+   Make a new verified schema-8 backup. Older schema-7 backups stay retained but
+   Restore cannot downgrade a schema-8 installation.
+
+The existing host engine/v4 supports dynamic target 8 and invokes the new image's
+CLI. No Phase-11 host runtime reinstall, new script, Compose/.env change, port or
+server timezone change is required. Older pre-Phase-10 services still need their
+previously documented one-time upgrade for live console output, separately.
+
+Emergency SSH alternative on your installed server (operator commands only):
+
+```bash
+cd /root/WorkoutTracker/app
+git status --short --branch
+# Stop here if there are local changes or a non-main checkout; reconcile safely.
+bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
+```
+
+Review the release; confirm installation and type **MIGRATE 8** when prompted.
+This is the existing repository v4, not an uninspected external root wrapper.
+It stops web/scheduler, verifies a unique backup, retains source/image/selection,
+builds, confirms release-info, runs candidate migration and verifies health. Never
+run init-storage or Restore as an upgrade shortcut. If v4 is not present locally,
+with a clean main checkout fetch and fast-forward first:
+
+```bash
+cd /root/WorkoutTracker/app
+git fetch origin main
+git merge --ff-only origin/main
+bash deployment/update_workout_tracker_v4.sh
+```
+
+If deliberate manual maintenance is required instead, stop both services and
+external SQLite tools, protect the whole tree/private .env and verify a backup
+before updating. With the new image built and writers stopped, its explicit
+migration command is:
+
+```bash
+docker compose --project-directory /root/WorkoutTracker/app \
+  --env-file /root/WorkoutTracker/.env \
+  -f /root/WorkoutTracker/app/compose.yaml run --rm --no-deps web \
+  python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
+  --target-version 8 --confirm-upgrade
+
+docker compose --project-directory /root/WorkoutTracker/app \
+  --env-file /root/WorkoutTracker/.env \
+  -f /root/WorkoutTracker/app/compose.yaml run --rm --no-deps web \
+  python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
+```
+
+Continue only after verification succeeds, using the same existing Compose/.env:
+
+```bash
+docker compose --project-directory /root/WorkoutTracker/app \
+  --env-file /root/WorkoutTracker/.env \
+  -f /root/WorkoutTracker/app/compose.yaml up -d --no-build
+curl --fail http://10.0.69.9:8000/health/ready
+```
+
+Expected JSON: {"app_version":"0.11.0","schema_version":8,"status":"ready"}.
+Failure retains original schema-7 database and prior selection; failed candidates
+stay for diagnosis. A post-activation startup failure must not automatically run
+an incompatible old image or restore older data. Inspect retained versions and
+private recovery logs. Rollback cannot merge workouts entered after schema 8.
+No server command above has been executed by development tests.

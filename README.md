@@ -15,8 +15,8 @@ configured backups and log retention without a browser. Both run as the same
 non-root user and keep data in a host directory outside the code checkout.
 Automatic backups start **disabled**.
 
-Current application version: **0.10.4**. Current full-feature database schema:
-**7**. Application and schema versions are different numbers. Initialization and
+Current application version: **0.11.0**. Current full-feature database schema:
+**8**. Application and schema versions are different numbers. Initialization and
 migration are explicit one-time steps, never automatic startup actions.
 
 Follow the numbered steps in order from a **normal, non-root Linux account**
@@ -31,7 +31,7 @@ storage to make a command work.
 2. [Install the application code](#2-install-the-application-code)
 3. [Configure Compose](#3-configure-compose)
 4. [Build the image and prepare the storage parent](#4-build-the-image-and-prepare-the-storage-parent)
-5. [Initialize and verify schema 7](#5-initialize-and-verify-schema-7)
+5. [Initialize and verify schema 8](#5-initialize-and-verify-schema-8)
 6. [Start services and verify readiness](#6-start-services-and-verify-readiness)
 7. [Local and home-network access](#7-local-and-home-network-access)
 8. [First-run checks and everyday operations](#8-first-run-checks-and-everyday-operations)
@@ -218,7 +218,7 @@ so you cannot accidentally adopt another installation. The actual destination
 This matches the generated `.env` UID/GID. No blanket permission changes or
 recursive ownership changes to an existing installation are needed.
 
-### 5. Initialize and verify schema 7
+### 5. Initialize and verify schema 8
 
 **Run once, only for a new installation.** Initialization refuses an existing
 destination, even an empty directory. Normal Compose mounts refuse a missing
@@ -237,20 +237,20 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 It reports foundation storage initialized; **schema 1 is only the first step**.
 The new child now exists for Compose. Explicitly migrate a **separate candidate**
-to schema 7, then verify it:
+to schema 8, then verify it:
 
 ```sh
 docker compose run --rm --no-deps web python -m workout_tracker migrate-storage \
-  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 7
+  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 8
 
 docker compose run --rm --no-deps web python -m workout_tracker check-storage \
   --data-root /var/lib/workout-tracker
 ```
 
-Expect `Schema 7 verified` / `Storage verified; schema version 7.` The migration
-retains the schema-1 original, creates schema 7 in another file, provisions the
+Expect `Schema 8 verified` / `Storage verified; schema version 8.` The migration
+retains the schema-1 original, creates schema 8 in another file, provisions the
 private signing key, and atomically selects only a verified candidate. Do not
-omit `--target-version 7`: the CLI's backward-compatible default is **3**.
+omit `--target-version 8`: the CLI's backward-compatible default is **3**.
 `compose run` does not publish web ports unless explicitly requested; these are
 one-off maintenance containers, not started web/scheduler services.
 
@@ -286,10 +286,10 @@ Verify the live web endpoint using Python **inside** the container:
 
 ```sh
 docker compose exec -T web python -c \
-  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.10.4" and d["schema_version"]==7'
+  'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(d); assert d["status"]=="ready" and d["app_version"]=="0.11.0" and d["schema_version"]==8'
 ```
 
-Expected fields are `status: ready`, `app_version: 0.10.4`, `schema_version: 7`.
+Expected fields are `status: ready`, `app_version: 0.11.0`, `schema_version: 8`.
 If startup is still in progress, wait a few seconds and retry. From a browser on
 the Linux host, open **http://127.0.0.1:8000** (substitute `WORKOUT_PORT` if changed).
 Optional host utility: `curl --fail --show-error http://127.0.0.1:8000/health/ready`.
@@ -424,7 +424,7 @@ an ordinary compatible update does not automatically copy/back up the database.
 
 **Existing browser updater:** first follow the [Phase 10 one-time host-service upgrade](deployment/README.md#phase-10-existing-installation-upgrade) for live output.
 
-**Manual Docker update, already schema 7 only:** use the normal-update block below. Existing schema-4/5/6
+**Manual Docker update, already schema 8 only:** use the normal-update block below. Existing schema-4/5/6/7
 installations must instead follow [the confirmed upgrade procedure](deployment/README.md#first-upgrade-from-schema-6) before restarting.
 
 First inspect local work; if `git status --short` lists changes, stop and reconcile
@@ -457,13 +457,13 @@ explicit upgrade instructions; never initialize replacement storage.
 
 **Only when an approved release actually requires a schema upgrade**, run its
 specified candidate-only migration with writers and external SQLite tools stopped.
-For this release, an older supported schema 1/2/3/4/5/6 needs the following explicit
-upgrade to **7**; an already compatible schema 7 needs **no migration**:
+For this release, an older supported schema 1/2/3/4/5/6/7 needs the following explicit
+upgrade to **8**; an already compatible schema 8 needs **no migration**:
 
 ```sh
 docker compose stop
 docker compose run --rm --no-deps web python -m workout_tracker migrate-storage \
-  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 7
+  --data-root /var/lib/workout-tracker --confirm-upgrade --target-version 8
 docker compose run --rm --no-deps web python -m workout_tracker check-storage \
   --data-root /var/lib/workout-tracker
 # Only after both commands succeed:
@@ -489,7 +489,7 @@ changing anything. No troubleshooting step below deletes data or disables checks
 | Docker permission denied | Run `id`, `docker info`; correct trusted administrator access to Docker and log in again. Do not `chmod 666` the socket or storage. |
 | Missing bind source / storage not initialized | Check `test -d /opt/workout-tracker-data/storage` and `.env`'s host path. On a genuinely new install, follow steps 4–5 exactly. If previously installed storage disappeared, stop and investigate the mount/disk; never initialize an empty substitute. |
 | UID/GID mismatch / key permissions | Run `id` and the step-5 in-container ownership command. `.env` IDs must match private storage ownership; key mode must be 0600. Stop both services before deliberately correcting ownership of the **identified existing** tree. Do not use blanket world permissions, create a new key casually, or change owners of unrelated directories. |
-| Explicit migration required | `docker compose stop`, then use `compose run --rm --no-deps web ... check-storage` as in step 9. Current full functionality needs schema 7. Only run the release's confirmed candidate migration; never `init-storage` on installed data. |
+| Explicit migration required | `docker compose stop`, then use `compose run --rm --no-deps web ... check-storage` as in step 9. Current full functionality needs schema 8. Only run the release's confirmed candidate migration; never `init-storage` on installed data. |
 | Invalid/wrong timezone | Check the IANA spelling in `.env`, use `docker compose logs --tail 100 web`, correct it and recreate containers. Set the backup schedule timezone separately in Settings. |
 | Port already in use | Use optional `ss -ltn` to inspect listeners; change `WORKOUT_PORT` to a free port and recreate containers. Adjust your browser URL/firewall. Do not stop an unrelated service without identifying it. |
 | Works on server, not phone | Loopback is expected by default. Follow step 7, verify the actual private interface IP, trusted hosts, same trusted Wi-Fi, port, VM/host firewalls and router isolation. `docker compose ps` shows the published address. Never fix this by publicly exposing it. |
@@ -513,10 +513,12 @@ reference continue below.
 
 ## Project status and implementation reference
 
-Phases 1–10 are implemented. Current target: **application 0.10.4 / schema 7**.
-Latest verification: **439 passed, 0 failed, 0 skipped** (375 backend/script, 51 Chromium, 13 Docker).
+Phase 11 is implemented and verified. Current release: **application 0.11.0 / schema 8**.
+Latest verification: **476 passed, 0 failed, 0 skipped** (402 backend/script, 57 Chromium, 17 Docker).
+See [PHASE_11_REVIEW.md](PHASE_11_REVIEW.md).
+Previous release verification: **439 passed, 0 failed, 0 skipped** (375 backend/script, 51 Chromium, 13 Docker).
 Previous verification: **416 passed, 0 failed, 0 skipped**.
-Current progress/CSV verification is recorded in [PROGRESS_CSV_REVIEW.md](PROGRESS_CSV_REVIEW.md).
+Previous progress/CSV verification is recorded in [PROGRESS_CSV_REVIEW.md](PROGRESS_CSV_REVIEW.md).
 Previous patch verification: **406 passed, 0 failed, 0 skipped**.
 Previous Phase 10 verification: **384 passed, 0 failed, 0 skipped**.
 Routine-order patch 0.10.1 verification is in [PATCH_0_10_1_REVIEW.md](PATCH_0_10_1_REVIEW.md);
@@ -557,7 +559,7 @@ and limitations are in [PHASE_5_REVIEW.md](PHASE_5_REVIEW.md).
 - `library_schema.py`: schema-5 global references and candidate-only table rebuilds, preserving every original cell and trigger.
 - `history_schema.py`: additive schema-4 history, preparations, registry and append-only audit objects; no Phase 3 protection is removed.
 - `history.py`, `history_views.py`: shared effective values, chronology/filters, chart preparation, historical completion and deliberate corrections.
-- `migrations.py`: explicit candidate-only upgrade from known schema 1/2/3/4 to target 2/3/4/5, preserving every original row/NULL and verifying registry consistency.
+- `migrations.py`, `combined_schema.py`: explicit candidate-only upgrades through schema 8, preserving every original row/NULL and verifying registry consistency.
 - `workouts.py`, `workout_views.py`, `static/workout.js`: exact measurements, server drafts, serialized autosave, revision conflicts and atomic finalization.
 - `catalog.py`: parameterized SQL and rules for people, identities, ordering, typed targets, and independent copies.
 - `views.py`: CSRF-protected forms, ownership checks and stale-routine conflict detection.
@@ -590,14 +592,14 @@ It creates schema 1 first; a separate explicit command copies/upgrades it.
 export WORKOUT_DATA_ROOT="$(mktemp -d)/review-storage"
 .venv/bin/python -m workout_tracker init-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-new-storage
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
-.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 7
+.venv/bin/python -m workout_tracker migrate-storage --data-root "$WORKOUT_DATA_ROOT" --confirm-upgrade --target-version 8
 .venv/bin/python -m workout_tracker check-storage --data-root "$WORKOUT_DATA_ROOT"
 .venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --threads 2 'workout_tracker:create_app()'
 ```
 
 These commands are for synthetic review data only, not deployment permission.
 Stop the server with Ctrl+C. The readiness endpoint is `/health/ready`; verify
-`status: ready`, app version `0.10.4`, and schema version `7`. Schema 1 still opens
+`status: ready`, app version `0.11.0`, and schema version `8`. Schema 1 still opens
 the foundation shell; schema 2 supports existing management but not workout
 recording. Schema 3 supports tracking but history/corrections need an explicit
 target-4 upgrade. Startup never migrates these automatically. Stop workers before
@@ -802,7 +804,8 @@ external-storage/
   data/schema-4-<identity>-<candidate>.sqlite3  # retained pre-library schema
   data/schema-5-<identity>-<candidate>.sqlite3  # retained shared-library schema
   data/schema-6-<identity>-<candidate>.sqlite3  # retained deletion-capable original
-  data/schema-7-<identity>-<candidate>.sqlite3  # current global defaults schema
+  data/schema-7-<identity>-<candidate>.sqlite3  # retained global defaults schema
+  data/schema-8-<identity>-<candidate>.sqlite3  # current combined measurement schema
   config/active.json                          # active database selection
   config/session.key                         # private session signing material
   archives/selection-before-<candidate>.json   # original selection
@@ -814,8 +817,8 @@ external-storage/
 The CLI takes the same persistent-root lock used by all app connections. It
 refuses maintenance while a request holds a connection; stop workers and all
 external SQLite tools before migration. External tools do not follow our lock
-protocol. Known schema 1/2/3/4/5/6 can explicitly upgrade to 7; targets 2/3/4/5/6 remain
-available for compatible tooling. Select `--target-version 7` for this phase.
+protocol. Known schema 1/2/3/4/5/6/7 can explicitly upgrade to 8; targets 2/3/4/5/6 remain
+available for compatible tooling. Select `--target-version 8` for the current release.
 The CLI keeps its target-3 default for backward compatibility; its programmatic
 helper keeps the existing target-2 default for backward-compatible callers.
 
@@ -832,7 +835,7 @@ if that also fails, the CLI reports uncertainty and requires inspection. No
 original database is overwritten or removed. Previous versions stay in `data/`
 and their selection manifests in `archives/`; failed candidates stay for diagnosis.
 
-All seven supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
+All eight supported schemas use rollback journals. WAL headers and any journal/WAL/SHM
 sidecars are refused **before** SQLite opens a source; there is no implicit
 recovery. Unknown, damaged, missing, symlinked or incompatible storage never
 becomes an empty replacement. A migration request matching the selected schema version is a
@@ -919,7 +922,7 @@ still exceed it and need operator inspection after an interruption.
 
 **Restore Backup** requires a checkbox plus typing RESTORE. It warns that later
 workouts/corrections are not merged. The service rechecks the selected backup,
-requires the same storage identity and exact selected schema (2–7), copies to a
+requires the same storage identity and exact selected schema (2–8), copies to a
 unique candidate, compares all values and audits, syncs it, retains the original
 file/selection, then atomically selects the verified candidate. Original and
 backup files are never overwritten. Failure before activation keeps the original;
@@ -982,12 +985,12 @@ remote authentication or public exposure in this phase. See
 
 ## Application and database versioning
 
-The application uses semantic versions, currently **0.10.4**: major.minor.patch.
+The application uses semantic versions, currently **0.11.0**: major.minor.patch.
 After 1.0, breaking public-contract changes increment major, compatible features
 increment minor, and compatible fixes increment patch. During 0.x development,
 feature releases increment minor and compatible fixes increment patch; any
 breaking changes require explicit release notes. SQLite schema is
-separate, currently **7**, and increments only when persistent structures change.
+separate, currently **8**, and increments only when persistent structures change.
 A code release does not automatically require a migration. Settings About and
 the small document-flow footer read the running application version and verified
 active DB schema; /health/ready reports the same source values.
@@ -995,7 +998,7 @@ active DB schema; /health/ready reports the same source values.
 ### Existing /root/WorkoutTracker schema-4/5 installations
 
 Use [deployment/README.md](deployment/README.md#first-upgrade-from-schema-6) for
-this release's explicit schema-7 upgrade and one-time passwordless host updater
+this release's explicit schema-8 upgrade and one-time passwordless host updater
 installation. Do not use the historical Phase 7/schema-5 guide as the current
 release target. Existing databases, root .env and original versions are preserved.
 The app remains HTTP port 8000; read-only updater progress is private LAN port 8001.
@@ -1010,7 +1013,7 @@ docker run --rm --network=none --read-only --entrypoint python \
   workout-tracker:local -m workout_tracker release-info
 ```
 
-Expected JSON: `{"app_version": "0.10.4", "target_schema_version": 7}`.
+Expected JSON: `{"app_version": "0.11.0", "target_schema_version": 8}`.
 The target is release metadata; `/health/ready` and Settings/footer report the
 actual active schema instead. Parse JSON rather than scraping templates or the
 foundation initialization constant. Stop writers and explicitly back up/verify
@@ -1104,8 +1107,7 @@ dependencies. See static/icons/README.md for the original artwork/export details
 
 ## Phase 10 historical entry, Progress and live updates
 
-Phases 1–10 are implemented; current release is **0.10.4 / schema 7**. Phase 10
-needs **no database migration for an existing schema-7 installation**. No exercise
+Historical Phase 10 targeted **0.10.0 / schema 7**. That release needed **no database migration for an existing schema-7 installation**. No exercise
 identity or chart calculation changes are made; the separately reported duplicate/
 orphaned exercise issue is explicitly untouched.
 
@@ -1250,3 +1252,46 @@ The first row is always the header, with no decorative rows. See
 [PROGRESS_CSV_REVIEW.md](PROGRESS_CSV_REVIEW.md) for detailed tests and limitations.
 
 Selected exercises absent throughout a range still retain blank column pairs, using their historical configurations for headings; no out-of-range data rows are added.
+
+
+## Phase 11 — combined Weight + Duration (0.11.0 / schema 8)
+
+Choose **Weight + Duration** in Library defaults or routine settings for any
+exercise needing both resistance and time (for example a weighted plank or carry).
+Configure sets, target duration per set, pounds, optional weight meaning (such as
+per hand or total weight), and notes. There is no fixed target-weight field.
+Library defaults copy once when added; existing routines remain independent.
+
+One exercise screen records one actual weight and one actual duration, regardless
+of set count. Both start blank. Both blank means skipped: both SQL measurements
+and the increase flag remain NULL. A performed entry requires both values; a
+partial pair shows field errors and cannot be saved or navigated away as Saved.
+Zero pounds is valid, duration must be positive, either duration part can be blank,
+and seconds above 59 normalize. Weight truncates to integer tenths as before.
+Only **Increase weight next time** is offered, entirely manual even below target.
+Previous performance shows both actuals and the previous weight recommendation.
+The Next-only progress checkpoint and revision-checked autosave remain unchanged.
+
+History, summaries and append-only corrections show both values and preserve
+original snapshots/audits. Progress groups two separate local charts under the
+exercise heading: pounds and seconds labeled m:ss. Targets come from each snapshot;
+a dashed duration reference appears only when the range has one common target.
+Varying targets remain in each point tooltip/data row, never one misleading line.
+Existing filters, NULL exclusions, zero, person/ID/meaning isolation remain.
+
+CSV keeps the existing first four columns and wide layout. Combined exercises
+have three adjacent columns: **Weight (lb), Duration, Sets × Target Duration**.
+Durations use total m:ss; prescriptions are historical targets. Skipped actuals
+are both blank; absent exercises have all three cells blank. Ordinary Weight/Time
+exports, quoting, formula protection and effective corrected values are unchanged.
+
+**Existing schema 7 requires explicit candidate-only upgrade to 8.** Use the
+existing browser updater, review 0.11.0/schema 8, confirm migration and Install.
+Or use the existing v4 script over SSH; see the exact installed-server commands in
+[deployment/README.md#phase-11-schema-7-to-8-upgrade](deployment/README.md#phase-11-schema-7-to-8-upgrade).
+No new updater, Compose/.env changes or Phase-11 host-service upgrade is required
+for an already working Phase 10 updater. Startup never migrates. Original schema-7
+files remain unchanged; schema-7 backups stay retained but cannot restore over
+schema 8. Make new verified schema-8 backups after upgrading. Do not initialize or
+restore to force an update. See [PHASE_11_REVIEW.md](PHASE_11_REVIEW.md) for migration,
+tests, recovery and limitations. Earlier patch sections are historical records.

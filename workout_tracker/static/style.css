@@ -164,3 +164,7 @@ dialog::backdrop { background:#0008; }
 .csv-choices label { flex-wrap:wrap; overflow-wrap:anywhere; }
 .csv-choices small { flex-basis:100%; margin-left:2rem; font-size:.7rem; }
 .settings-scope { margin:.5rem 0 1rem; }
+
+/* Three mode choices wrap on narrow phones; targets share duration units only. */
+.mode { flex-wrap:wrap; }
+.chart-target { stroke:var(--muted); stroke-width:2; stroke-dasharray:6 4; }

@@ -2,8 +2,8 @@
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–10 are implemented; latest patch suite passed all 439 tests (375 backend/script, 51 Chromium, 13 Docker; zero failed/skipped). Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or Phase 11.
-**Current scope:** application 0.10.4 / unchanged schema 7. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–11 are implemented; Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 11 is authorized below.
+**Current scope:** Phase 11 application 0.11.0 / candidate-only schema 8. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -818,3 +818,54 @@ updates work without new host runtime. Full tests and direct verified main merge
 push/branch cleanup are authorized, with no PR, deployment or production data.
 
 Selected exercises absent throughout a range still retain blank column pairs, using their historical configurations for headings; no out-of-range data rows are added.
+
+
+## 26. Phase 11 — combined Weight + Duration
+
+Add the general-purpose weight_duration type throughout Library defaults, routines,
+copying, live/draft entry, historical entry, corrections, previous performance,
+history, summaries, charts, exports and recovery. Configure positive sets and
+target duration per set, lb, optional meaning/notes, no target reps or fixed weight.
+Defaults affect new additions only. Routine changes never rewrite snapshots.
+
+Record one actual weight and duration per exercise, not per set. Both blank saves
+both as true SQL NULL with no increase flag. Performed pairs require nonnegative
+weight (zero valid) and positive duration. Partial pairs show field-level errors
+and commit nothing. Retain weight truncation/integer tenths, integer seconds,
+optional duration parts, large-second normalization, bounds and server validation.
+Today starts blank. The single manual Increase weight next time checkbox is never
+gated by target achievement. Show both previous actuals and prior recommendation,
+including last-performed fallback after skips. Preserve Next-only navigation,
+acknowledgment/resume/refresh, revision checks and atomic all-skipped completion.
+
+Extend existing type/target/actual constraints via schema 8 only on a separate
+candidate. Rebuild the four configuration/result/default tables, not columns or
+identities. Preserve all original cells, IDs, configurations, histories, drafts,
+prepared JSON and audit chains, including NULLs. Reinstall identical immutable
+triggers on the private candidate; never disable them for normal app corrections.
+Compare every old value; verify exact DDL, integrity, FKs, schema/migration history,
+counts and logical consistency before atomic selection. Failure retains original
+bytes and selection, including rollback after failed activation durability.
+No startup upgrade/initialization. Same-schema backup/restore supports 8; retain
+older backups without silently converting/downgrading. Existing browser/v4 uses
+release-info and explicit --target-version 8, retaining confirmation and recovery.
+
+Display paired actuals with weight meaning and historical duration/sets targets.
+Corrections append full before/after pairs and never partially valid values.
+Charts are two compatible series together under one exercise heading, with date
+filters/tooltips/data access unchanged. Plot pounds and seconds on separate axes;
+never multiply by sets. Use historical targets per point; show a dashed reference
+only when one target applies throughout the selected records. Exclude NULL, keep
+zero and separate people, IDs, modes and incompatible meanings.
+
+CSV retains Date, Time, Routine, Workout ID then adjacent Weight (lb), Duration,
+Sets × Target Duration for a combined group. Keep all ordinary two-column formats,
+selection/ranges, chronology, snapshots, effective corrections, UTF-8 quoting and
+formula defenses. Skip actuals blank, missing exercises all blank, zero remains 0.
+No cloud export, orphan/duplicate investigation or unrelated reporting.
+
+Run all old/new backend, Chromium/mobile/theme and Docker/updater tests without
+weakening assertions. Document evidence and exact installed-server steps in
+PHASE_11_REVIEW.md. Direct verified main merge/push/branch cleanup is explicitly
+authorized without a PR, force push, protection bypass, deployment, real data or
+another phase. Preserve mandatory source/document disclosures without a UI banner.

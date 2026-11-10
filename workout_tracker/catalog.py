@@ -120,6 +120,7 @@ def create_definition(connection, person_id, name, values=None):
     person(connection, person_id)
     configuration=(configure(values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
                    if connection.execute('PRAGMA user_version').fetchone()[0]>=7 else None)
+    if configuration is not None:require_configuration_schema(connection,configuration)
     identity = uuid4().hex
     connection.execute("INSERT INTO exercises(id,person_id,name) VALUES (?,?,?)",
                        (identity, person_id, unique_name(connection, person_id, name)))
@@ -142,6 +143,7 @@ def update_defaults(connection,person_id,identity,values):
     """Validate and change only global defaults; existing routines stay independent."""
     exercise_defaults(connection,person_id,identity)
     configuration=configure(values)
+    require_configuration_schema(connection,configuration)
     connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE exercise_id=?',(*configuration,identity))
 
 
@@ -192,20 +194,28 @@ def configure(values):
     notes = str(values.get("notes", "")).strip()
     if len(notes) > 2000:
         raise ValidationError("Notes must contain at most 2000 characters.")
-    if kind == "weight":
-        if values.get("unit","lb")!="lb":raise ValidationError("Weight unit must be pounds (lb).")
-        reps = integer(values.get("target_reps", ""), "Target reps", 1, 10000)
-        meaning = str(values.get("weight_meaning", "")).strip()
-        if len(meaning) > 200:
-            raise ValidationError("Weight meaning must contain at most 200 characters.")
-        return kind, sets, reps, None, "lb", meaning, notes
-    if kind == "time":
-        from .durations import parse_duration
-        try:duration=parse_duration(values.get('minutes',''),values.get('seconds',''),359999)
-        except ValueError as error:raise ValidationError(str(error)) from error
-        if duration is None:raise ValidationError('Specify a positive target duration.')
-        return kind, sets, None, duration, None, "", notes
-    raise ValidationError("Choose Weight or Time.")
+    if kind not in ('weight','time','weight_duration'):
+        raise ValidationError('Choose Weight, Time or Weight + Duration.')
+    has_weight = kind in ('weight','weight_duration')
+    meaning = str(values.get('weight_meaning','')).strip() if has_weight else ''
+    if has_weight and values.get('unit','lb') != 'lb':
+        raise ValidationError('Weight unit must be pounds (lb).')
+    if len(meaning) > 200:
+        raise ValidationError('Weight meaning must contain at most 200 characters.')
+    if kind == 'weight':
+        reps = integer(values.get('target_reps',''), 'Target reps', 1, 10000)
+        return kind, sets, reps, None, 'lb', meaning, notes
+    from .durations import parse_duration
+    try:duration=parse_duration(values.get('minutes',''),values.get('seconds',''),359999)
+    except ValueError as error:raise ValidationError(str(error)) from error
+    if duration is None:raise ValidationError('Specify a positive target duration.')
+    return kind, sets, None, duration, 'lb' if has_weight else None, meaning, notes
+
+
+def require_configuration_schema(connection, configuration):
+    """Refuse the new mode on retained schemas without implicitly migrating them."""
+    if configuration[0] == 'weight_duration' and connection.execute('PRAGMA user_version').fetchone()[0] < 8:
+        raise ValidationError('Weight + Duration requires explicit schema-8 migration.')
 
 
 def add_entry(connection, person_id, routine_id, values):
@@ -215,6 +225,7 @@ def add_entry(connection, person_id, routine_id, values):
     if exercise_id and values.get("use_library_defaults")=="yes":
         values=default_values(exercise_defaults(connection,person_id,exercise_id))
     configuration = configure(values)
+    require_configuration_schema(connection,configuration)
     if exercise_id:
         definition(connection, person_id, exercise_id)
     else:
@@ -247,6 +258,7 @@ def update_entry(connection, person_id, routine_id, entry_id, values):
     """Edit only routine configuration; permanent exercise identity stays unchanged."""
     entry(connection, person_id, routine_id, entry_id)
     configuration = configure(values)
+    require_configuration_schema(connection,configuration)
     connection.execute(
         "UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,"
         "target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE id=? AND person_id=? AND routine_id=?",

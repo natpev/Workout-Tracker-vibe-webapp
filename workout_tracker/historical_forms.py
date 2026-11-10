@@ -49,6 +49,9 @@ def measurement_errors(rows,values):
             weight,duration,flag=w.measurement(row,fields)
             performed|=weight is not None or duration is not None
         except c.ValidationError as error:
+            if isinstance(error,w.MeasurementError):
+                errors.update({f'{key}_{index}':row['name']+': '+message for key,message in error.fields.items()})
+                continue
             if row['measurement_type']=='weight':keys=[f'weight_{index}']
             else:keys=[f'minutes_{index}',f'seconds_{index}']
             if fields['increase'] not in ('','0','1'):keys=[f'increase_{index}']

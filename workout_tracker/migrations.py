@@ -1,5 +1,5 @@
 # SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
-"""Explicit schema-1/2/3/4 -> schema-2/3/4/5 candidate migration called only by the CLI.
+"""Explicit known-schema -> target-2-through-8 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -59,6 +59,10 @@ def _upgrade_candidate(connection, target_version=2):
             from .defaults_schema import upgrade_defaults
             upgrade_defaults(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (7, 'exercise_defaults')")
+        if current < 8 and target_version >= 8:
+            from .combined_schema import upgrade_combined
+            upgrade_combined(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (8, 'combined_weight_duration')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -78,13 +82,13 @@ def _write_manifest(path, selection):
 def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schema 1/2/3/4 sources may upgrade to target 2/3/4/5. A matching target
+    Known schemas 1–7 may upgrade to supported targets through 8. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5, 6, 7) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6, 7, 8) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -195,7 +199,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5, 6, 7) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 

@@ -31,9 +31,11 @@ def weight(value):
 def wide_csv(db, person_id, filters, selected):
     """Return UTF-8 CSV text for selected IDs, with one row per completed workout.
 
-    Column pairs separate identity/type/unit/meaning, plus occurrence number when
+    Column groups separate identity/type/unit/meaning, plus occurrence number when
     a routine contains the same exercise more than once. Missing actuals stay
     blank; a present skipped row retains its historical target prescription.
+    Ordinary groups have actual/target pairs; combined groups have a weight,
+    duration and historical-target triple.
     """
     _, names = h.choices(db, person_id)
     selected = list(dict.fromkeys(selected))
@@ -52,10 +54,14 @@ def wide_csv(db, person_id, filters, selected):
             group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'])
             repeats[group] += 1
             key = (*group, repeats[group])
-            actual = row['actual_weight_tenths_lb'] if row['measurement_type'] == 'weight' else row['actual_duration_seconds']
-            measure = '' if actual is None else weight(actual) if row['measurement_type'] == 'weight' else duration(actual)
-            target = str(row['target_reps']) if row['measurement_type'] == 'weight' else duration(row['target_duration_seconds'])
-            cells[key] = (measure, f"{row['target_sets']} × {target}")
+            kind = row['measurement_type']
+            actual_weight, actual_duration = row['actual_weight_tenths_lb'], row['actual_duration_seconds']
+            weight_cell = '' if actual_weight is None else weight(actual_weight)
+            duration_cell = '' if actual_duration is None else duration(actual_duration)
+            target = str(row['target_reps']) if kind == 'weight' else duration(row['target_duration_seconds'])
+            prescription = f"{row['target_sets']} × {target}"
+            cells[key] = ((weight_cell,duration_cell,prescription) if kind == 'weight_duration'
+                          else (weight_cell if kind == 'weight' else duration_cell,prescription))
             keys.add(key)
         if cells:
             records.append((parent, cells))
@@ -88,13 +94,14 @@ def wide_csv(db, person_id, filters, selected):
             label += ' (' + meaning + ')'
         if slot > 1:
             label += f' [occurrence {slot}]'
-        labels = ('Weight (lb)', 'Sets × Reps') if kind == 'weight' else ('Duration', 'Sets × Target Duration')
+        labels = (('Weight (lb)', 'Duration', 'Sets × Target Duration') if kind == 'weight_duration'
+                  else ('Weight (lb)', 'Sets × Reps') if kind == 'weight' else ('Duration', 'Sets × Target Duration'))
         header.extend(label + ' — ' + part for part in labels)
     buffer = StringIO(newline=''); writer = csv.writer(buffer, lineterminator='\r\n')
     writer.writerow([spreadsheet_text(cell) for cell in header])
     for parent, cells in records:
         row = [parent['workout_date'], (parent['workout_time'] or '')[:5], parent['routine_name'], parent['id']]
         for key in ordered:
-            row.extend(cells.get(key, ('', '')))
+            row.extend(cells.get(key, ('',) * (3 if key[1]=='weight_duration' else 2)))
         writer.writerow([spreadsheet_text(cell) for cell in row])
     return buffer.getvalue()

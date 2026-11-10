@@ -128,6 +128,8 @@ def validate_state(parent, rows, values):
             raise ValueError('Invalid audit duration')
         if row['measurement_type']=='weight' and duration is not None or row['measurement_type']=='time' and weight is not None:
             raise ValueError('Incompatible audit measurement')
+        if row['measurement_type']=='weight_duration' and (weight is None)!=(duration is None):
+            raise ValueError('Combined audit measurements must both be present or both NULL')
         if weight is None and duration is None:
             if flag is not None: raise ValueError('Skipped audit flag')
         elif type(flag) is not int or flag not in (0,1):
@@ -214,21 +216,32 @@ def chart_series(db, person_id, values):
         for row in rows:
             if values.get('exercise') and row['exercise_id']!=values['exercise']:
                 continue
-            key=(row['exercise_id'],row['measurement_type'],row['unit'],row['weight_meaning'])
-            series=groups.setdefault(key,dict(name=row['name'],kind=row['measurement_type'],meaning=row['weight_meaning'],exercise_id=row['exercise_id'],points=[],records=[],highest=None))
-            value=row['actual_weight_tenths_lb'] if row['measurement_type']=='weight' else row['actual_duration_seconds']
-            label=w.display_measurement(row)
-            series['records'].append(dict(date=parent['workout_date'],time=parent['workout_time'],label=label,workout_id=parent['id']))
-            if value is not None:
-                point=dict(date=parent['workout_date'],time=parent['workout_time'],raw=value,label=label,
-                           xday=date.fromisoformat(parent['workout_date']).toordinal()+_day_fraction(parent['workout_time']))
-                series['points'].append(point)
-                series['highest']=point if series['highest'] is None or value>series['highest']['raw'] else series['highest']
+            # A combined snapshot contributes two independent numerical axes,
+            # grouped together in the UI but never mixed with ordinary modes.
+            combined = row['measurement_type']=='weight_duration'
+            axes = ('weight','time') if combined else (row['measurement_type'],)
+            for axis in axes:
+                key=(row['exercise_id'],row['measurement_type'],row['unit'],row['weight_meaning'],axis)
+                series=groups.setdefault(key,dict(name=row['name'],kind=axis,combined=combined,meaning=row['weight_meaning'],exercise_id=row['exercise_id'],points=[],records=[],highest=None,targets=set()))
+                value=row['actual_weight_tenths_lb'] if axis=='weight' else row['actual_duration_seconds']
+                label=w.display_measurement(dict(actual_weight_tenths_lb=value if axis=='weight' else None,actual_duration_seconds=value if axis=='time' else None))
+                target = row['target_duration_seconds'] if combined and axis=='time' else None
+                target_label = f'{target//60}:{target%60:02d}' if target is not None else None
+                if target is not None:series['targets'].add(target)
+                series['records'].append(dict(date=parent['workout_date'],time=parent['workout_time'],label=label,target_label=target_label,workout_id=parent['id']))
+                if value is not None:
+                    point=dict(date=parent['workout_date'],time=parent['workout_time'],raw=value,label=label,target_label=target_label,
+                               xday=date.fromisoformat(parent['workout_date']).toordinal()+_day_fraction(parent['workout_time']))
+                    series['points'].append(point)
+                    series['highest']=point if series['highest'] is None or value>series['highest']['raw'] else series['highest']
     for series in groups.values():
         points=series['points']
         if not points: continue
         low=min(p['xday'] for p in points);high=max(p['xday'] for p in points)
-        top=max(p['raw'] for p in points) or 1
+        target = next(iter(series['targets'])) if len(series['targets'])==1 else None
+        top=max(max(p['raw'] for p in points),target or 0) or 1
+        series['target_y'] = 220-target/top*180 if target is not None else None
+        series['target_label'] = f'{target//60}:{target%60:02d}' if target is not None else None
         for point in points:
             point['x']=130+(point['xday']-low)/(high-low or 1)*530
             point['y']=220-point['raw']/top*180

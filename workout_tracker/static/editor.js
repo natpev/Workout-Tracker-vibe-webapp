@@ -8,7 +8,7 @@ document.querySelectorAll("[data-configuration]").forEach((form) => {
   const update = () => {
     const choice = form.querySelector("[name=measurement_type]:checked").value;
     form.querySelectorAll("[data-fields]").forEach((group) => {
-      const active = group.dataset.fields === choice;
+      const active = group.dataset.fields.split(" ").includes(choice);
       group.hidden = !active;
       group.querySelectorAll("input,select").forEach((input) => {
         input.disabled = !active;

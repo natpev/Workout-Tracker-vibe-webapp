@@ -81,17 +81,38 @@ def duration_seconds(minutes, seconds):
     except ValueError as error:raise catalog.ValidationError(str(error)) from error
 
 
+class MeasurementError(catalog.ValidationError):
+    """Expose safe field messages while leaving invalid pairs uncommitted."""
+    def __init__(self, fields):
+        """Carry input names for live and historical inline error rendering."""
+        self.fields = fields
+        super().__init__(' '.join(dict.fromkeys(fields.values())))
+
+
 def measurement(entry, values):
-    """Validate one typed actual value and its flag; never copy a previous result."""
-    if entry['measurement_type'] == 'weight':
-        weight, duration = weight_tenths(field(values, 'weight')), None
-    else:
-        weight, duration = None, duration_seconds(field(values, 'minutes'), field(values, 'seconds'))
-    flag = field(values, 'increase')
-    if flag not in ('', '0', '1'):
-        raise catalog.ValidationError("Invalid increase recommendation.")
+    """Validate typed actuals atomically; combined entries need both or neither.
+
+    A half-entered pair remains visible in the browser but cannot be committed
+    as performed or skipped. No historical/default measurement is substituted.
+    """
+    kind = entry['measurement_type']; errors = {}; weight = duration = None
+    if kind in ('weight','weight_duration'):
+        try:weight = weight_tenths(field(values,'weight'))
+        except catalog.ValidationError as error:errors['weight'] = str(error)
+    if kind in ('time','weight_duration'):
+        try:duration = duration_seconds(field(values,'minutes'),field(values,'seconds'))
+        except catalog.ValidationError as error:
+            errors.update(minutes=str(error),seconds=str(error))
+    if kind == 'weight_duration' and (weight is None) != (duration is None):
+        message = 'Enter both weight and a positive duration, or leave both blank to skip.'
+        if weight is None:errors.setdefault('weight',message)
+        if duration is None:
+            errors.setdefault('minutes',message);errors.setdefault('seconds',message)
+    flag = field(values,'increase')
+    if flag not in ('','0','1'):errors['increase'] = 'Invalid increase recommendation.'
+    if errors:raise MeasurementError(errors)
     increase = None if weight is None and duration is None else int(flag == '1')
-    return weight, duration, increase
+    return weight,duration,increase
 
 
 def active(db, person_id):
@@ -245,6 +266,9 @@ def display_measurement(entry):
     if entry is None:
         return 'No previous performance'
     weight, duration = entry['actual_weight_tenths_lb'], entry['actual_duration_seconds']
+    if weight is not None and duration is not None:
+        meaning = entry['weight_meaning'] if 'weight_meaning' in entry.keys() else ''
+        return f"{weight // 10}.{weight % 10} lb{(' ' + meaning) if meaning else ''} · {duration // 60}:{duration % 60:02d}"
     if weight is not None:
         return f"{weight // 10}.{weight % 10} lb"
     if duration is not None:

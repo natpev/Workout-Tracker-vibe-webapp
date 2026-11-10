@@ -33,7 +33,9 @@ def request_error(error):
         emit(current_app.config['WORKOUT_DATA_ROOT'],'WARNING','Workout','Workout save/completion request rejected; transaction not committed',error=error)
     code = 404 if isinstance(error, catalog.MissingRecord) else 409 if isinstance(error, workouts.RevisionConflict) else 400
     if request.endpoint == 'workout.autosave':
-        return jsonify(error=str(error)), code
+        return jsonify(error=str(error),fields=getattr(error,'fields',{})), code
+    if isinstance(error,workouts.MeasurementError):
+        return render_template('workout.html',submitted=request.form,field_errors=error.fields,**page_context(person_id=request.view_args['person_id'],session_id=request.view_args['session_id'],message=str(error))),code
     return render_template('error.html', message=str(error)), code
 
 
@@ -46,7 +48,7 @@ def page_context(person_id, session_id, message=None):
         if parent['status']=='completed' and db.execute('PRAGMA user_version').fetchone()[0]>=4:
             from .history import effective
             parent,rows=effective(db,person_id,session_id)
-        requested = request.args.get('position', str(parent['current_position']))
+        requested = request.form.get('view_position',str(parent['current_position'])) if request.method=='POST' else request.args.get('position',str(parent['current_position']))
         position = catalog.integer(requested, 'Exercise position', 0, len(rows) - 1)
         current = rows[position]
         prior, performed = workouts.previous(db, person_id, parent, current)

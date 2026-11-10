@@ -1,8 +1,10 @@
-# Weight and Time exercise design
+# Weight, Time and combined exercise design
 
 > **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Phase 4 adds history, local typed charts, historical completion and append-only effective corrections; original snapshots remain protected. Review and test before use.
 
-## Current state and authorization
+## Historical Phase 9 state and authorization
+
+Current authorization is Phase 11 (0.11.0/schema 8), described at the end of this document; it supersedes earlier phase boundaries and two-mode-only rules.
 
 Phases 1–8 are approved. Phase 9 is authorized for implementation, verification
 and direct main merge without a PR attempt: application 0.9.0 / schema 7 adds
@@ -260,3 +262,35 @@ bounds remain enforced. Clock HH:mm and duration MM:SS are distinct. Minute-only
 workout presentation never rewrites internal timestamp precision or IANA zones.
 Schema 7 adds only preset storage; existing target/result columns and original
 snapshots are untouched. Global preset edits affect future additions only.
+
+
+## Phase 11 superseding combined-measurement contract
+
+Application 0.11.0/schema 8 extends modes to weight, time and weight_duration.
+Earlier two-mode-only descriptions remain historical; Phase 9 already superseded
+required-both-duration-parts, and patch 0.10.4 replaced performed-count progress
+with a Next-only checkpoint. Exercise IDs are global, histories person-owned.
+
+Combined defaults/routine configurations prescribe sets and target seconds per
+set, no reps/fixed target weight, lb, free-text existing weight meaning and notes.
+One actual weight and one actual duration belong to the same snapshot. Both are
+required for performed entries; zero weight valid, duration >=1. Both blank means
+two SQL NULL values and NULL flag. No partial pair can pass service/SQL/audit
+validation. Existing truncation, normalized optional duration parts and bounds
+apply. Only manual Increase weight next time; never require target achievement.
+Previous matching display includes both actuals and last-performed fallback.
+
+Schema 8 reuses every existing column. Only four candidate tables are rebuilt to
+extend mode/target/actual CHECK constraints; triggers and every old cell including
+preparation/audit JSON stay identical. Exact schema, FKs/integrity, all-row equality,
+source bytes, logical audit chains and atomic activation/rollback remain mandatory.
+No startup upgrade, name matching, identity cleanup or production data is involved.
+Restore remains exact-schema, preserving older backups without downgrade.
+
+History/corrections show both measurements and retain immutable originals. Two
+local charts sit under one combined exercise heading, with separate pounds/time
+axes and original ID/mode/meaning/person boundaries. Targets are snapshotted per
+record; only a common target becomes a duration reference line. CSV uses three
+adjacent columns (Weight (lb), Duration, Sets × Target Duration), total m:ss,
+corrected effective values and historical targets; skip actuals blank and zero
+retained. Ordinary Weight/Time CSV pairs are unchanged. See PHASE_11_REVIEW.md.

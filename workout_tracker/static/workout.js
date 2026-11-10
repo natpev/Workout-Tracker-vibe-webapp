@@ -26,6 +26,18 @@
   let navigationAction = "";
   let dirty = false, sequence = 0, timer, pending = null, draining = null, conflict = false, submitting = false, allowSubmit = false;
 
+  // Field names come from the validated API; textContent never interprets HTML.
+  const fieldErrors = (errors = {}) => {
+    form.querySelectorAll('[data-field-error]').forEach(note => {
+      const name = note.dataset.fieldError;
+      note.textContent = errors[name] || ''; note.hidden = !errors[name];
+      const input = form.elements.namedItem(name);
+      if (input) {
+        input.setAttribute('aria-invalid', errors[name] ? 'true' : 'false');
+        input.setAttribute('aria-describedby', `${name}-error`);
+      }
+    });
+  };
   const flush = (position = null, action = "") => {
     // Serialize fetches; edits typed while awaiting a response are saved next.
     // Never replace newer local text with a normalized response for older text.
@@ -54,6 +66,7 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) {
+            fieldErrors(data.fields || {});
             if (response.status === 409) conflict = true;
             throw new Error(data.error || `Save failed (${response.status}). Reload if your session expired.`);
           }
@@ -77,6 +90,7 @@
               if (input) input.value = data[name];
             }
             form.elements.namedItem("increase").checked = data.increase;
+            fieldErrors();
             dirty = false;
             status.textContent = "✓ Saved";
             status.dataset.state = "saved";
