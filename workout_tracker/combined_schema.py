@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Schema 8 permits paired weight/duration without adding result columns.
 
 Only the explicit migrator rebuilds these four tables on its private candidate.

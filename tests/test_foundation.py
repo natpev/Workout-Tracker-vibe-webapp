@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 1 integration tests invoked by pytest.
 
 Every database is a disposable tmp_path fixture, never configured household data.
@@ -215,7 +215,7 @@ def test_startup_and_requests_do_not_change_storage(storage):
         client = app.test_client()
         response = client.get("/")
         assert response.status_code == 200
-        assert b"SHAMEFULLY VIBE-CODED" in response.data
+        assert b"SHAMELESSLY VIBE-CODED" in response.data
         assert b"Workout tracking is not available yet" in response.data
         assert client.get("/health/ready").json == {
             "status": "ready", "app_version": APP_VERSION, "schema_version": 1,

@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Management templates load this local file. It switches visible target fields
 // and disables irrelevant inputs; Flask independently validates every POST.
 "use strict";

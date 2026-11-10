@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Read-only inclusive Progress ranges using the configured IANA local date.
 
 URLs carry explicit selections across refresh/Back/history tabs. Month presets
@@ -8,7 +8,8 @@ from calendar import monthrange
 from datetime import date,timedelta
 from .catalog import ValidationError
 
-RANGES=(('30','30 Days'),('60','60 Days'),('90','90 Days'),('6m','6 Months'),('12m','12 Months'),('all','All Time'),('custom','Custom Range'))
+RANGES=(('3m','3 Months'),('6m','6 Months'),('12m','12 Months'),('24m','24 Months'),('all','All Time'),('custom','Custom Range'))
+LEGACY_DAYS=('30','60','90')
 
 
 def month_before(day,months):
@@ -26,8 +27,8 @@ def valid_date(value):
 
 def selection(values,today):
     """Return validated chart filters plus a stable explicit range token/description."""
-    token=values.get('range') or ('custom' if values.get('from') or values.get('to') else '30')
-    if token not in dict(RANGES):raise ValidationError('Choose a listed date range.')
+    token=values.get('range') or ('custom' if values.get('from') or values.get('to') else '3m')
+    if token not in dict(RANGES) and token not in LEGACY_DAYS:raise ValidationError('Choose a listed date range.')
     filters=dict(values);filters['range']=token
     if token=='all':start=end=''
     elif token=='custom':
@@ -39,4 +40,7 @@ def selection(values,today):
         beginning=today-timedelta(days=int(token)-1) if token.isdigit() else month_before(today,int(token[:-1]))+timedelta(days=1)
         start,end=beginning.isoformat(),today.isoformat()
     filters.update({'from':start,'to':end})
+    # Old bookmarks keep their exact day bounds; show those bounds as Custom
+    # rather than silently reinterpreting them as a different month interval.
+    if token in LEGACY_DAYS:token='custom';filters['range']=token
     return filters,token,('All available dates' if token=='all' else f'{start or "Beginning"} through {end or "latest"} (inclusive)')

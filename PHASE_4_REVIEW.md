@@ -1,6 +1,8 @@
 # Phase 4 review — history, charts and historical entry
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is review software, not a production deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is review software, not a production deployment.
 
 ## Scope, branch and increments
 

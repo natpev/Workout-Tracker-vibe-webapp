@@ -1,6 +1,8 @@
 # Phase 6 mobile UX review
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated code, not independently audited or deployed.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed AI-generated code, not independently audited or deployed.
 
 ## Scope, branch and review boundary
 

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Schema 4 additions executed only on separate migration candidates.
 
 Phase 3 tables/triggers stay unchanged. Historical sessions have their own

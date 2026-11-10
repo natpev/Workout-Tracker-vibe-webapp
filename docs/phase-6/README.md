@@ -1,6 +1,8 @@
 # Phase 6 rendered screenshots
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Synthetic fixture data only; these are actual Chromium captures, not mockups.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Synthetic fixture data only; these are actual Chromium captures, not mockups.
 
 Phase 6 is completed and approved; no actual deployment is included.
 

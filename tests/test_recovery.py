@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Synthetic schema-4 recovery tests; never inspect household environment paths.
 
 Failures injected at copying/validation/publication must preserve exact original

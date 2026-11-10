@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Navigation-only progress persists in the existing cursor, without schema changes."""
 import pytest
 from workout_tracker import catalog as c, workouts as w, create_app

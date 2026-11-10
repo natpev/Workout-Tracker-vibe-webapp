@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Chromium exercises browser -> autosave -> Flask -> disposable SQLite flows.
 
 A loopback-only test server uses a temporary schema-3 fixture. Network faults and

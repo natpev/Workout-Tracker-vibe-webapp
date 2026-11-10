@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Optional Chromium tests for browser -> Flask -> theme preference flow.
 
 pytest starts a loopback-only Werkzeug test server using temporary metadata.
@@ -163,9 +163,10 @@ def test_management_workflow_modes_order_copy_and_phone_layout(management_page):
     expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
     page.get_by_role("button",name="Open navigation",exact=True).click()
     page.get_by_role("link", name="Exercise Library", exact=True).click()
-    rename_form = page.locator("form").filter(has=page.locator('input[name="name"][value="Bench"]'))
+    page.locator('.library-exercise').filter(has=page.get_by_role('heading',name='Bench',exact=True)).get_by_role('link',name='Edit Defaults',exact=True).click()
+    rename_form = page.locator('form[data-configuration]') if page.locator('form[data-configuration]').count() else page.locator('form')
     rename_form.get_by_label("Exercise name", exact=True).fill("Copy bench")
-    rename_form.get_by_role("button", name="Rename exercise").click()
+    rename_form.get_by_role("button", name="Save changes").click()
     page.goto(source)
     expect(page.locator("h4")).to_have_text(["Bench", "Plank"])
     assert errors == []

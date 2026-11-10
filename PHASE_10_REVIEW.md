@@ -1,6 +1,8 @@
 # Phase 10 — historical forms, Progress and independent live update output
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code; not an independent security audit or live deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code; not an independent security audit or live deployment.
 
 Started on `phase-10-workout-history-and-progress-ux` from fetched approved main
 `c4d2db4683e23cd896152961a9d7ba5ed894256d`. Application **0.10.0**, target SQLite

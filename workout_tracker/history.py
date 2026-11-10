@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """History services called by routes with an existing locked SQLite connection.
 
 Completed Phase 3 records remain immutable. Historical records and correction

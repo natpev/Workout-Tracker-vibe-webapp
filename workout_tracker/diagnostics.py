@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Private daily JSONL diagnostics, independent of workout SQLite transactions.
 
 App/CLI/scheduler call emit with fixed event messages. A separate logs-directory

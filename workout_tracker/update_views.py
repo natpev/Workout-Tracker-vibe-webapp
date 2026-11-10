@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Passwordless trusted-LAN browser forms -> CSRF -> fixed local host operations.
 
 All reachable household users may review/confirm updates. Person selection is

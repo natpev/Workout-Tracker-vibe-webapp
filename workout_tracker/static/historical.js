@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Local 24-hour picker and gentle blur/submit normalization. Server revalidates
 // every value. No normalization occurs while typing, so cursor position is stable.
 "use strict";

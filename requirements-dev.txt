@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # pip installs the runtime plus pinned test dependencies; no application data.
 -r requirements.txt
 iniconfig==2.3.1

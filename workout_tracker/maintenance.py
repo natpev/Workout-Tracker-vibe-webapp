@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Verified backup/restore services called by Settings and the dedicated scheduler.
 
 Every operation holds the storage-root lock shared with all workout connections.

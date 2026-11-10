@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Person accent preferences, separate from immutable workout records and schedules.
 
 Settings writes a private atomic JSON file under the existing storage-root lock.

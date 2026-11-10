@@ -1,8 +1,10 @@
-/* SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+/* SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
    Independent status assets do not depend on the stopped application container. */
 :root { color-scheme:light dark; font:16px/1.5 system-ui,sans-serif; }
 * { box-sizing:border-box; }
 body { overflow-wrap:anywhere; max-width:70rem; margin:auto; padding:1rem; }
 a { color:light-dark(#2855d9,#a0b9ff); }
 button,select { max-width:calc(100% - .8rem); min-height:44px; font:inherit; padding:.6rem; border-radius:999px; margin:.4rem; }
-.console { height:45vh; min-height:240px; overflow:auto; background:#11151f; color:#e8edf8; border-radius:1rem; padding:1rem; white-space:pre-wrap; overflow-wrap:anywhere; font:14px/1.5 ui-monospace,monospace; }
+.console { height:45vh; min-height:240px; overflow:auto; background:#11151f; color:#e8edf8; border-radius:1rem; padding:1rem; max-width:100%; min-width:0; white-space:pre; overflow-wrap:normal; -webkit-overflow-scrolling:touch; font:14px/1.5 ui-monospace,monospace; }
+
+.release-notes { max-width:100%; overflow:auto; overflow-wrap:normal; white-space:pre-wrap; padding:1rem; border:1px solid currentColor; border-radius:1rem; -webkit-overflow-scrolling:touch; }

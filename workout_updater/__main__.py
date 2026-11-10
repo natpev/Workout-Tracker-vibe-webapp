@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Explicit host service/emergency CLI; never invoked by application startup.
 
 CLI operators can inspect/check or confirm an approved update. Browser users must

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """History/correction services tested against disposable schema-4 databases.
 
 Fixtures exercise native/historical chronology, append-only audit, effective

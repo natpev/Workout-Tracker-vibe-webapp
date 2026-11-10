@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """HTTP integration tests: signed CSRF form -> route -> catalog -> SQLite.
 
 All clients and data come from migrated disposable fixtures. Requests prove

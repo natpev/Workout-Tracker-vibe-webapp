@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Workout rules called by routes with a locked schema-3 transaction.
 
 Browser -> Flask -> these services -> SQLite. Starts copy complete snapshots;

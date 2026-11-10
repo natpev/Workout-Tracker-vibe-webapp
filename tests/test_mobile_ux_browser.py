@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Rendered mobile UX/viewport evidence with disposable schema-4 households.
 
 Real browser forms verify exit/resume, menus and persistent accents. Screenshots
@@ -58,7 +58,7 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     page,browser,base,root,a,b,routine=ux_browser;expect=pw.expect;errors=[]
     page.on('pageerror',lambda error:errors.append(str(error)));SHOTS.mkdir(parents=True,exist_ok=True)
     page.goto(base+'/');expect(page.get_by_role('heading',name='Who’s working out?',exact=True)).to_be_visible()
-    assert 'SHAMEFULLY VIBE-CODED' not in page.locator('body').inner_text()
+    assert 'SHAMELESSLY VIBE-CODED' not in page.locator('body').inner_text()
     expect(page.locator('#theme')).to_have_count(0)
     assert page.locator('.person-card').first.bounding_box()['y']<page.locator('.add-person').bounding_box()['y']
     menu=page.get_by_role('button',name='Menu for Alex',exact=True);original=page.url;menu.click()

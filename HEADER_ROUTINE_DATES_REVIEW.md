@@ -1,6 +1,8 @@
 # Patch 0.10.3 — header navigation and routine activity dates
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code; not an independent audit or production deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code; not an independent audit or production deployment.
 
 Branch `header-navigation-and-routine-dates` starts from fetched main
 `3614bbe50b64466972a0b44e1b88b77a85b2f743`, verified version 0.10.2/schema 7.

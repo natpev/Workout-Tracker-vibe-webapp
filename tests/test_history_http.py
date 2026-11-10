@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """History HTTP integration tests use signed cookies and disposable schema 4.
 
 Browser forms -> CSRF/ownership -> prepared snapshots/atomic completion/audit.

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Management routes: browser forms -> CSRF/validation -> catalog -> SQLite.
 
 Each request opens one locked schema-2 transaction and closes it before rendering.
@@ -51,7 +51,7 @@ def protect_forms():
 @bp.app_context_processor
 def form_helpers():
     """Expose token generation and routine conflict checks to Jinja forms."""
-    return {"csrf_token": csrf_token}
+    return {"csrf_token": csrf_token,"labels_for_exercises":catalog.exercise_labels,"labels_for_choices":lambda choices:catalog.exercise_labels([dict(id=identity,name=name) for identity,name in choices.items()])}
 
 
 def connection(write=False):
@@ -231,14 +231,26 @@ def edit_entry(person_id, routine_id, entry_id):
 @bp.route('/people/<person_id>/exercises/<exercise_id>/defaults',methods=['GET','POST'])
 def edit_defaults(person_id,exercise_id):
     """Edit a global preset in one transaction, never existing routine configurations."""
-    with connection(write=request.method=='POST') as db:
-        selected=catalog.person(db,person_id)
-        item=catalog.exercise_defaults(db,person_id,exercise_id)
-        definition=catalog.definition(db,person_id,exercise_id)
-        revision=hashlib.sha256(repr(tuple(item)).encode()).hexdigest()
-        if request.method=='POST':
-            if request.form.get('revision')!=revision:
-                raise catalog.ValidationError('Library defaults changed; reload before saving.')
-            catalog.update_defaults(db,person_id,exercise_id,request.form)
-    if request.method=='POST':return redirect(url_for('manage.exercises',person_id=person_id),code=303)
-    return render_template('exercise_defaults.html',person=selected,item=item,definition=definition,revision=revision)
+    error=None;item=None
+    try:
+        with connection(write=request.method=='POST') as db:
+            selected=catalog.person(db,person_id)
+            definition=catalog.definition(db,person_id,exercise_id)
+            item=catalog.exercise_defaults(db,person_id,exercise_id) if db.execute('PRAGMA user_version').fetchone()[0]>=7 else None
+            # Include the name as well as the preset so a stale page cannot undo
+            # another person's rename. Caller commits both edits or neither.
+            revision=hashlib.sha256(repr((tuple(definition),tuple(item) if item else None)).encode()).hexdigest()
+            if request.method=='POST':
+                if request.form.get('revision')!=revision:
+                    raise catalog.ValidationError('Exercise name or defaults changed; reload before saving.')
+                name=catalog.text(request.form.get('name',definition['name']),'Exercise name')
+                if item is not None:catalog.update_defaults(db,person_id,exercise_id,request.form)
+                if name!=definition['name']:catalog.update_definition(db,person_id,exercise_id,name,'rename')
+    except catalog.ValidationError as exc:
+        # A duplicate name or invalid target rolls back the whole transaction.
+        # Retain raw fields on the same form instead of losing typed settings.
+        error=str(exc)
+        if item is not None:item={**dict(item),**request.form.to_dict()}
+    if request.method=='POST' and not error:return redirect(url_for('manage.exercises',person_id=person_id),code=303)
+    return render_template('exercise_defaults.html',person=selected,item=item,definition=definition,revision=revision,
+                           name=request.form.get('name',definition['name']),error=error),400 if error else 200

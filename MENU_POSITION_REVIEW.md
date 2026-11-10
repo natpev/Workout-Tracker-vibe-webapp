@@ -1,6 +1,8 @@
 # Patch 0.10.2 — viewport-safe hamburger positioning
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code; no independent audit or production deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code; no independent audit or production deployment.
 
 Branch `fix-mobile-hamburger-menu` starts from fetched remote main
 `6cc0eea2e10f575f18181aff5c927c2f0258238e`, the completed routine-ordering release

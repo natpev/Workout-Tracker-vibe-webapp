@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Optional browser tests use Playwright plus a separately installed Chromium.
 -r requirements-dev.txt
 playwright==1.62.0

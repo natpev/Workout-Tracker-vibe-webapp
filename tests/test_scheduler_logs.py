@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Deterministic scheduler/log tests use fake UTC clocks and disposable storage.
 
 They cover disabled defaults, DST, durable slot claims, interruption and filters.

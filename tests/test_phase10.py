@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 10 synthetic inline errors, clock/range boundaries and safe live output.
 
 No real workout data or exercise identity cleanup is used. Existing schema 7
@@ -106,7 +106,7 @@ def test_bad_initial_time_and_dst_remain_inline(historical_client,clock):
 def test_inclusive_ranges_calendar_months_and_local_dates(token,first,last):
     """Calendar-day/month presets include both endpoints and leap-year boundaries."""
     values,selected,description=ranges.selection({'range':token},date(2024,3,31))
-    assert values['from']==first and values['to']==last and selected==token
+    assert values['from']==first and values['to']==last and selected==('custom' if token in ('30','60','90') else token)
     assert ranges.month_before(date(2024,8,31),6)==date(2024,2,29)
 
 
@@ -115,7 +115,7 @@ def test_progress_default_local_timezone_custom_errors_and_isolation(historical_
     client,root,a,b,r,saved,pending=historical_client
     with patch.object(w,'now',return_value=datetime(2024,4,1,2,tzinfo=timezone.utc)):
         response=client.get(f'/people/{a}/progress')
-        assert b'2024-03-02 through 2024-03-31' in response.data
+        assert b'2024-01-01 through 2024-03-31' in response.data
     assert b'class="progress-series"' in client.get(f'/people/{a}/progress?range=all').data
     assert b'class="progress-series"' not in client.get(f'/people/{b}/progress?range=all').data
     with database_session(root) as db:exercise=db.execute('SELECT exercise_id FROM historical_entries WHERE measurement_type=?',('weight',)).fetchone()[0]

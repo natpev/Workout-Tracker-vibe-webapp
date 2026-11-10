@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Real Chromium Phase 9 navigation, defaults, normalized entry and palette review.
 
 Fixtures use disposable schema 7 and loopback HTTP. No host updates or production
@@ -41,18 +41,18 @@ def test_library_defaults_navigation_and_deletion_destinations(phase9_browser):
     page,base,root,a,b,r,other,e=phase9_browser;expect=pw.expect
     page.goto(base+f'/people/{a}/exercises')
     assert page.locator('.history-tabs').count()==0
-    page.get_by_role('link',name='Edit defaults for Plank',exact=True).click()
+    page.locator('.library-exercise').filter(has=page.get_by_role('heading',name='Plank',exact=True)).get_by_role('link',name='Edit Defaults',exact=True).click()
     page.get_by_label('Seconds',exact=True).fill('150');page.get_by_label('Minutes',exact=True).fill('3')
-    page.get_by_role('button',name='Save library defaults',exact=True).click()
+    page.get_by_role('button',name='Save changes',exact=True).click()
     for person,routine in ((a,r),(b,other)):
         page.goto(base+f'/people/{person}/routines/{routine}')
         page.select_option('#exercise-identity',e)
         page.get_by_role('button',name='Add library exercise',exact=True).click()
         expect(page.get_by_text('Time · 3 sets × 5 min 30 sec',exact=True)).to_be_visible()
     page.goto(base+f'/people/{a}/exercises')
-    page.get_by_role('link',name='Edit defaults for Plank',exact=True).click()
+    page.locator('.library-exercise').filter(has=page.get_by_role('heading',name='Plank',exact=True)).get_by_role('link',name='Edit Defaults',exact=True).click()
     page.get_by_label('Number of sets',exact=True).fill('5')
-    page.get_by_role('button',name='Save library defaults',exact=True).click()
+    page.get_by_role('button',name='Save changes',exact=True).click()
     with database_session(root) as db:
         assert [x[0] for x in db.execute('SELECT target_sets FROM routine_exercises')]==[3,3]
     page.get_by_role('button',name='Open navigation',exact=True).click()

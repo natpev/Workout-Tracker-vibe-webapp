@@ -1,6 +1,6 @@
 # Local favicon assets
 
-**SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.**
+**SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.**
 
 The original SVG draws a white dumbbell on a rounded blue tile with simple vector
 rectangles; no third-party art or fonts are used. The 16/32-pixel PNGs and

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Real phone/desktop cards show the date from their existing completion rank.
 
 Read semantic time elements and theme contrast, retain original actions, and

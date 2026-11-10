@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Flask application factory called by tests, Flask, and Gunicorn.
 
 Configuration selects external storage. Browser GET requests read readiness and
@@ -15,7 +15,7 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.11.0"
+APP_VERSION = "0.12.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
 TARGET_SCHEMA_VERSION = 8

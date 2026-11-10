@@ -1,6 +1,8 @@
 # Phase 9 — interface, Administration, defaults and normalized entry
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code; not an independent audit or live-server deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code; not an independent audit or live-server deployment.
 
 Branch `phase-9-ui-and-exercise-improvements` starts from verified Phase 8 main
 `e99adf04f419016c71bb583fb2c1c4a11dd2e0db`. Release target is **0.9.0 / schema 7**.

@@ -1,6 +1,8 @@
 # Phase 11 — Combined Weight + Duration
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code, not an independent audit or live deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code, not an independent audit or live deployment.
 
 Starting main: a46d2a8ae9d6daadc784a5bd1443ac14c0530c9e (0.10.4/schema 7).
 Branch: phase-11-combined-weight-duration. Target: 0.11.0/schema 8.

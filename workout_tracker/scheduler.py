@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Dedicated server-side scheduler; Gunicorn workers never start job threads.
 
 External settings persist an anchor local date and the next UTC occurrence.

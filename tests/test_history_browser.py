@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Chromium history workflow uses loopback Flask and disposable schema 4 only.
 
 Browser forms exercise server validation, independent historical completion,

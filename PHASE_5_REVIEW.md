@@ -1,6 +1,8 @@
 # Phase 5 review — backups, restore, scheduling and logs
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated software, not independently audited or deployed.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed AI-generated software, not independently audited or deployed.
 
 ## Scope and review boundary
 

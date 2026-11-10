@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Settings integration verifies real CSRF/generation tokens and safe operation results.
 
 Every route uses Flask's synthetic browser cookie jar and disposable schema 4.

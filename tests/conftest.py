@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Shared Phase 2 pytest fixtures; all paths are temporary and disposable.
 
 Initialize schema 1 explicitly, migrate its separate candidate, then give tests

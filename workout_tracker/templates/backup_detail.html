@@ -1,4 +1,4 @@
-<!-- SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+<!-- SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
      Safe backup metadata only; acknowledgment and typed confirmation guard restore. -->
 {% extends 'base.html' %}{% block content %}<h1>Backup details</h1>
 <section><dl><dt>Identifier</dt><dd>{{ record.id }}</dd><dt>Filename</dt><dd>{{ record.filename }}</dd><dt>Created (UTC)</dt><dd>{{ record.created_at|timestamp }}</dd><dt>Source</dt><dd>{{ record.source }}</dd><dt>Schema</dt><dd>{{ record.schema_version or 'Unknown' }}</dd><dt>Size</dt><dd>{{ record.size }} bytes</dd><dt>Verification status</dt><dd id="backup-status">{{ record.status }}</dd></dl>{% if record.error %}<p role="alert">{{ record.error }}</p>{% endif %}{% if record.status=='in_progress' %}<p>An interrupted attempt is not a verified backup. Inspect server logs before taking further action.</p>{% endif %}</section>

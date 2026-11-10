@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 7 synthetic households verify global IDs, isolated results and safe upgrades.
 
 Tests use only temporary roots. Exact old table cells, NULLs, audit chains and
@@ -183,8 +183,8 @@ def test_versions_cli_noop_and_schema5_protection(library_root):
     assert client.get('/health/ready').json==dict(status='ready',app_version=APP_VERSION,schema_version=5)
     for path in ('/people','/settings'):
         response=client.get(path);assert response.status_code==200
-        assert b'Workout Tracker v0.11.0' in response.data and b'Database v5' in response.data
-    assert b'Application version: 0.11.0' in client.get('/settings/administration').data
+        assert b'Workout Tracker v0.12.0' in response.data and b'Database v5' in response.data
+    assert b'Application version: 0.12.0' in client.get('/settings/administration').data
     assert original.read_bytes()==before and set((root/'data').iterdir())==paths
 
 

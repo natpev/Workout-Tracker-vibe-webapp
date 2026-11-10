@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Shared 24-hour presentation filters; stored timestamps retain full precision.
 
 Templates use clock for workout HH:mm and timestamp for UTC diagnostics with

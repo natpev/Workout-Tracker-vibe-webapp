@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Explicit known-schema -> target-2-through-8 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.

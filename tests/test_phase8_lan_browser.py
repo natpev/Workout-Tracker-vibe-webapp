@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Real passwordless HTTP browser, restricted Unix controls and independent status.
 
 Synthetic schema-6 data only. Remote Git/install work is simulated; actual HTTP,
@@ -43,7 +43,9 @@ def lan_browser(phase4_root,tmp_path):
     engine.config=dict(status_url=status_base+'/status',app_url=base)
     bridge=data/'config/updater-bridge';bridge.mkdir()
     write_json(bridge/'client.json',dict(status_url=status_base+'/status'))
-    release=dict(id='c'*40,version='0.9.0',schema=6,source='Synthetic approved main',notes='Approved fixture release')
+    # Model the upgraded host's version-matched plain-note protocol. Older-host
+    # fallback is separately checked in test_phase12; no raw Git notes render.
+    release=dict(id='c'*40,version='0.9.0',schema=6,source='Synthetic approved main',notes='Approved fixture release',notes_version='0.9.0',notes_format=1)
     def check():
         """Simulate Git only; local protocol/status processing remain real."""
         engine.event('Available',release=release)

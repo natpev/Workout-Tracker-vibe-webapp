@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Small local SVG tooltip. Point metadata is escaped in HTML and inserted only
 // with textContent. Mouse, keyboard and touch share the same measurements.
 "use strict";

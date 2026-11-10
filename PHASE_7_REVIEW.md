@@ -1,6 +1,8 @@
 # Phase 7 — Shared Exercise Library, Routine Copying, and Version Display
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated code; not assumed audited, secure or correct.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed AI-generated code; not assumed audited, secure or correct.
 
 Phase 7 is completed and approved for final merge on `phase-7-shared-exercise-library`, based on
 approved main `b8a35f13e0ae59642e7be4def70639ada11e8f1b`. Target application

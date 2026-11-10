@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """HTTP workflow tests use temporary schema-3 data and signed CSRF cookies.
 
 Browser-like form helpers exercise real routes, rollback and post-commit API

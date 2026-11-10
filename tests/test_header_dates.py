@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Read-only card-date regression on synthetic completed/corrected workout data.
 
 The card date and its sort key share one history calculation. HTTP assertions

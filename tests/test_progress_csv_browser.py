@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Actual navigation autosaves, setting-scope notes and CSV download on fixtures."""
 import csv
 from io import StringIO
@@ -72,7 +72,7 @@ def test_export_selection_ranges_download_and_scope_notes(phase10_page,tmp_path,
     page.goto(base+f'/people/{a}/exercises/{e}/defaults')
     expect(page.get_by_text(LIBRARY_NOTE,exact=True)).to_be_visible()
     page.get_by_label('Number of sets',exact=True).fill('8')
-    page.get_by_role('button',name='Save library defaults',exact=True).click()
+    page.get_by_role('button',name='Save changes',exact=True).click()
     with database_session(root) as db:
         assert [tuple(row) for row in db.execute('SELECT * FROM routine_exercises ORDER BY id')]==before
     page.goto(base+f'/people/{a}/exercises')

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Schema 5 shared references used by exact validation and candidate migration.
 
 Exercise person_id remains registration provenance, preserving every old value;

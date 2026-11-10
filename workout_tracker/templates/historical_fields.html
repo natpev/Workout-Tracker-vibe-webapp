@@ -1,4 +1,4 @@
-{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
    Accessible shared historical inputs use raw POST values and linked field errors. #}
 {% macro attributes(name,errors,hint='') %}id="{{ name }}" {% if errors.get(name) %}aria-invalid="true"{% endif %} {% if hint or errors.get(name) %}aria-describedby="{{ hint }}{% if errors.get(name) %} error-{{ name }}{% endif %}"{% endif %}{% endmacro %}
 {% macro error(name,errors) %}{% if errors.get(name) %}<p id="error-{{ name }}" class="field-error"><span aria-hidden="true">*</span> {{ errors[name] }}</p>{% endif %}{% endmacro %}

@@ -1,6 +1,8 @@
 # Patch 0.10.4 — navigation progress, exercise scope and selected CSV
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed generated code; not an independent audit or production deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed generated code; not an independent audit or production deployment.
 
 Branch `workout-progress-and-csv-export` starts from fetched main
 `3e031c170439a42ba1f36769e30fa6f290f1faae`, version 0.10.3/schema 7.

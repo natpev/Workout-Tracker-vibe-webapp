@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Fixed-command host update engine, called by the Unix service and emergency CLI.
 
 Only GitHub HTTPS/SSH origin for the fixed repository and fetched main commits are
@@ -198,8 +198,13 @@ class Engine:
         version=values.get('APP_VERSION');schema=values.get('TARGET_SCHEMA_VERSION')
         if not isinstance(version,str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',version) or type(schema) is not int or schema<1:
             raise UpdateError('Approved release has no valid target metadata.')
-        notes=self.git('log','-12','--format=%h %s',sha).stdout[:12000]
-        return dict(id=sha,version=version,schema=schema,notes=notes,source='GitHub approved main',checked_at=utc())
+        # Read metadata from this exact approved SHA, never working-tree files
+        # or invented summaries of commit messages. Display remains plain text.
+        from .release_notes import read_notes
+        document=self.git('show',sha+':releases/'+version+'.json',check=False)
+        try:notes=read_notes(version,document.stdout if document.returncode==0 else None)
+        except (ValueError,TypeError) as error:raise UpdateError(str(error)) from error
+        return dict(id=sha,version=version,schema=schema,notes=notes,notes_version=version,notes_format=1,source='GitHub approved main',checked_at=utc())
 
     def check(self):
         """Check approved source explicitly, persist result without touching the database."""

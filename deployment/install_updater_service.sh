@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Explicit root-only host service installation; never called by Flask startup.
 # Provision a restricted Unix socket bridge and a read-only private LAN HTTP
 # status listener. No accounts, passwords, certificates, TLS or proxy are created.
@@ -24,7 +24,7 @@ done
 for cmd in python3 docker systemctl install cp flock; do command -v "$cmd" >/dev/null; done
 [[ "$ROOT_DIR" == /* && -d "$ROOT_DIR/app/.git" && ! -L "$ROOT_DIR/app" && ! -L "$ROOT_DIR/app/.git" && -f "$ROOT_DIR/.env" && ! -L "$ROOT_DIR/.env" && -d "$ROOT_DIR/data/storage/config" ]] || { echo 'Existing installation required; storage will not be initialized.' >&2; exit 1; }
 python3 - "$ROOT_DIR" "$LAN_ADDRESS" "$APP_URL" "$STATUS_PORT" <<'PY'
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Validate fixed operator paths/interface before provisioning any host files.
 import ipaddress,sys
 from pathlib import Path
@@ -56,7 +56,7 @@ if [[ ! -e "$STATE/docker/config.json" && -f "$SOURCE_DOCKER_CONFIG/config.json"
 fi
 cp -a "$ROOT_DIR/app/workout_updater" "$STATE/runtime/"
 "$STATE/venv/bin/python" - "$ROOT_DIR" "$LAN_ADDRESS" "$APP_URL" "$STATUS_PORT" <<'PY'
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Provision fixed paths and OS permissions; no user credentials or secrets exist.
 import json,os,subprocess,sys
 from pathlib import Path
@@ -81,7 +81,7 @@ for path,value in ((state/'config.json',config),(bridge/'client.json',{'status_u
  os.chown(path,0,gid if path.parent==bridge else 0)
 PY
 cat > /etc/systemd/system/workout-tracker-updater.service <<EOF
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Independent fixed-operation host worker and read-only LAN HTTP progress.
 [Unit]
 Description=Workout Tracker trusted LAN host updater and status

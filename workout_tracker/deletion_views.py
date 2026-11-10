@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Dedicated household impact review and atomic permanent-deletion routes.
 
 No ordinary routine removal is routed here. GET previews exact current impact;

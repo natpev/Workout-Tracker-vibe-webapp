@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """People/exercise/routine rules called by web routes with a locked transaction.
 
 Browser forms -> routes -> these functions -> parameterized SQLite reads/writes.
@@ -322,3 +322,17 @@ def copy_routine(connection, source_person, source_id, destination_person, name)
             "weight_meaning": row["weight_meaning"], "notes": row["notes"],
         })
     return new_routine
+
+
+def exercise_labels(rows):
+    """Return human-readable labels without changing IDs or matching definitions.
+
+    Repeated names get stable option numbers within this displayed list. This
+    only distinguishes choices; no identities or histories are merged/repaired.
+    """
+    from collections import Counter
+    rows=list(rows);counts=Counter(row['name'].casefold() for row in rows);seen=Counter();result={}
+    for row in sorted(rows,key=lambda row:(row['name'].casefold(),row['id'])):
+        key=row['name'].casefold();seen[key]+=1
+        result[row['id']]=row['name']+(f" (option {seen[key]})" if counts[key]>1 else '')
+    return result

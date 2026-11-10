@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 2 DDL imported by storage validation and candidate-only migration.
 
 These constants describe people, permanent exercise definitions and routine

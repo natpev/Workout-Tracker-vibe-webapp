@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Local disclosure menus and tab-scoped workout focus. No account authentication.
 // A focus marker redirects navigation back to its draft until explicit exit or
 // completion. SQLite draft/revision validation remains the source of truth.

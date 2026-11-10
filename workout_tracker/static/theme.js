@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Loaded by every page; Settings optionally supplies the selector. Reads/writes
 // only this browser's theme preference in
 // localStorage; it sends no user data or network requests.

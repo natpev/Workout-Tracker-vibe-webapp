@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Real Chromium forms, touch SVG and independent host output on disposable data.
 
 Loopback servers exercise CSRF/transactions and actual streaming subprocesses.
@@ -118,13 +118,13 @@ def test_progress_range_state_tooltips_and_themes(phase10_page,width):
     page,base,root,a,b,r,e,saved,draft=phase10_page;expect=pw.expect
     page.set_viewport_size({'width':width,'height':844})
     page.goto(base+f'/people/{a}/progress')
-    expect(page.get_by_role('button',name='30 Days',exact=True)).to_have_attribute('aria-pressed','true')
+    expect(page.get_by_role('button',name='3 Months',exact=True)).to_have_attribute('aria-pressed','true')
     expect(page.locator('[name=from]')).to_have_count(0)
     expect(page.locator('.chart-point')).to_have_count(3) # Two weights including zero, one duration; skips unplotted.
     page.get_by_role('button',name='Custom Range',exact=True).click()
     expect(page.locator('.chart-point')).to_have_count(3)
-    expect(page.get_by_label('From date',exact=True)).to_have_value('2026-10-10')
-    for label in ('60 Days','90 Days','6 Months','12 Months','All Time'):
+    expect(page.get_by_label('From date',exact=True)).to_have_value('2026-08-09')
+    for label in ('6 Months','12 Months','24 Months','All Time'):
         page.get_by_role('button',name=label,exact=True).click()
         expect(page.get_by_role('button',name=label,exact=True)).to_have_attribute('aria-pressed','true')
     expect(page.locator('.chart-point')).to_have_count(4)

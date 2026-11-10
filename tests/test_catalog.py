@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Catalog tests: validated services -> locked SQLite transactions.
 
 Only disposable migrated fixtures are used. SQL probes check ownership,

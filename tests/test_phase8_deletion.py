@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Synthetic schema-6 preservation, hard deletion, confirmation and rollback tests.
 
 Real locked transactions verify original migration files, immutable guards,

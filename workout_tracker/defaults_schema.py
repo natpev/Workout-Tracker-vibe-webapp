@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Schema 7 adds global defaults without rebuilding any existing table or history.
 
 Explicit migration creates this table on a candidate and initializes conservative

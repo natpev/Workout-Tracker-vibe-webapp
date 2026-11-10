@@ -1,0 +1,10 @@
+{
+  "version": "0.12.0",
+  "notes": [
+    "Simplified exercise editing and renaming in the Exercise Library.",
+    "Removed unnecessary exercise IDs from everyday menus.",
+    "Added 3-, 6-, 12- and 24-month views for progress charts.",
+    "Improved release notes and update logs on phones.",
+    "Made installation, backups and update instructions easier to follow."
+  ]
+}

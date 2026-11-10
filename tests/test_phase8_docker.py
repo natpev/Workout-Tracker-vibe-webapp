@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Actual v4/host-service/Compose rehearsal with real disposable schema-5 storage.
 
 Git source fetching and the host-specific Docker storage path probe are simulated. Docker build, backup, schema-6 migration,
@@ -34,7 +34,7 @@ def test_actual_v4_host_service_and_docker_migration(tmp_path,source_schema,faul
     real_docker=shutil.which('docker')
     # The cloud test UID cannot traverse the rootless daemon user's private
     # directory. Simulate only that path probe; every Docker operation is real.
-    adapter.write_text('#!/usr/bin/env python3\n# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\nimport os,sys\nfrom pathlib import Path\na=sys.argv[1:]\nif "info" in a and "{{.DockerRootDir}}" in a: print(os.environ["FIXTURE"])\nelse: os.execv('+repr(real_docker)+', ['+repr(real_docker)+',*a])\n')
+    adapter.write_text('#!/usr/bin/env python3\n# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.\nimport os,sys\nfrom pathlib import Path\na=sys.argv[1:]\nif "info" in a and "{{.DockerRootDir}}" in a: print(os.environ["FIXTURE"])\nelse: os.execv('+repr(real_docker)+', ['+repr(real_docker)+',*a])\n')
     source=adapter.read_text().replace('import os,sys','import os,sys,subprocess')
     source=source.replace('a=sys.argv[1:]',"""a=sys.argv[1:]
 fault=os.environ.get('DOCKER_FAULT','')

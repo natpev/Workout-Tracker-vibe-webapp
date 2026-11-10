@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Chromium verifies server-sorted cards retain existing controls and phone layout.
 
 Reuse the disposable schema-7 HTTP fixture, never a production installation.
@@ -38,4 +38,4 @@ def test_sorted_cards_controls_refresh_and_all_themes(phase10_page, width):
         historical(db, person, never_z, '2026-11-07')
     page.reload()
     expect(page.locator('.routine-card h2')).to_have_text(['Zulu', 'Mixed', 'Older', 'alpha'])
-    expect(page.locator('footer')).to_contain_text('v0.11.0 · Database v7')
+    expect(page.locator('footer')).to_contain_text('v0.12.0 · Database v7')

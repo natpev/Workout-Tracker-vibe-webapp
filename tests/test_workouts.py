@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Workout-service and schema tests use only disposable migrated fixtures.
 
 Services run inside real SQLite transactions; failure tests assert committed

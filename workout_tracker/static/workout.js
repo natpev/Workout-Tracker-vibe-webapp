@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Loaded only by workout/discard templates. Browser input -> revision-checked
 // Flask POST -> SQLite commit -> acknowledged Saved/progress. Input remains in
 // the page on failure; no previous performance is ever copied into a field.

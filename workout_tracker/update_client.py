@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Passwordless LAN app -> permission-restricted host Unix socket, fixed JSON actions.
 
 The browser never controls commands, repositories, URLs or images. The operator

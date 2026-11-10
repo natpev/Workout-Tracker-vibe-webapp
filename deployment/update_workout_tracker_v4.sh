@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Emergency SSH entry point and explicit host-service installer/upgrade launcher.
 # Inspected v3's fixed paths, env, Git/image/storage preservation and failure flow.
 # V4 delegates to ONE host engine shared with browser updates. It never sources

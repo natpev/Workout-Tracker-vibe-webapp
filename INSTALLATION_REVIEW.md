@@ -1,6 +1,8 @@
 # Installation guide verification
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Documentation and disposable checks do not constitute a real-server deployment or an independent audit.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Documentation and disposable checks do not constitute a real-server deployment or an independent audit.
 
 > Historical record: this verifies the pre-redesign 0.5.0 installation. Phase 6
 > mobile UX/version 0.6.0 evidence is in [PHASE_6_UX_REVIEW.md](PHASE_6_UX_REVIEW.md).

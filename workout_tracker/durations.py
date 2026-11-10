@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Shared whole-number duration parsing for configuration and actual performance.
 
 Catalog/workout services supply their own storage bounds. Empty parts normalize

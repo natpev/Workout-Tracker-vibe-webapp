@@ -1,4 +1,4 @@
-/* SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+/* SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
    Shared mobile-first design. Server-selected palette names affect presentation
    only. Neutral theme surfaces follow theme.js/device preference; no data writes. */
 :root { color-scheme:light; --background:#f3f5fa; --card:#fff; --text:#182136; --muted:#59657b; --border:#c0c8d7; --input-border:#8793a8; --soft:#e9edf5; }
@@ -168,3 +168,9 @@ dialog::backdrop { background:#0008; }
 /* Three mode choices wrap on narrow phones; targets share duration units only. */
 .mode { flex-wrap:wrap; }
 .chart-target { stroke:var(--muted); stroke-width:2; stroke-dasharray:6 4; }
+
+/* Keep wide notes/console content inside its own touch-scrollable box. */
+.release-notes,.update-log { min-width:0; max-width:100%; overflow:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:1rem; padding:1rem; }
+.release-notes { white-space:normal; overflow-wrap:normal; word-break:normal; }
+.update-log { max-height:45vh; font:14px/1.5 ui-monospace,monospace; white-space:pre; overflow-wrap:normal; }
+.update-log p { white-space:pre; margin:.3rem 0; }

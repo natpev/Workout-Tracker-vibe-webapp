@@ -1,10 +1,12 @@
 # Weight, Time and combined exercise design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Phase 4 adds history, local typed charts, historical completion and append-only effective corrections; original snapshots remain protected. Review and test before use.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Phase 4 adds history, local typed charts, historical completion and append-only effective corrections; original snapshots remain protected. Review and test before use.
 
 ## Historical Phase 9 state and authorization
 
-Current authorization is Phase 11 (0.11.0/schema 8), described at the end of this document; it supersedes earlier phase boundaries and two-mode-only rules.
+Current release is Phase 12 (0.12.0/schema 8), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.
 
 Phases 1–8 are approved. Phase 9 is authorized for implementation, verification
 and direct main merge without a PR attempt: application 0.9.0 / schema 7 adds

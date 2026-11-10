@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 11 tests use candidate upgrades and synthetic household records only.
 
 Configuration, paired actuals, immutable snapshots, correction chains, charts,

@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // Independent read-only polling survives the application's restart. Safe console
 // text is inserted with textContent; no HTML, paths or commands are accepted.
 "use strict";

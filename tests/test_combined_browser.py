@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Real Chromium combined forms, acknowledgments, history, graphs and download.
 
 Loopback HTTP and disposable schema 8 exercise the complete browser-to-SQL path.
@@ -50,7 +50,7 @@ def test_combined_config_autosave_navigation_history_charts_and_csv(combined_pag
     expect(page.get_by_label('Target repetitions per set')).to_be_disabled()
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     page.get_by_label('Minutes',exact=True).fill('7')
-    page.get_by_role('button',name='Save library defaults',exact=True).click()
+    page.get_by_role('button',name='Save changes',exact=True).click()
     with database_session(root) as db:assert c.entry(db,a,r,item)['target_duration_seconds']==360
     page.goto(base+f'/people/{a}/routines/{r}/items/{item}')
     expect(page.get_by_label('Minutes',exact=True)).to_have_value('6')

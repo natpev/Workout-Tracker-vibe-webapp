@@ -1,6 +1,8 @@
 # Phase 8 — permanent deletion, passwordless LAN updates and person context
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** Human-directed AI-generated code; not an independent audit or a live-server deployment.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Human-directed AI-generated code; not an independent audit or a live-server deployment.
 
 Revised branch: **phase-8-lan-management-and-updates**, created fresh from approved
 main `7253b044c48ee9e45f479e7130a9dc058c41dac3`. Target **app 0.8.0 / schema 6**.

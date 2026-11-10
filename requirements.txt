@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # pip installs these pinned runtime dependencies for Flask and Gunicorn.
 # This file contains no configuration or credentials; refresh pins deliberately.
 blinker==1.9.0

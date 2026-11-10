@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Operator CLI invoked with python -m workout_tracker.
 
 Click parses explicit paths and confirmation. init-storage creates only a new

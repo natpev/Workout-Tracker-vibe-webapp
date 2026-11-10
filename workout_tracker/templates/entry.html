@@ -1,11 +1,11 @@
-{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
    Edits a routine configuration, not an actual workout. Permanent exercise ID
    stays fixed; switching mode clears incompatible settings server-side. #}
 {% extends 'base.html' %}
 {% from 'macros.html' import security, configuration with context %}
 {% block content %}
 <h1>Edit {{ item.name }}</h1>
-<p><a href="{{ url_for('manage.edit_routine', person_id=person.id, routine_id=routine.id) }}">Back to {{ routine.name }}</a> · <a href="{{ url_for('manage.exercises', person_id=person.id) }}">Rename exercise</a></p>
+<p><a href="{{ url_for('manage.edit_routine', person_id=person.id, routine_id=routine.id) }}">Back to {{ routine.name }}</a> · <a href="{{ url_for('manage.edit_defaults', person_id=person.id, exercise_id=item.exercise_id) }}">Rename exercise</a></p>
 <section><form method="post" data-configuration>{{ security(revision) }}<input type="hidden" name="action" value="save">{{ configuration(item) }}<button>Save exercise settings</button></form></section>
 <section><h3>Remove from routine</h3><form method="post">{{ security(revision) }}<label class="acknowledge"><input name="confirm" type="checkbox" value="yes" required> Remove this exercise from this routine only</label><button name="action" value="remove">Remove from Routine</button></form></section>
 {% endblock %}

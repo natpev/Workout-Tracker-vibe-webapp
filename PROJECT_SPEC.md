@@ -1,9 +1,11 @@
 # PROJECT_SPEC.md — Workout Tracker Design
 
-> **SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.** This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
+> **SHAMELESSLY VIBE-CODED 🤖**
+>
+> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phases 1–11 are implemented; Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 11 is authorized below.
-**Current scope:** Phase 11 application 0.11.0 / candidate-only schema 8. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
+**Current scope:** Phase 12 application 0.12.0 / unchanged schema 8. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -162,7 +164,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 - Local network access only initially; no passwords for user switching. Document that people who can reach the web app can view/edit any household user's data.
 - Validate client inputs server-side, use secure SQL queries and transactions, prevent duplicate saves, protect mutating requests from CSRF, and keep backup/restore filesystem operations constrained to intended server directories.
 - Test with disposable fixtures; **never run destructive tests on a real workout database.** Explicit approval required before affecting a live database or deploying.
-- `README.md`, `AGENTS.md`, `PROJECT_SPEC.md`, all notes, and every source-code header where syntax permits must prominently label the project **SHAMEFULLY VIBE-CODED / AI-GENERATED**.
+- `README.md`, `AGENTS.md`, `PROJECT_SPEC.md`, all notes, and every source-code header where syntax permits must prominently label the project **SHAMELESSLY VIBE-CODED**.
 - Comments must explain file responsibilities, significant code blocks, function inputs/outputs, and **browser → Flask → SQLite → chart** data flow in plain language.
 - Maintain a clear README with home-server installation, updates, data location, backups/restores, troubleshooting and security limitations.
 
@@ -869,3 +871,74 @@ weakening assertions. Document evidence and exact installed-server steps in
 PHASE_11_REVIEW.md. Direct verified main merge/push/branch cleanup is explicitly
 authorized without a PR, force push, protection bypass, deployment, real data or
 another phase. Preserve mandatory source/document disclosures without a UI banner.
+
+
+## 27. Phase 12 — UI cleanup, readable releases and beginner documentation
+
+Release 0.12.0 keeps schema 8, with no migration or measurement/storage redesign.
+Library cards show name and Edit Defaults; accessible descriptions associate the
+short button with its exercise. IDs remain internal and on individual Edit Defaults
+screens, not ordinary listings/selectors. Move global renaming into that form;
+name/defaults validate and commit atomically under CSRF and a name+preset revision.
+Duplicate names use existing rules. Preserve identity, references, snapshots and
+independent routine configurations. Retain legacy name-only editing without
+implicitly adding preset storage. Number matching-name options deterministically
+for display; never match by name or investigate/repair duplicate/orphan histories.
+
+Progress uses 3 Months by default, then 6/12/24 Months, All Time and Custom. Preserve
+the configured IANA date, inclusive calendar-month arithmetic, clamping, filtering,
+refresh/Back/History state, CSV selections and all three exercise types. Existing
+30/60/90 links retain their old exact dates as Custom without an error. No workout
+occurrence or numerical history is modified. Keep no old day buttons in the main UI.
+
+Constrain release notes and logs to their boxes. Ordinary note bullets wrap;
+long unbroken text scrolls horizontally. Console uses monospace, original newlines,
+no soft wrapping and internal horizontal/vertical touch scrolling. Preserve safe
+escaping, bounded sanitization, live polling, scroll position, themes and phone
+portrait/landscape layouts without page-level overflow.
+
+Read notes from releases/VERSION.json at the same approved pinned SHA as version
+metadata, never from arbitrary commit-message summaries. Validate size/shape,
+version and bounded plain single-line bullets. Persist before install so the host
+can display them while the app is offline. Both views escape text. Missing notes
+on older releases get a neutral fallback; 0.12.0+ requires a valid file. Old host
+services can still update; the app hides old Git-log notes and explains the explicit
+one-time service upgrade for new note/console behavior. No new updater script.
+
+README begins with a friendly description, household/private-server/passwordless
+behavior, the full humorous disclosure, then Installation — Start Here. Give
+numbered safe new-install steps, actual commands/settings, server connection,
+code/data separation, checks and backups. Separate existing updates, host service
+setup and emergency recovery. Follow with usage, people/routines/library, three
+measurement types, history/charts/CSV, backup/restore, troubleshooting, security,
+limitations and linked developer details. No untested physical hardware claims.
+
+The disclosure is now exactly:
+
+SHAMELESSLY VIBE-CODED 🤖
+
+This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
+
+Source headers use: SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+Use valid comments, adjacent documentation for JSON, no large application banner.
+Update wording across active source/documentation without rewriting Git history,
+database audit values or historical findings. Lack of professional audit remains clear.
+
+### Permanent release requirements — mandatory for every release
+
+Before merging any major/minor/patch release, bug fix, UI, database or deployment
+change, Codex must open and review README.md against actual features; verify
+installation commands/configuration and update instructions; edit changed guidance;
+confirm current versions, links and referenced filenames; preserve the friendly
+opening, near-top installation and SHAMELESSLY VIBE-CODED disclosure. Include and
+verify accurate, concise, plain-English release notes for the exact application
+version in the approved release source. Every release must have them: no raw Git
+logs, hashes, filenames, schema discussion or invented changes as user notes.
+Record both checks in the release report even if no README edits were needed;
+explicitly report when the README was reviewed and remains accurate. These rules
+are permanent and mandatory, not optional.
+
+Run all existing/new backend, browser/mobile/themes, Docker, installation, updater,
+backup/restore and database-integrity tests without weakening assertions. After
+verification, direct main merge/push/verification and feature cleanup are authorized
+without a PR, force push, deployment, production data or another development phase.

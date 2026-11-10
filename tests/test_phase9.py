@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Phase 9 synthetic defaults, migration, administration, clock and asset checks.
 
 Every database is disposable. Old-cell and byte comparisons protect routine,

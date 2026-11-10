@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Opt-in Docker smoke tests run only against the managed local daemon.
 
 pytest creates disposable host metadata and mounts it read-only into test
@@ -350,7 +350,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
     envfile.write_text(f'WORKOUT_DATA_ROOT={root}\nWORKOUT_UID={os.getuid()}\nWORKOUT_GID={os.getgid()}\nWORKOUT_PORT=8000\nWORKOUT_BIND_ADDRESS=127.0.0.1\nWORKOUT_TIMEZONE=America/Indiana/Indianapolis\nWORKOUT_TRUSTED_HOSTS=localhost,127.0.0.1,[::1]\nWORKOUT_BUILD_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt\n')
     envfile.chmod(0o600)
     override=tmp_path/'isolated.yaml'
-    override.write_text('# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\n# Test isolation only; no published services.\nservices:\n  web:\n    ports: !reset []\n    network_mode: none\n')
+    override.write_text('# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.\n# Test isolation only; no published services.\nservices:\n  web:\n    ports: !reset []\n    network_mode: none\n')
     base=Path(__file__).resolve().parents[1]/'compose.yaml'
     prefix=('compose','--project-name',project,'--env-file',str(envfile),'-f',str(base))
     isolated=(*prefix,'-f',str(override))
@@ -393,7 +393,7 @@ def test_documented_parent_bootstrap_and_compose_installation(tmp_path,monkeypat
                 if time.monotonic()>=deadline: pytest.fail('Documented Compose web did not become healthy')
                 time.sleep(.2)
             docker(*isolated,'exec','-T','web','python','-c',
-                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.11.0',schema_version=4)")
+                   "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.12.0',schema_version=4)")
             for identity in ids.values():
                 inspected=json.loads(docker('inspect',identity).stdout)[0]
                 assert inspected['State']['Running'] and inspected['HostConfig']['RestartPolicy']['Name']=='unless-stopped'
@@ -426,7 +426,7 @@ assert b'Installation fixture' in page
         release=json.loads(docker('run','--rm','--network=none','--read-only',
                                   '--entrypoint','python','workout-tracker:phase8-review',
                                   '-m','workout_tracker','release-info').stdout)
-        assert release==dict(app_version='0.11.0',target_schema_version=8)
+        assert release==dict(app_version='0.12.0',target_schema_version=8)
         # Before migration, explicitly back up/verify the installed schema-4
         # fixture while both services are stopped; never downgrade it later.
         backup=json.loads(docker(*isolated,'run','--rm','--no-deps','web','python','-c',
@@ -448,7 +448,7 @@ assert b'Installation fixture' in page
             if time.monotonic()>=deadline: pytest.fail('Upgraded schema-5 Compose service did not become healthy')
             time.sleep(.2)
         docker(*isolated,'exec','-T','web','python','-c',
-               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.11.0',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
+               "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=10)); assert d==dict(status='ready',app_version='0.12.0',schema_version=5); assert b'Installation fixture' in urllib.request.urlopen('http://127.0.0.1:8000/people').read()")
         docker(*isolated,'stop')
         assert any('Scheduler process started' in path.read_text() for path in (root/'logs').glob('events-*.jsonl'))
     finally:

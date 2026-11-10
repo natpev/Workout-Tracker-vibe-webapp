@@ -1,4 +1,4 @@
-// SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+// SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 // A confirmed Install submit synchronously opens one trusted status tab, then
 // uses CSRF-protected fetch so the original application tab stays available.
 "use strict";

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """History routes: browser forms/filters -> validation -> effective-value reader.
 
 All app writes use schema-4 locked transactions. CSRF protects preparations,
@@ -83,10 +83,10 @@ def progress(person_id):
     with connection() as db:
         person=owner(db,person_id)
         # On invalid custom input keep the most recent valid URL range when
-        # supplied by the form, otherwise fall back to the default 30-day view.
+        # supplied by the form, otherwise fall back to the default three-month view.
         chart_filters=filters
         if errors:
-            previous=dict(range=request.args.get('previous_range','30'),exercise=request.args.get('exercise',''),
+            previous=dict(range=request.args.get('previous_range','3m'),exercise=request.args.get('exercise',''),
                           **{'from':request.args.get('previous_from',''),'to':request.args.get('previous_to','')})
             try:chart_filters,_,_=ranges.selection(previous,today)
             except c.ValidationError:chart_filters,_,_=ranges.selection({'exercise':request.args.get('exercise','')},today)
@@ -108,7 +108,7 @@ def progress(person_id):
                            selected_export=selected_export,export_error=export_error,
                            range_token=token,range_description=description,range_options=ranges.RANGES,range_errors=errors,
                            invalid_dates={key for key in ('from','to') if not ranges.valid_date(filters.get(key,''))},
-                           applied=chart_filters,progress_context=dict(progress_range=chart_filters.get('range','30'),progress_from=chart_filters.get('from',''),progress_to=chart_filters.get('to',''),progress_exercise=chart_filters.get('exercise',''))),status
+                           applied=chart_filters,progress_context=dict(progress_range=chart_filters.get('range','3m'),progress_from=chart_filters.get('from',''),progress_to=chart_filters.get('to',''),progress_exercise=chart_filters.get('exercise',''))),status
 
 
 @bp.route('/people/<person_id>/historical',methods=['GET','POST'])

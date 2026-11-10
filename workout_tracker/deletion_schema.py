@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Schema 6 candidate DDL: detached routine snapshots and explicit deletion guards.
 
 Storage validates this exact DDL. Normal connections register a deny-by-default

@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Actual v4 wrapper/host engine tests with fake Git/Docker and real SQLite services.
 
 All paths and environment selectors are synthetic. No command reaches a server,
@@ -24,7 +24,7 @@ from workout_updater.service import Controller
 
 REPO=Path(__file__).resolve().parents[1]
 ADAPTER='''#!/usr/bin/env python3
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 # Isolated test adapter; forwards only application storage calls to fixture data.
 import json,os,subprocess,sys
 from pathlib import Path
@@ -36,6 +36,10 @@ if name=='git':
  elif 'status' in args:pass
  elif 'fetch' in args:sys.exit(1 if mode=='fetch' else 0)
  elif 'rev-parse' in args:print('a'*40 if args[-1]=='origin/main' or (root/'merged').exists() or mode=='no-update' else 'b'*40)
+ elif 'show' in args and ':releases/' in args[-1]:
+  note=Path(os.environ['APP_SOURCE'])/'releases'/(os.environ.get('METADATA_VERSION','0.8.0')+'.json')
+  if not note.exists():sys.exit(128)
+  print(note.read_text())
  elif 'show' in args:print('APP_VERSION='+repr(os.environ.get('METADATA_VERSION','0.8.0'))+'\\nTARGET_SCHEMA_VERSION='+os.environ.get('METADATA_SCHEMA','6'))
  elif 'log' in args:print('Approved synthetic release notes')
  elif 'merge-base' in args:pass
@@ -208,7 +212,7 @@ def test_generated_systemd_unit_is_syntactically_valid_and_scoped(tmp_path):
     import shutil
     if shutil.which('systemd-analyze'):
         runtime=tmp_path/'runtime';runtime.mkdir(mode=0o700)
-        (tmp_path/'docker.service').write_text('# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.\n# Dependency stub for offline syntax validation only.\n[Service]\nType=oneshot\nExecStart=/usr/bin/true\nRemainAfterExit=yes\n')
+        (tmp_path/'docker.service').write_text('# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.\n# Dependency stub for offline syntax validation only.\n[Service]\nType=oneshot\nExecStart=/usr/bin/true\nRemainAfterExit=yes\n')
         env={**os.environ,'XDG_RUNTIME_DIR':str(runtime),'SYSTEMD_UNIT_PATH':str(tmp_path)+':'}
         result=subprocess.run(['systemd-analyze','--user','verify',str(path)],text=True,capture_output=True,env=env)
         assert result.returncode==0,result.stderr

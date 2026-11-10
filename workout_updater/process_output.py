@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Stream subprocess pipes without a shell, preserving stdout/stderr and timeout.
 
 Engine supplies a per-line callback for private diagnostics and safe classification.

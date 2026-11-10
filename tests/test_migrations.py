@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Candidate-migration safety tests; pytest uses only disposable tmp_path data.
 
 Calls CLI -> migration -> SQLite backup/DDL/validation -> atomic selection.

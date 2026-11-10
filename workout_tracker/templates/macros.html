@@ -1,4 +1,4 @@
-{# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
    Imported by form templates. Emits CSRF/revision fields and typed exercise
    controls; values are escaped, and Flask validates them before SQLite writes. #}
 {% macro security(revision=none) %}
@@ -24,8 +24,8 @@
 <div data-fields="time weight_duration">
   <p>Target duration per set</p>
   <div class="duration">
-    <label>Minutes <input name="minutes" type="number" min="0" max="5999" step="1" value="{{ item.target_duration_seconds // 60 if item and item.target_duration_seconds is not none else 0 }}"></label>
-    <label>Seconds <input name="seconds" type="number" min="0" max="359999" step="1" value="{{ item.target_duration_seconds % 60 if item and item.target_duration_seconds is not none else 45 }}"></label>
+    <label>Minutes <input name="minutes" type="number" min="0" max="5999" step="1" value="{{ item.minutes if item and item.minutes is defined else item.target_duration_seconds // 60 if item and item.target_duration_seconds is not none else 0 }}"></label>
+    <label>Seconds <input name="seconds" type="number" min="0" max="359999" step="1" value="{{ item.seconds if item and item.seconds is defined else item.target_duration_seconds % 60 if item and item.target_duration_seconds is not none else 45 }}"></label>
   </div>
 </div>
 <label>Exercise notes (optional) <textarea name="notes" maxlength="2000" rows="3">{{ item.notes if item else '' }}</textarea></label>

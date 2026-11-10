@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Disposable HTTP/storage checks for person preferences and deliberate workout exit.
 
 No schema migration is introduced. Tests assert original database bytes remain

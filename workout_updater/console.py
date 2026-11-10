@@ -1,4 +1,4 @@
-# SHAMEFULLY VIBE-CODED / AI-GENERATED; REVIEW AND TEST BEFORE USE.
+# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Bounded browser-safe output, never a view of private command logs or files.
 
 Only recognized Git/build/container/storage output becomes structured safe text.
