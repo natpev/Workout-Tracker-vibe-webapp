@@ -5,7 +5,12 @@ AGENTS.md — Workout Tracker
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported. By explicit Phase 6 instruction, do not render the repeated visible banner in application pages; HTML/Jinja source headers retain it.
 
 
-Phase 15 / application 0.15.0 / schema 11 is the current authorized release.
+Patch 0.15.1 / application 0.15.1 / schema 12 is the current authorized release.
+Verified: 768 passed (620 backend/script, 124 Chromium, 24 Docker), zero failed
+or skipped; see PATCH_0_15_1_REVIEW.md for migration, SVG boundaries and limits.
+The user explicitly approved schema 12 after review found the schema-11 icon CHECK
+constraint. Only that constraint changes on a separate migration candidate.
+See PATCH_0_15_1_REVIEW.md and docs/SCHEMA_12.md. Previous release:
 Phase 15 verification: 740 distinct passing tests (600 backend/script, 118 Chromium,
 22 Docker); see PHASE_15_REVIEW.md for full results and resolved failures.
 Verified Phase 14 baseline: 659 distinct passing tests (530 backend/script, 109 Chromium,
@@ -271,3 +276,25 @@ canonical basis stays immutable through every type change, including dormant Dur
 First weighted conversion of an unassigned exercise requires an explicit choice.
 Schema 11 permits household configurations to retain different types and enforces
 canonical assigned bases. Migration remains explicit, candidate-only and lossless.
+
+## Patch 0.15.1 — custom illustration size
+
+Start and End SVGs each independently allow 300 KiB (307,200 bytes). Keep bounded
+MAX_BYTES+1 upload reads, raw UTF-8 and canonical byte validation, passive SVG
+allowlists, accent rendering and every existing complexity/security bound.
+The 1,024-element error must remain distinct from a file-size error. Invalid,
+oversized or expanded canonical output must leave the prior icon unchanged.
+
+The user approved minimal schema 12 because schema 11 has a 65,536-character
+SQLite constraint. Never edit released schema-11 DDL or change it in place.
+Rebuild only exercise_icons on the copied candidate, preserving every original
+cell/icon and exact other DDL; enforce at most 307,200 stored UTF-8 bytes.
+Validate integrity/FKs, old values/audits and atomic activation/rollback through
+the existing migrator. Startup never migrates. Backup/restore retains the
+exact-schema rule; browser/v4 use approved target 12 and explicit consent.
+No new updater script, artwork redesign or unrelated behavior change.
+
+Review README/commands and human-readable versioned notes, run complete backend,
+Chromium and Docker suites with boundary/security/restore regressions, then the
+user authorizes direct main merge/push/verification/feature cleanup without a PR,
+force push, deployment or real data. Retain the SHAMELESSLY VIBE-CODED disclosure.

@@ -15,7 +15,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.15.0**. Database schema: **11**. Existing schema-10
+Current application: **0.15.1**. Database schema: **12**. Existing schema-11
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
@@ -168,15 +168,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 11
+  --confirm-upgrade --target-version 12
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-11 database, preserving the original. The final
-command should report **Storage verified; schema version 11.** Stop at any error;
+and verifies a separate schema-12 database, preserving the original. The final
+command should report **Storage verified; schema version 12.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -194,7 +194,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.15.0",schema_version=11)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.15.1",schema_version=12)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -207,7 +207,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.15.0 / database 11**. Check all three themes in Settings.
+should report **0.15.1 / database 12**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -298,7 +298,7 @@ controls have been removed. Earlier conversions and their audits remain readable
 ### Actual repetitions and estimated weight lifted
 
 Weight exercises record **one weight** and **actual repetitions for each configured
-set**. Each set starts at the captured target reps. Change individual sets as needed;
+set**. Each set starts blank. Enter the actual repetitions for each set;
 autosave, Back/Next and Resume preserve edits. Zero reps is valid; an empty field
 is incomplete. Leave weight blank to skip; skipped measurements remain SQL NULL.
 Weight + Duration continues to record one weight and one duration, without reps.
@@ -402,13 +402,15 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-For **0.15.0**, an existing schema-10 installation needs a confirmed upgrade to
-schema **11**. The updater verifies a backup, migrates a separate candidate and
-activates it only after integrity checks. Original databases remain retained.
-Make a new verified schema-11 backup after success. Older backups remain retained
-but cannot silently restore into schema 11. See [Phase 15 upgrade instructions](PHASE_15_REVIEW.md#existing-server-upgrade).
-Installations older than Phase 14 must first complete the archived Weight Basis
-classification prerequisites; no classifications or historical conversions are guessed.
+For **0.15.1**, existing schema-11 installations need an explicitly confirmed
+upgrade to schema **12** to store larger illustrations. Only the icon-size
+constraint changes, on a separate verified database candidate. The original and
+all workout data remain preserved. No additional host-service upgrade is needed
+after Phase 12 setup. Make a new verified schema-12 backup after success; older
+backups remain retained but cannot silently restore into schema 12. See the
+[patch upgrade instructions](PATCH_0_15_1_REVIEW.md#existing-installation-upgrade).
+Older installations retain the Phase 14 classification prerequisites and earlier
+candidate migration steps; no classifications or conversions are guessed.
 
 ### One-time browser updater installation
 
@@ -481,9 +483,9 @@ See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
 [Phase 12 verification](PHASE_12_REVIEW.md), and
 [Library menu verification](LIBRARY_MENU_REVIEW.md) and
 [workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md) and
-[Phase 13 archive](PHASE_13_REVIEW.md) and [current Phase 14 verification](PHASE_14_REVIEW.md). Older phase reviews retain their
+[Phase 13 archive](PHASE_13_REVIEW.md) and [Phase 14 verification](PHASE_14_REVIEW.md), [Phase 15 verification](PHASE_15_REVIEW.md) and [current patch verification](PATCH_0_15_1_REVIEW.md). Older phase reviews retain their
 historical results and limitations. Current release verification is recorded in
-PHASE_14_REVIEW.md; no physical-server or live-data testing is implied.
+PATCH_0_15_1_REVIEW.md; no physical-server or live-data testing is implied.
 
 Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this
@@ -502,7 +504,11 @@ Partial drafts autosave and resume unchanged. Legacy completed workouts retain
 their original target-repetition assumptions.
 
 Edit Defaults manages independent shared Start/End SVG illustrations. Removing
-a custom image restores the dumbbells/barbell default. See the [SVG allowlist](docs/EXERCISE_ICONS.md).
+a custom image restores the dumbbells/barbell default. Each Start and End image
+independently accepts up to **300 KiB (307,200 bytes)** of SVG, with the same
+passive-vector security rules. The separate 1,024-element complexity limit remains;
+size and complexity errors leave the previous image unchanged. See the
+[SVG allowlist](docs/EXERCISE_ICONS.md).
 Measurement-type changes require confirmation and leave captured drafts, completed
 history and audits untouched. Once assigned, Weight Basis remains permanent,
 including while dormant on a Duration configuration. Both save scopes remain available.

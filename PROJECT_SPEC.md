@@ -5,7 +5,12 @@
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
 
-Phase 15 / application 0.15.0 / schema 11 is the current authorized release.
+Patch 0.15.1 / application 0.15.1 / schema 12 is the current authorized release.
+Verified: 768 passed (620 backend/script, 124 Chromium, 24 Docker), zero failed
+or skipped; see PATCH_0_15_1_REVIEW.md for migration, SVG boundaries and limits.
+The user explicitly approved schema 12 after review found the schema-11 icon CHECK
+constraint. Only that constraint changes on a separate migration candidate.
+See PATCH_0_15_1_REVIEW.md and docs/SCHEMA_12.md. Previous release:
 Phase 15 verification: 740 distinct passing tests (600 backend/script, 118 Chromium,
 22 Docker); see PHASE_15_REVIEW.md for full results and resolved failures.
 Verified Phase 14 baseline: 659 distinct passing tests (530 backend/script, 109 Chromium,
@@ -35,8 +40,8 @@ Retained Phase 14 foundation (Phase 15 changes below take precedence):
   checks precede authorized direct main merge/push/remote verification/branch cleanup.
 See PHASE_14_REVIEW.md and docs/SCHEMA_10.md for the archived baseline; see PHASE_15_REVIEW.md for current implementation.
 
-**Project status:** Phase 15 / application 0.15.0 / schema 11 is implemented with
-verification recorded in PHASE_15_REVIEW.md. Phase 13 remains the archived baseline
+**Project status:** Patch 0.15.1 / schema 12 enlarges icon uploads only, with
+verification recorded in PATCH_0_15_1_REVIEW.md. Phase 15 functionality remains intact. Phase 13 remains the archived baseline
 (590 tests, 0.13.0/schema 9). Prior phase sections retain historical decisions where
 not superseded by the permanent Phase 14 contract above. Direct main merge/push
 is authorized only after complete regression verification, with no PR or deployment.
@@ -1050,3 +1055,25 @@ canonical basis stays immutable through every type change, including dormant Dur
 First weighted conversion of an unassigned exercise requires an explicit choice.
 Schema 11 permits household configurations to retain different types and enforces
 canonical assigned bases. Migration remains explicit, candidate-only and lossless.
+
+## Patch 0.15.1 — custom illustration size
+
+Start and End SVGs each independently allow 300 KiB (307,200 bytes). Keep bounded
+MAX_BYTES+1 upload reads, raw UTF-8 and canonical byte validation, passive SVG
+allowlists, accent rendering and every existing complexity/security bound.
+The 1,024-element error must remain distinct from a file-size error. Invalid,
+oversized or expanded canonical output must leave the prior icon unchanged.
+
+The user approved minimal schema 12 because schema 11 has a 65,536-character
+SQLite constraint. Never edit released schema-11 DDL or change it in place.
+Rebuild only exercise_icons on the copied candidate, preserving every original
+cell/icon and exact other DDL; enforce at most 307,200 stored UTF-8 bytes.
+Validate integrity/FKs, old values/audits and atomic activation/rollback through
+the existing migrator. Startup never migrates. Backup/restore retains the
+exact-schema rule; browser/v4 use approved target 12 and explicit consent.
+No new updater script, artwork redesign or unrelated behavior change.
+
+Review README/commands and human-readable versioned notes, run complete backend,
+Chromium and Docker suites with boundary/security/restore regressions, then the
+user authorizes direct main merge/push/verification/feature cleanup without a PR,
+force push, deployment or real data. Retain the SHAMELESSLY VIBE-CODED disclosure.

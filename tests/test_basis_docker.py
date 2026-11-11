@@ -23,7 +23,7 @@ def test_schema9_to10_original_candidate_failure_audits_and_restart(tmp_path):
     """Actual image upgrades only candidates and reads converted values after restart."""
     x=legacy_fixture(tmp_path);root=x['root'];manifest=(root/'config/active.json').read_bytes()
     release=json.loads(docker('run','--rm','--network=none','--read-only','--entrypoint','python','workout-tracker:phase8-review','-m','workout_tracker','release-info').stdout)
-    assert release==dict(app_version='0.15.0',target_schema_version=11)
+    assert release==dict(app_version='0.15.1',target_schema_version=12)
     assert 'schema version 9.' in run_storage(root,'-m','workout_tracker','check-storage','--data-root','/var/lib/workout-tracker').stdout
     failure="""
 from unittest.mock import patch
@@ -57,7 +57,7 @@ assert backup(root,uuid4().hex)['status']=='verified'
         try:
             deadline=time.monotonic()+20
             while True:
-                result=docker('exec',container,'python','-c',"import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)); assert r==dict(status='ready',app_version='0.15.0',schema_version=10)",check=False)
+                result=docker('exec',container,'python','-c',"import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=2)); assert r==dict(status='ready',app_version='0.15.1',schema_version=10)",check=False)
                 if not result.returncode:break
                 if time.monotonic()>deadline:pytest.fail('Schema-10 image did not become ready: '+result.stderr)
                 time.sleep(.2)

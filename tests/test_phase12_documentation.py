@@ -19,10 +19,10 @@ def test_readme_friendly_order_versions_commands_and_links():
     assert text.startswith('# Workout Tracker\n\nA simple workout log')
     assert text.index('Installation — Start Here')<text.index('## Using Workout Tracker')<text.index('## Technical/developer information')
     assert 'healthy dose of AI, questionable amounts of confidence' in text
-    assert APP_VERSION in text and TARGET_SCHEMA_VERSION==11
+    assert APP_VERSION in text and TARGET_SCHEMA_VERSION==12
     assert 'New installation only.' in text and '#updating-the-application' in text
     assert '## Updating the application' in text and 'Never initialize an existing' in text
-    for fragment in ('--target-version 11','--confirm-new-storage','--env-file ../.env','WORKOUT_UID=10001','WORKOUT_DATA_ROOT=/root/WorkoutTracker/data/storage','WORKOUT_BUILD_CA_BUNDLE='):
+    for fragment in ('--target-version 12','--confirm-new-storage','--env-file ../.env','WORKOUT_UID=10001','WORKOUT_DATA_ROOT=/root/WorkoutTracker/data/storage','WORKOUT_BUILD_CA_BUNDLE='):
         assert fragment in text
     cli=(ROOT/'workout_tracker/__main__.py').read_text();compose=(ROOT/'compose.yaml').read_text()
     for flag in ('--confirm-new-storage','--confirm-upgrade','--target-version'):assert flag in cli

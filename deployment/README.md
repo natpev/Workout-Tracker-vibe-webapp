@@ -4,7 +4,7 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.15.0**, full-feature schema **11**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-10 installations need an explicitly confirmed separate-candidate migration to 11. See PHASE_15_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
+Application **0.15.1**, full-feature schema **12**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-11 installations need an explicitly confirmed separate-candidate migration to 12. See PATCH_0_15_1_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -566,3 +566,23 @@ and emergency updaters obtain the target from release-info; no startup migration
 is performed. See [Phase 15](../PHASE_15_REVIEW.md#existing-server-upgrade).
 SVG artwork is database-backed and included in backups; there is no asset volume
 to configure. After success, create a fresh verified schema-11 backup.
+
+## v0.15.1 icon-size patch
+
+Schema 12 is required even though this is a focused patch: schema 11 itself
+limits icon storage. Use Settings → Administration → Application Updates,
+Check/review **0.15.1 / schema 12**, explicitly confirm migration and Install.
+The existing host engine/v4 verifies a backup and original, migrates only a
+separate candidate, checks all data/DDL and restarts/health-checks. No host-service
+upgrade is required after Phase 12 setup. Never initialize existing storage.
+
+For the installed address, verify:
+
+```bash
+curl --fail http://10.0.69.9:8000/health/ready
+```
+
+Expect app_version 0.15.1, schema_version 12 and status ready. Make a new verified
+schema-12 backup. Older schema-11 backups remain retained but cannot silently
+downgrade schema 12. Emergency SSH still uses deployment/update_workout_tracker_v4.sh
+and explicitly requests **MIGRATE 12**. See PATCH_0_15_1_REVIEW.md for test limits.

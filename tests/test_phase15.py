@@ -205,7 +205,7 @@ def test_malicious_or_unsupported_svg_rejected(fragment):
     with pytest.raises(c.ValidationError):icons.sanitize('<svg xmlns="http://www.w3.org/2000/svg">'+fragment+'</svg>')
 
 
-@pytest.mark.parametrize('value',['<!DOCTYPE svg [<!ENTITY x "bad">]><svg/>','<?xml-stylesheet href="https://example.com"?><svg/>','<svg/> trailing','not XML',b'\xff','<svg>'+(' '*65537)+'</svg>'])
+@pytest.mark.parametrize('value',['<!DOCTYPE svg [<!ENTITY x "bad">]><svg/>','<?xml-stylesheet href="https://example.com"?><svg/>','<svg/> trailing','not XML',b'\xff','<svg>'+(' '*(icons.MAX_BYTES+1))+'</svg>'])
 def test_svg_parser_and_size_guards(value):
     with pytest.raises(c.ValidationError):icons.sanitize(value)
 
@@ -311,7 +311,7 @@ def test_svg_complexity_and_upload_limit_keep_prior(ui_data):
     page=client.get(f"/people/{x['a']}/exercises/{x['e']}/defaults")
     url=f"/people/{x['a']}/exercises/{x['e']}/icons/start"
     with database_session(x['root'],write=True) as db:icons.update(db,x['e'],'start',SVG)
-    response=client.post(url,data=dict(csrf_token=token(page),action='upload',svg=(io.BytesIO(b'X'*65537),'../unsafe.svg')),content_type='multipart/form-data')
+    response=client.post(url,data=dict(csrf_token=token(page),action='upload',svg=(io.BytesIO(b'X'*(icons.MAX_BYTES+1)),'../unsafe.svg')),content_type='multipart/form-data')
     assert response.status_code==303
     with database_session(x['root']) as db:assert db.execute('SELECT svg FROM exercise_icons').fetchone()[0]==icons.sanitize(SVG)
 

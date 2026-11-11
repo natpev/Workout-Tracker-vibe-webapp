@@ -12,7 +12,8 @@ import xml.etree.ElementTree as ET
 from markupsafe import Markup
 from .catalog import ValidationError
 
-MAX_BYTES=65536
+# Bound both uploaded bytes and canonical output; each slot has its own limit.
+MAX_BYTES = 300 * 1024
 MAX_ELEMENTS=1024
 SVG_NS='http://www.w3.org/2000/svg'
 ET.register_namespace('',SVG_NS)
@@ -48,11 +49,11 @@ def sanitize(source):
     Only an exact var(--accent) paint token may reference the application palette.
     """
     if isinstance(source,bytes):
-        if len(source)>MAX_BYTES:raise ValidationError('SVG must be at most 64 KiB.')
+        if len(source)>MAX_BYTES:raise ValidationError('SVG must be at most 300 KiB per image.')
         try:source=source.decode('utf-8-sig')
         except UnicodeDecodeError as error:raise ValidationError('SVG must use UTF-8 text.') from error
     if not isinstance(source,str) or len(source.encode('utf-8'))>MAX_BYTES:
-        raise ValidationError('SVG must be at most 64 KiB.')
+        raise ValidationError('SVG must be at most 300 KiB per image.')
     if re.search(r'<!\s*(?:DOCTYPE|ENTITY)',source,re.I):
         raise ValidationError('SVG document types and entities are not allowed.')
     if '<?' in re.sub(r'^\s*<\?xml\s[^?]*\?>','',source,count=1):
@@ -73,8 +74,10 @@ def sanitize(source):
         elif (element.text or '').strip():raise ValidationError('Use vector shapes rather than embedded text.')
         if (element.tail or '').strip():raise ValidationError('SVG contains unsupported text.')
         for key,value in list(element.attrib.items()):
-            if key not in ATTRIBUTES[tag] or len(value)>32768:
+            if key not in ATTRIBUTES[tag]:
                 raise ValidationError('SVG contains an unsupported attribute.')
+            if len(value)>32768:
+                raise ValidationError('SVG attribute exceeds the complexity limit (maximum 32768 characters).')
             if key in ('fill','stroke'):
                 if value not in PAINT and not re.fullmatch(r'#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})',value):
                     raise ValidationError('Use a plain color, currentColor, none, or var(--accent).')
@@ -107,7 +110,7 @@ def sanitize(source):
     root.set('viewBox',root.get('viewBox','0 0 256 256'))
     root.set('width','256');root.set('height','256');root.set('preserveAspectRatio','xMidYMid meet')
     result=ET.tostring(root,encoding='unicode')
-    if len(result.encode('utf-8'))>MAX_BYTES:raise ValidationError('Canonical SVG exceeds 64 KiB.')
+    if len(result.encode('utf-8'))>MAX_BYTES:raise ValidationError('Canonical SVG exceeds 300 KiB per image.')
     return result
 
 
@@ -141,4 +144,6 @@ def update(db,exercise,position,source=None):
     if source is None:db.execute('DELETE FROM exercise_icons WHERE exercise_id=? AND position=?',(exercise,position))
     else:
         svg=sanitize(source)
+        if db.execute('PRAGMA user_version').fetchone()[0] == 11 and len(svg.encode('utf-8')) > 65536:
+            raise ValidationError('Larger icons require an explicit upgrade to database schema 12; the previous icon is unchanged.')
         db.execute('INSERT INTO exercise_icons VALUES (?,?,?) ON CONFLICT(exercise_id,position) DO UPDATE SET svg=excluded.svg',(exercise,position,svg))

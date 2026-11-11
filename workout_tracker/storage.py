@@ -24,6 +24,7 @@ from .combined_schema import COMBINED_OBJECTS
 from .basis_schema import BASIS_OBJECTS
 from .final_schema import FINAL_OBJECTS
 from .interface_schema import INTERFACE_OBJECTS
+from .icon_size_schema import ICON_SIZE_OBJECTS
 from .workout_schema import WORKOUT_OBJECTS
 from .history_schema import HISTORY_OBJECTS
 
@@ -117,7 +118,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
         filename = manifest["database"]
         if not isinstance(filename, str) or not (
             filename == f"schema-1-{storage_id}.sqlite3" or
-            re.fullmatch(rf"schema-(?:[23456789]|10|11)-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+            re.fullmatch(rf"schema-(?:[23456789]|10|11|12)-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = database_override if database_override is not None else root / "data" / filename
@@ -142,7 +143,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
+            if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -171,6 +172,8 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                 expected = TABLES | FINAL_OBJECTS
             if version == 11:
                 expected = TABLES | INTERFACE_OBJECTS
+            if version == 12:
+                expected = TABLES | ICON_SIZE_OBJECTS
             if not filename.startswith(f"schema-{version}-"):
                 raise StorageError("The selected filename and schema version disagree.")
             if objects != expected:
@@ -190,6 +193,8 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                 migrations.append((10, "actual_repetitions_and_permanent_basis"))
             if version >= 11:
                 migrations.append((11, "exercise_interface_and_icons"))
+            if version >= 12:
+                migrations.append((12, "larger_exercise_icons"))
             if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
             if version>=9:

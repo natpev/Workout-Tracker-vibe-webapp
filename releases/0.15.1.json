@@ -1,0 +1,7 @@
+{
+  "version": "0.15.1",
+  "notes": [
+    "Increased the maximum custom exercise illustration size from 64 KiB to 300 KiB per image.",
+    "Larger SVG illustrations can now be uploaded without sacrificing existing security checks."
+  ]
+}
