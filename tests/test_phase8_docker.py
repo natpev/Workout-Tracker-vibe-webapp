@@ -23,7 +23,7 @@ from workout_tracker import APP_VERSION, TARGET_SCHEMA_VERSION
 pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',reason='Opt-in isolated Docker rehearsal')
 
 
-@pytest.mark.parametrize('source_schema,fault',[(6,None),(7,None),(8,'code-only'),(9,'code-only'),(6,'shutdown'),(7,'shutdown'),(6,'startup'),(7,'startup')])
+@pytest.mark.parametrize('source_schema,fault',[(9,None),(10,'code-only'),(6,'unclassified'),(7,'unclassified'),(8,'unclassified'),(6,'shutdown'),(7,'shutdown'),(9,'shutdown'),(9,'startup')])
 def test_actual_v4_host_service_and_docker_migration(tmp_path,source_schema,fault):
     """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
     short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')
@@ -81,20 +81,22 @@ if fault=='startup' and 'compose' in a and 'up' in a:sys.exit(1)""".replace('REA
                               env=clean_env,text=True,capture_output=True,timeout=180)
         assert (result.returncode==0)==(fault is None),result.stdout+result.stderr+'\n'+''.join(p.read_text()[-5000:] for p in state.glob('*.private.log'))
         assert original.read_bytes()==before
-        assert (json.loads(manifest.read_text())['database']!=original.name)==(initial_schema<TARGET_SCHEMA_VERSION and fault!='shutdown')
+        assert (json.loads(manifest.read_text())['database']!=original.name)==(initial_schema<TARGET_SCHEMA_VERSION and fault not in ('shutdown','unclassified'))
         assert service.poll() is None
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/status.json',timeout=5) as response:status=json.load(response)
         if fault is None:
             assert status['status']=='Completed' and status['installed_schema']==TARGET_SCHEMA_VERSION and status['installed_version']==APP_VERSION
             assert status['backup_id']
         else:
-            if status['status']!='Failed' or status['recovered']!=(fault=='shutdown'):
+            if status['status']!='Failed' or status['recovered']!=(fault in ('shutdown','unclassified')):
                 pytest.fail(''.join(p.read_text() for p in state.glob('*.private.log')))
             assert list(state.glob('*.recovery.json')) and list(state.glob('*.private.log'))
             if fault=='startup':
                 stopped=subprocess.run([*prefix,'ps','--status','running','--services'],env=clean_env,text=True,capture_output=True,check=True)
                 assert not stopped.stdout.strip()
-                return  # The schema-8 selection must never roll back to the older source.
+                return  # The schema-10 selection must never roll back to the older source.
+            if fault=='unclassified':
+                assert json.loads(manifest.read_text())['database']==original.name
             health=f"import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health/ready')); assert r==dict(status='ready',app_version='{APP_VERSION}',schema_version={initial_schema})"
             checked=subprocess.run([*prefix,'exec','-T','web','python','-c',health],env=clean_env,text=True,capture_output=True)
             assert checked.returncode==0,checked.stderr

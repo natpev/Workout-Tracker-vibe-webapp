@@ -61,8 +61,12 @@ def detail(person_id,workout_id):
         person=owner(db,person_id);parent,rows=h.effective(db,person_id,workout_id)
         original_parent,original_rows=h.original(db,person_id,workout_id)
         revisions=h.audit(db,person_id,workout_id)
+        statistics=None
+        if db.execute('PRAGMA user_version').fetchone()[0]>=10:
+            from .weight_statistics import summary
+            statistics=summary(h.all_completed(db,person_id),workout_id)
     return render_template('history_detail.html',person=person,workout=parent,entries=rows,audit=revisions,
-                           original_workout=original_parent,original_entries=original_rows,display=w.display_measurement)
+                           original_workout=original_parent,original_entries=original_rows,display=w.display_measurement,statistics=statistics)
 
 
 @bp.get('/people/<person_id>/progress')
@@ -140,7 +144,7 @@ def review_historical(person_id,form_id):
             person=owner(db,person_id);parent,rows=h.prepared(db,person_id,form_id)
             if request.method=='POST':
                 existing=db.execute('SELECT id FROM historical_workouts WHERE form_id=? AND person_id=?',(form_id,person_id)).fetchone()
-                errors={} if existing else forms.measurement_errors(rows,values)
+                errors={} if existing else forms.measurement_errors(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10)
                 if errors:raise forms.FormErrors(errors)
                 try:identity=h.complete_historical(db,person_id,form_id,values)
                 except c.ValidationError as error:raise forms.FormErrors({'form':str(error)}) from error
@@ -159,7 +163,7 @@ def correct(person_id,workout_id):
             person=owner(db,person_id);parent,rows=h.effective(db,person_id,workout_id)
             if request.method=='POST':
                 normalized=forms.normalized(values)
-                errors=forms.occurrence_errors(normalized,parent['timezone']) | forms.measurement_errors(rows,values)
+                errors=forms.occurrence_errors(normalized,parent['timezone']) | forms.measurement_errors(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10)
                 if values.get('confirm')!='yes':errors['confirm']='Confirm these corrections before applying them.'
                 if values.get('correction_revision')!=str(parent['correction_revision']):
                     raise w.RevisionConflict('This workout was corrected in another page. Your inputs are retained. Reload and review the latest values before applying corrections.')

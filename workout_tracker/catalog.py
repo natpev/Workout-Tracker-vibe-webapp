@@ -13,6 +13,8 @@ from uuid import uuid4
 def basis_configuration(connection, values, kind):
     """Validate structured metadata only on explicit schema 9; old schemas remain readable."""
     from . import basis
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=10 and kind!='time' and values.get('weight_basis') not in ('total','per_side'):
+        raise ValidationError('Select Total Weight or Per Hand / Side before creating this exercise.')
     value=basis.parse(values,kind)
     if value!='not_configured' and not basis.enabled(connection):
         raise ValidationError('Weight Basis requires explicit schema-9 migration.')
@@ -128,6 +130,8 @@ def create_definition(connection, person_id, name, values=None):
     cannot leave an identity missing its required default row.
     """
     person(connection, person_id)
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=10:
+        values=dict(values or {},weight_meaning='')
     configuration=(configure(values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
                    if connection.execute('PRAGMA user_version').fetchone()[0]>=7 else None)
     if configuration is not None:require_configuration_schema(connection,configuration)
@@ -152,11 +156,28 @@ def exercise_defaults(connection,person_id,identity):
     return row
 
 
+def locked_configuration(connection, identity, current, values):
+    """Enforce permanent Library convention and compatible mode family at service boundary."""
+    if connection.execute('PRAGMA user_version').fetchone()[0] < 10:
+        return values
+    library=connection.execute('SELECT * FROM exercise_defaults WHERE exercise_id=?',(identity,)).fetchone()
+    if library is None:
+        raise ValidationError('Exercise Library defaults are missing.')
+    kind=values.get('measurement_type')
+    if (kind=='time') != (library['measurement_type']=='time'):
+        raise ValidationError('This measurement type would invalidate permanent Weight Basis. Create a new exercise instead.')
+    if 'weight_basis' in values and values['weight_basis']!=library['weight_basis']:
+        raise ValidationError('Weight Basis is locked after exercise creation. Create a new exercise instead.')
+    return dict(values, weight_basis=library['weight_basis'], weight_meaning=current['weight_meaning'])
+
+
 def update_defaults(connection,person_id,identity,values):
     """Validate and change only global defaults; existing routines stay independent."""
     current=exercise_defaults(connection,person_id,identity)
+    if "weight_meaning" not in values:values=dict(values,weight_meaning=current["weight_meaning"])
     if 'weight_basis' in current.keys() and 'weight_basis' not in values:
         values=dict(values,weight_basis=current['weight_basis'])
+    values=locked_configuration(connection,identity,current,values)
     configuration=configure(values)
     require_configuration_schema(connection,configuration)
     selected=basis_configuration(connection,values,configuration[0])
@@ -242,6 +263,11 @@ def add_entry(connection, person_id, routine_id, values):
     exercise_id = values.get("exercise_id")
     if exercise_id and values.get("use_library_defaults")=="yes":
         values=default_values(exercise_defaults(connection,person_id,exercise_id))
+    if exercise_id and connection.execute('PRAGMA user_version').fetchone()[0]>=10:
+        current=exercise_defaults(connection,person_id,exercise_id)
+        values=locked_configuration(connection,exercise_id,current,values)
+    if not exercise_id and connection.execute('PRAGMA user_version').fetchone()[0]>=10:
+        values=dict(values,weight_meaning='')
     configuration = configure(values)
     require_configuration_schema(connection,configuration)
     basis_configuration(connection,values,configuration[0])
@@ -253,14 +279,12 @@ def add_entry(connection, person_id, routine_id, values):
     position = connection.execute(
         "SELECT coalesce(max(position),-1)+1 FROM routine_exercises WHERE routine_id=?", (routine_id,)
     ).fetchone()[0]
-    connection.execute(
-        "INSERT INTO routine_exercises(id,person_id,routine_id,exercise_id,position,measurement_type,"
-        "target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-        (identity, person_id, routine_id, exercise_id, position, *configuration),
-    )
-    selected=basis_configuration(connection,values,configuration[0])
+    columns="id,person_id,routine_id,exercise_id,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes"
+    stored=(identity,person_id,routine_id,exercise_id,position,*configuration)
     if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
-        connection.execute('UPDATE routine_exercises SET weight_basis=? WHERE id=?',(selected,identity))
+        columns+=",weight_basis"
+        stored+=(basis_configuration(connection,values,configuration[0]),)
+    connection.execute(f"INSERT INTO routine_exercises({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
     return identity
 
 
@@ -279,8 +303,10 @@ def entry(connection, person_id, routine_id, entry_id):
 def update_entry(connection, person_id, routine_id, entry_id, values):
     """Edit only routine configuration; permanent exercise identity stays unchanged."""
     current=entry(connection, person_id, routine_id, entry_id)
+    if "weight_meaning" not in values:values=dict(values,weight_meaning=current["weight_meaning"])
     if 'weight_basis' in current.keys() and 'weight_basis' not in values:
         values=dict(values,weight_basis=current['weight_basis'])
+    values=locked_configuration(connection,current['exercise_id'],current,values)
     configuration = configure(values)
     require_configuration_schema(connection,configuration)
     selected=basis_configuration(connection,values,configuration[0])
@@ -343,13 +369,17 @@ def copy_routine(connection, source_person, source_id, destination_person, name)
             definitions[row["exercise_id"]] = (row["exercise_id"] if shared_library(connection)
                 else create_definition(connection, destination_person, row["name"]))
         duration = row["target_duration_seconds"] or 0
-        add_entry(connection, destination_person, new_routine, {
+        copied_entry=add_entry(connection, destination_person, new_routine, {
             "exercise_id": definitions[row["exercise_id"]], "measurement_type": row["measurement_type"],
             "target_sets": row["target_sets"], "target_reps": row["target_reps"],
             "minutes": duration // 60, "seconds": duration % 60,
             "weight_meaning": row["weight_meaning"], "notes": row["notes"],
             "weight_basis": row["weight_basis"] if "weight_basis" in row.keys() else "not_configured",
         })
+        if connection.execute('PRAGMA user_version').fetchone()[0]>=10:
+            # A deliberate routine copy retains its source's legacy descriptive
+            # metadata too; normal new Library additions inherit global defaults.
+            connection.execute('UPDATE routine_exercises SET weight_meaning=? WHERE id=?',(row['weight_meaning'],copied_entry))
     return new_routine
 
 

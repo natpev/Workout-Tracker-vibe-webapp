@@ -1,5 +1,5 @@
 # SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
-"""Explicit known-schema -> target-2-through-9 candidate migration called only by the CLI.
+"""Explicit known-schema -> target-2-through-10 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -67,6 +67,10 @@ def _upgrade_candidate(connection, target_version=2):
             from .basis_schema import upgrade_basis
             upgrade_basis(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (9, 'weight_basis_transition')")
+        if current < 10 and target_version >= 10:
+            from .final_schema import upgrade_final
+            upgrade_final(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (10, 'actual_repetitions_and_permanent_basis')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -86,13 +90,13 @@ def _write_manifest(path, selection):
 def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schemas 1–8 may upgrade to supported targets through 9. A matching target
+    Known schemas 1–9 may upgrade to supported targets through 10. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9, 10) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -129,6 +133,8 @@ def _migrate_storage(value, target_version=2):
                     existing += list(HISTORY_TABLES)
                 if source['schema_version'] >= 7:
                     existing.append('exercise_defaults')
+                if source["schema_version"] >= 9:
+                    existing += ["basis_transitions", "basis_assignments"]
                 for name in existing:
                     # New metadata columns are allowed; every original column/cell
                     # must remain exactly identical, including NULL and audit JSON.
@@ -137,6 +143,13 @@ def _migrate_storage(value, target_version=2):
                     after = target_connection.execute(f"SELECT {columns} FROM {name} ORDER BY 1").fetchall()
                     if name == "schema_migrations":
                         after = [row for row in after if row[0] <= source["schema_version"]]
+                    if target_version >= 10 and name == 'routine_exercises':
+                        # Library convention wins for future configurations only.
+                        # Every other original cell remains identical.
+                        basis_index=[r[1] for r in source_connection.execute(f'PRAGMA table_info({name})')].index('weight_basis') if source['schema_version']>=9 else None
+                        if basis_index is not None:
+                            before=[tuple(v for i,v in enumerate(row) if i!=basis_index) for row in before]
+                            after=[tuple(v for i,v in enumerate(row) if i!=basis_index) for row in after]
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
                 if target_version>=9 and source['schema_version']<9:
@@ -146,6 +159,23 @@ def _migrate_storage(value, target_version=2):
                     for table in ('basis_transitions','basis_assignments'):
                         if target_connection.execute(f'SELECT 1 FROM {table}').fetchone():
                             raise StorageError('Migration unexpectedly created a conversion.')
+                if target_version >= 10 and source['schema_version'] >= 9:
+                    # Verify effective values too: immutable source cells alone
+                    # would not detect applying a conversion overlay twice.
+                    from .history import all_completed
+                    source_connection.row_factory=sqlite3.Row
+                    target_connection.row_factory=sqlite3.Row
+                    for person, in source_connection.execute('SELECT id FROM people'):
+                        before_history=all_completed(source_connection,person)
+                        after_history=all_completed(target_connection,person)
+                        if len(before_history)!=len(after_history):
+                            raise StorageError('Migration changed completed history.')
+                        for (old_parent,old_rows),(new_parent,new_rows) in zip(before_history,after_history):
+                            projected=[{key:row[key] for key in old} for old,row in zip(old_rows,new_rows)]
+                            if old_parent!=new_parent or len(old_rows)!=len(new_rows) or old_rows!=projected:
+                                raise StorageError('Migration changed effective historical values.')
+                    source_connection.row_factory=None
+                    target_connection.row_factory=None
                 added = list(WORKOUT_TABLES) if source["schema_version"] < 3 and target_version >= 3 else []
                 if source["schema_version"] < 4 and target_version >= 4:
                     added += [name for name in HISTORY_TABLES if name != 'workout_registry']
@@ -202,7 +232,7 @@ def _migrate_storage(value, target_version=2):
                     _sync_directory(root / "config")
                 except OSError as rollback_error:
                     raise StorageError("Activation durability is uncertain; stop and inspect both preserved databases.") from rollback_error
-            raise StorageError("Migration failed; original selection retained and candidate preserved for inspection.") from error
+            raise StorageError("Migration failed; original selection retained and candidate preserved for inspection. " + (str(error) if isinstance(error, StorageError) else "")) from error
         return {"changed": True, "schema_version": target_version}
 
 
@@ -213,7 +243,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9, 10) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 

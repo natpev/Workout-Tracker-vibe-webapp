@@ -4,6 +4,14 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Phase 4 adds history, local typed charts, historical completion and append-only effective corrections; original snapshots remain protected. Review and test before use.
 
+## Current schema 10 and actual repetitions
+
+Phase 14 supersedes the earlier single-measurement-only plan for rep-based Weight
+exercises: one weight plus ordered actual reps per captured set. Legacy completed
+reps remain unknown; estimates use captured prescriptions. Permanent basis locks,
+explicit migration, correction compatibility and NULL semantics are documented in
+[Schema 10](docs/SCHEMA_10.md) and [Phase 14 review](PHASE_14_REVIEW.md).
+
 ## Historical Phase 9 state and authorization
 
 Current release is Phase 13 Update 1 (0.13.0/schema 9), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.

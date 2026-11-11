@@ -1,0 +1,3 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Read-only effective repetitions for a snapshotted exercise occurrence. #}
+{% if row.measurement_type=='weight' %}{% if row.actual_weight_tenths_lb is none %}<p class="input-hint">Skipped</p>{% elif row.actual_reps is defined and row.actual_reps is not none %}<ol class="set-repetitions">{% for reps in row.actual_reps %}<li>Set {{ loop.index }}: {{ reps }}</li>{% endfor %}</ol>{% else %}<p>{{ row.target_sets }} sets × {{ row.target_reps }} target reps</p><p class="input-hint">Actual repetitions were not recorded. Estimates use the prescribed targets.</p>{% endif %}{% endif %}

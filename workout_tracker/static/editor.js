@@ -12,7 +12,7 @@ document.querySelectorAll("[data-configuration]").forEach((form) => {
       group.hidden = !active;
       group.querySelectorAll("input,select").forEach((input) => {
         input.disabled = !active;
-        input.required = active && ["target_reps", "unit"].includes(input.name);
+        input.required = active && ["target_reps", "unit", "weight_basis"].includes(input.name);
       });
     });
   };

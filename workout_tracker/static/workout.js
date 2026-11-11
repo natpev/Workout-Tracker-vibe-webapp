@@ -32,6 +32,7 @@
     form.querySelectorAll('[data-field-error]').forEach(note => {
       const name = note.dataset.fieldError;
       note.textContent = errors[name] || ''; note.hidden = !errors[name];
+      if (name === 'actual_reps') form.querySelectorAll('[data-actual-reps]').forEach(input => input.setAttribute('aria-invalid', errors[name] ? 'true' : 'false'));
       const input = form.elements.namedItem(name);
       if (input) {
         input.setAttribute('aria-invalid', errors[name] ? 'true' : 'false');
@@ -132,7 +133,7 @@
     else void flush();
   });
 
-  form.querySelectorAll("[name=weight],[name=minutes],[name=seconds],[name=increase]").forEach((input) => {
+  form.querySelectorAll("[name=weight],[name=minutes],[name=seconds],[name=increase],[data-actual-reps]").forEach((input) => {
     input.addEventListener("input", () => {
       // Mark unsaved immediately, not only once the debounce request begins.
       if (input === weight) acknowledgedWeight = null;

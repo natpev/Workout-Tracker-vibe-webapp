@@ -15,11 +15,11 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.13.0**. Database schema: **9**. Existing schema-8
+Current application: **0.14.0**. Database schema: **10**. Existing schema-9
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
-an existing installation again.
+an existing installation again. Before upgrading, classify all weight-based exercises in Update 1. If current routine bases conflict, the Exercise Library basis wins for future configuration; historical values stay unchanged.
 
 ### 1. Choose a server
 
@@ -167,15 +167,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 9
+  --confirm-upgrade --target-version 10
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-9 database, preserving the original. The final
-command should report **Storage verified; schema version 9.** Stop at any error;
+and verifies a separate schema-10 database, preserving the original. The final
+command should report **Storage verified; schema version 10.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -193,7 +193,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.13.0",schema_version=9)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.14.0",schema_version=10)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -206,7 +206,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.13.0 / database 9**. Check all three themes in Settings.
+should report **0.14.0 / database 10**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -233,8 +233,8 @@ never over real workouts just to test it.
 ## Using Workout Tracker
 
 Open the app, choose a person, choose a routine, and press **Start workout**.
-Record one exercise per screen. Today's fields start blank; previous results are
-shown prominently for reference alongside the exercise targets. Weight text stays
+Record one exercise per screen. Weight and duration start blank; each repetition
+field starts at its captured target. Previous results are shown prominently for reference alongside the exercise targets. Weight text stays
 unchanged while you type, even during autosave. A valid weight normalizes to one
 decimal place when you leave the field or use Next; extra digits truncate. Invalid
 text stays visible with an error. **Next** advances navigation progress, including skipped
@@ -277,54 +277,59 @@ and its history across all people after an impact preview and confirmation. Olde
 backups can resurrect deleted records on deliberate compatible restore.
 
 
-### Weight Basis — temporary transition (Update 1)
+### Permanent Weight Basis
 
-Weight and Weight + Duration exercises now have **Not Configured**, **Total
-Weight (×1)** and **Per Hand / Side (×2)** radio choices. Choose how you record
-weight; the app never guesses from exercise names or equipment. Duration-only
-exercises do not need this setting. Existing exercises start Not Configured, and
-the old **Weight Meaning** text remains for reference.
+When creating a Weight or Weight + Duration exercise, explicitly choose **Total
+Weight (×1)** or **Per Hand / Side (×2)**. Neither is selected for you. The choice
+is permanent for that exercise ID and displayed read-only with a lock thereafter.
+The app never infers it from names/equipment. Duration-only exercises need no basis.
+An incompatible measurement-type change requires a new exercise.
 
-In Edit Defaults:
+- **Save Defaults Only** updates shared defaults for future routine additions.
+- **Save Defaults & Update My Routines** previews and confirms overwriting all
+  compatible settings in the selected person's existing routines, atomically.
 
-- **Save Defaults Only** saves the shared name/defaults for future routine additions.
-  Existing routines and history do not change.
-- **Save Defaults & Update My Routines** previews replacing all exercise settings
-  in the selected person's routines, and any historical classification/conversion.
-  Confirm explicitly. Other people's existing settings and measurements stay intact.
+Other people's existing routines remain independent. Neither operation changes
+Weight Basis or completed history. Temporary classification and divide/multiply
+controls have been removed. Earlier conversions and their audits remain readable.
 
-First assignment of unclassified history keeps its weights unchanged. Later
-Total → Per Hand divides recorded weights by exactly 2; Per Hand → Total multiplies
-by exactly 2. Repeated saves do not repeat a conversion. Each person's actual
-history basis is tracked separately from shared defaults; independently configured
-new snapshots keep their own basis until deliberately included in a transition.
+### Actual repetitions and estimated weight lifted
 
-If halving needs more than one decimal (25.5 → 12.75), or doubling exceeds storage
-limits, **nothing is saved**. Review the identified workout for accuracy; do not
-round a true measurement just to force a conversion. Originals and correction
-audits remain retained. Dates, durations and historical prescriptions never change.
-Finish or deliberately discard your draft through the existing workflow before
-bulk-changing an exercise it uses. An incompatible pending historical review must
-be prepared again; its submitted fields remain visible on error.
+Weight exercises record **one weight** and **actual repetitions for each configured
+set**. Each set starts at the captured target reps. Change individual sets as needed;
+autosave, Back/Next and Resume preserve edits. Zero reps is valid; an empty field
+is incomplete. Leave weight blank to skip; skipped measurements remain SQL NULL.
+Weight + Duration continues to record one weight and one duration, without reps.
 
-History, charts, previous results and CSV use current effective values. Different
-bases stay separate for comparisons. Today's measurement still starts blank, and
-the value you type is never automatically doubled/halved. Setup counters show
-shared defaults, your routines and your history independently. Update 2 and
-Estimated Total Weight Lifted statistics are **not implemented** in this update.
+Routine selection shows **Estimated Total Weight Lifted** across the selected
+person's completed live and historical workouts, including retained history from
+deleted routines. Saved workouts show their total, the previous 30-day average
+comparison for the same routine ID, and the lifetime total. No previous positive
+average displays **Not enough data**. A negative comparison is simply a comparison.
+
+Estimates use effective corrected weight × actual total reps × the captured basis
+multiplier. Older completed workouts have no recorded actual reps: estimates use
+their **original sets × target reps**, clearly labeled as an assumption. Corrections
+may supply actual reps without rewriting original records. Combined exercises count
+one lift per set, without multiplying by duration; time-only and skips contribute zero.
+Totals are derived from history, never independently accumulated.
+
+Pounds are primary. Secondary values use **imperial short tons (2,000 lb per ton)**,
+then kilotons, megatons, gigatons, teratons and larger prefixes. These are estimates
+of logged lifting volume, not physiological measurements.
 
 ## Weight, Duration, and Weight + Duration exercises
 
 | Type | Configure | Record once per exercise |
 | --- | --- | --- |
-| Weight | Sets, target reps, pounds, optional weight meaning | One weight |
+| Weight | Sets, target reps, pounds, permanent Weight Basis | One weight and actual reps per set |
 | Time (Duration) | Sets and target duration per set | One actual duration |
-| Weight + Duration | Sets, target duration, pounds and weight meaning | One weight **and** duration |
+| Weight + Duration | Sets, target duration, pounds and permanent Weight Basis | One weight **and** duration |
 
 Weights use pounds, keep one decimal place, and truncate extra digits rather than
 rounding: 40.99 becomes 40.9. Zero weight is valid. Durations accept minutes,
 seconds, or both; 90 seconds becomes 1:30. Actual duration must be positive.
-Set count never multiplies actual measurements.
+Duration is never multiplied by set count. Lifting estimates count repetitions or one lift per combined set.
 
 Blank means skipped, stored as SQL NULL rather than zero or a previous result.
 For combined exercises, leave **both** measurements blank to skip; otherwise both
@@ -365,7 +370,7 @@ more exercises, then **Export CSV**. Select All/Clear help with larger lists.
 Each completed workout gets its own row, oldest first: Date, Time, Routine,
 Workout ID, then adjacent columns per exercise:
 
-- Weight: Weight (lb), Sets × Reps.
+- Weight: Weight (lb), Sets × Reps, Actual Repetitions by Set. Legacy actual reps stay blank.
 - Duration: Duration, Sets × Target Duration.
 - Combined: Weight (lb), Duration, Sets × Target Duration.
 
@@ -395,13 +400,18 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-For 0.13.0, an existing schema-8 installation needs a confirmed upgrade to schema
-9. The updater backs up verified storage, migrates a separate candidate, checks
-its integrity and audits, then switches selection atomically. Original database
-versions remain available. Never initialize or restore storage as an update shortcut.
-After success, make a new verified schema-9 backup. Older schema-8 backups remain
-retained but cannot be silently restored into schema 9.
-See [Phase 13 upgrade steps](PHASE_13_REVIEW.md#existing-installation-upgrade).
+For **0.14.0**, an existing schema-9 installation needs a confirmed upgrade to
+schema **10**. **Before updating**, use Update 1 to classify all weight-based
+Library defaults, routine configurations and each person's completed history.
+Finish any unclassified active draft, then classify it in Update 1. Migration
+refuses unclassified values without guessing or changing the original database.
+If classified current routine bases disagree with Library defaults, Library wins
+for future configurations; historical snapshots/audits remain unchanged.
+
+The updater verifies a backup, migrates a separate candidate, validates it and
+switches selection atomically. Original databases remain retained. Make a new
+verified schema-10 backup after success. Older backups remain retained but cannot
+silently restore into schema 10. See [exact Phase 14 upgrade steps](PHASE_14_REVIEW.md#existing-server-upgrade).
 
 ### One-time browser updater installation
 
@@ -474,9 +484,9 @@ See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
 [Phase 12 verification](PHASE_12_REVIEW.md), and
 [Library menu verification](LIBRARY_MENU_REVIEW.md) and
 [workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md) and
-[current Phase 13 verification](PHASE_13_REVIEW.md). Older phase reviews retain their
+[Phase 13 archive](PHASE_13_REVIEW.md) and [current Phase 14 verification](PHASE_14_REVIEW.md). Older phase reviews retain their
 historical results and limitations. Current release verification is recorded in
-PHASE_13_REVIEW.md; no physical-server or live-data testing is implied.
+PHASE_14_REVIEW.md; no physical-server or live-data testing is implied.
 
 Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this

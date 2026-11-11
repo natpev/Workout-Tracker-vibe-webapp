@@ -48,11 +48,16 @@ def page_context(person_id, session_id, message=None):
         if parent['status']=='completed' and db.execute('PRAGMA user_version').fetchone()[0]>=4:
             from .history import effective
             parent,rows=effective(db,person_id,session_id)
+        statistics=None
+        if parent['status']=='completed' and db.execute('PRAGMA user_version').fetchone()[0]>=10:
+            from .history import all_completed
+            from .weight_statistics import summary
+            statistics=summary(all_completed(db,person_id),session_id)
         requested = request.form.get('view_position',str(parent['current_position'])) if request.method=='POST' else request.args.get('position',str(parent['current_position']))
         position = catalog.integer(requested, 'Exercise position', 0, len(rows) - 1)
         current = rows[position]
         prior, performed = workouts.previous(db, person_id, parent, current)
-        return dict(person=owner, workout=parent, entries=rows, current=current, position=position,
+        return dict(statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
                     previous=prior, last_performed=performed, completed=workouts.count_performed(rows), navigation_progress=len(rows) if parent['status']=='completed' else parent['current_position'],
                     display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))
@@ -118,7 +123,7 @@ def finish(person_id, session_id):
         from .diagnostics import emit
         emit(current_app.config['WORKOUT_DATA_ROOT'],'WARNING','Workout','Workout completion needs all-skipped confirmation')
         # The transaction rolled back. Previously committed draft values remain.
-        return render_template('workout.html', **page_context(person_id, session_id, str(error))), 400
+        return render_template('workout.html', submitted=request.form, **page_context(person_id, session_id, str(error))), 400
     return redirect(url_for('workout.show', person_id=person_id, session_id=session_id), code=303)
 
 

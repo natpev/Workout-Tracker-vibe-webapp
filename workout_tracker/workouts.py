@@ -136,7 +136,8 @@ def entries(db, person_id, session_id):
                       (session_id, person_id)).fetchall()
     if len(rows) != parent['entry_count'] or [r['position'] for r in rows] != list(range(len(rows))):
         raise StorageError("Workout snapshot consistency verification failed.")
-    return rows
+    from .repetitions import decode
+    return [decode(row) for row in rows]
 
 
 def start(db, person_id, routine_id, zone):
@@ -165,6 +166,9 @@ def start(db, person_id, routine_id, zone):
         columns="id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes"
         values=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'])
         if modern:columns+=",weight_basis";values+= (row['weight_basis'],)
+        if db.execute('PRAGMA user_version').fetchone()[0]>=10 and row['measurement_type']=='weight':
+            from .repetitions import encode
+            columns+=',actual_reps_json';values+=(encode([row['target_reps']]*row['target_sets']),)
         db.execute(f"INSERT INTO workout_entries({columns}) VALUES ({','.join('?' for _ in values)})",values)
     return identity, True
 
@@ -200,6 +204,13 @@ def update(db, person_id, session_id, values):
     weight, duration, increase = measurement(current, values)
     db.execute("UPDATE workout_entries SET actual_weight_tenths_lb=?,actual_duration_seconds=?,increase_next_time=? "
                "WHERE id=? AND session_id=? AND person_id=?", (weight, duration, increase, entry_id, session_id, person_id))
+    if db.execute('PRAGMA user_version').fetchone()[0]>=10:
+        from .repetitions import inputs, encode
+        try:
+            actual=inputs(current,values)
+        except catalog.ValidationError as error:
+            raise MeasurementError({'actual_reps':str(error)}) from error
+        db.execute('UPDATE workout_entries SET actual_reps_json=? WHERE id=?',(encode(actual),entry_id))
     db.execute("UPDATE workout_sessions SET revision=revision+1,current_position=?,updated_at=? WHERE id=? AND person_id=?",
                (checkpoint, now().isoformat(), session_id, person_id))
     return session(db, person_id, session_id)
@@ -223,6 +234,15 @@ def finish(db, person_id, session_id, values):
     rows = entries(db, person_id, session_id)
     if count_performed(rows) == 0 and values.get('confirm_all_skipped') != 'yes':
         raise AllSkipped("Confirm that you want to save an entirely skipped workout.")
+    if db.execute('PRAGMA user_version').fetchone()[0]>=10:
+        from .repetitions import encode
+        for row in rows:
+            actual=row.get('actual_reps')
+            if row['measurement_type']=='weight' and row['actual_weight_tenths_lb'] is not None and actual is None:
+                actual=[row['target_reps']]*row['target_sets']
+            if row['actual_weight_tenths_lb'] is None:
+                actual=None
+            db.execute('UPDATE workout_entries SET actual_reps_json=? WHERE id=?',(encode(actual),row['id']))
     stamp = now().isoformat()
     db.execute("UPDATE workout_sessions SET status='completed',finished_at=?,updated_at=? WHERE id=? AND person_id=?",
                (stamp, stamp, session_id, person_id))

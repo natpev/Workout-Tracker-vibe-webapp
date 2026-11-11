@@ -5,7 +5,7 @@
 {% from 'macros.html' import security, configuration with context %}
 {% block content %}{% set exercise_labels=labels_for_exercises(exercises) %}
 <h1>Exercise Library</h1>
-{% if classification %}<section class="basis-status"><h2>Weight Basis setup</h2><p>Library defaults: {{ classification.defaults[0] }} of {{ classification.defaults[1] }} exercises configured.</p><p>Your routines: {{ classification.routines[0] }} of {{ classification.routines[1] }} exercises configured.</p><p>Your history: {{ classification.history[0] }} of {{ classification.history[1] }} exercises configured.</p><p class="input-hint">Classify remaining weight exercises before Update 2. Shared defaults do not classify another person’s existing history. Weight Meaning stays available during this transition.</p></section>{% endif %}
+
 <p>Exercises are shared across the household. Renaming updates current routine displays for everyone while historical snapshots keep their names. Remove from Routine affects only one configuration; Permanently Delete Exercise erases that global identity and its history across all people.</p>
 <section><h3>Add exercise name</h3><form method="post" {% if active_schema_version is number and active_schema_version>=7 %}data-configuration{% endif %}>{{ security() }}<input type="hidden" name="action" value="create"><label>Exercise name <input name="name" required maxlength="100"></label>{% if active_schema_version is number and active_schema_version>=7 %}{{ configuration(scope='library') }}{% endif %}<button>Add exercise name</button></form></section>
 {% for row in exercises %}<section class="library-exercise" aria-labelledby="exercise-{{ loop.index }}">

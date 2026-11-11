@@ -125,13 +125,18 @@ def dashboard(person_id):
             from .workouts import active
             draft = active(db, person_id) if version >= 3 else None
             routines = selectable_routines(db, person_id)
+            statistics=None
+            if version>=10:
+                from .history import all_completed
+                from .weight_statistics import summary
+                statistics=summary(all_completed(db,person_id))
             sources = db.execute("SELECT r.*,p.name AS person_name FROM routines r JOIN people p ON r.person_id=p.id "
                                  "WHERE r.archived=0 AND p.archived=0 ORDER BY p.name,r.position").fetchall()
     if request.method == "POST":
         return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=identity), code=303)
     with connection() as db:
         archived_routines = db.execute('SELECT id,name FROM routines WHERE person_id=? AND archived=1 ORDER BY name',(person_id,)).fetchall() if version>=6 else []
-    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3, archived_routines=archived_routines)
+    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3, archived_routines=archived_routines,statistics=statistics)
 
 
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
@@ -149,13 +154,11 @@ def exercises(person_id):
                     confirmation()
                 catalog.update_definition(db, person_id, request.form.get("exercise_id"),
                                           request.form.get("name"), request.form.get("action"))
-        from .basis import status as basis_status
-        classification=basis_status(db,person_id)
         rows = (db.execute('SELECT * FROM exercises ORDER BY archived,name,id').fetchall()
                 if db.execute('PRAGMA user_version').fetchone()[0]>=6 else catalog.definitions(db, person_id))
     if request.method == "POST":
         return redirect(url_for("manage.exercises", person_id=person_id), code=303)
-    return render_template("exercises.html", person=selected, exercises=rows,classification=classification)
+    return render_template("exercises.html", person=selected, exercises=rows)
 
 
 @bp.route("/people/<person_id>/routines/<routine_id>", methods=["GET", "POST"])
@@ -237,7 +240,7 @@ def edit_defaults(person_id,exercise_id):
     from . import basis
     with connection() as db:modern=basis.enabled(db)
     if modern:
-        from .basis_views import editor
+        from .defaults_views import editor
         return editor(person_id,exercise_id)
     error=None;item=None
     try:

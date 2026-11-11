@@ -1,10 +1,10 @@
-# Workout Tracker installation, LAN updater v4 and recovery (Phase 13 Update 1)
+# Workout Tracker installation, LAN updater v4 and recovery (Phase 14)
 
 > **SHAMELESSLY VIBE-CODED 🤖**
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.13.0**, full-feature schema **9**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-8 installations need an explicitly confirmed separate-candidate migration to 9. See the Phase 13 section below. The application remains
+Application **0.14.0**, full-feature schema **10**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-9 installations need an explicitly confirmed separate-candidate migration to 10. Classify all weighted data in Update 1 first. See PHASE_14_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -38,9 +38,9 @@ example with existing VM/offsite backups). SQLite backups omit external keys,
 settings, accents, schedules and host updater files. Stop external SQLite tools
 before maintenance. Do not initialize installed storage or delete retained files.
 
-## First upgrade from schema 6
+## Archived Update 1 upgrade from schema 6
 
-These commands use the latest approved main, currently Phase 13. Schemas 4/5 can
+These archived commands describe the Phase 13 release, not current main. Use the Phase 14 review for current instructions. Schemas 4/5 could
 also upgrade explicitly to 9 through the same candidate machinery; verify the
 actual installed schema rather than assuming it. The initial step updates source
 only; the currently running image/database remain unchanged until v4 is confirmed.
@@ -465,7 +465,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 This procedure is needed only once for hosts not yet refreshed for Phase 12.
 Phase 13 does not change that host runtime; do not repeat this procedure if already refreshed.
 
-Current application: **0.13.0 / target schema 9**. Schema-8 installations need a
+Archived Phase 13 application: **0.13.0 / target schema 9**. Schema-8 installations needed a
 separately confirmed candidate migration through Install Update; service refresh
 itself never migrates storage. No Compose/.env, port, timezone or storage change is required. Browser
 updates/v4 still require explicit installation consent and a verified backup.
@@ -516,7 +516,7 @@ No production host/service/database was changed by development verification.
 
 ## Phase 13 schema 8 to 9 upgrade
 
-Current release is **0.13.0 / schema 9**. Earlier phase-specific sections above
+Archived release: **0.13.0 / schema 9**. Earlier phase-specific sections above
 retain their historical targets; use PHASE_13_REVIEW.md for the current complete
 procedure. No new host runtime/script, .env, Compose, port or timezone change is
 needed after the Phase 12 host refresh. Browser/v4 generic target detection accepts
@@ -547,3 +547,14 @@ Expected app_version 0.13.0, schema_version 9, status ready. Use the actual addr
 if different. No live-server command was executed by development verification.
 The existing root-level external wrapper was not inspected; use the explicit
 repository v4 entry point. No automatic host-service or startup schema upgrade.
+
+## Phase 14 schema 9 to 10 upgrade
+
+Use [the exact current upgrade instructions](../PHASE_14_REVIEW.md#existing-server-upgrade).
+Before updating, classify every weighted Library default, routine and person's
+history in Update 1. Finish unclassified drafts before classification. Current
+routine basis conflicts use Library defaults; completed snapshots never change.
+Browser/v4 reads target 10 dynamically; no new host service refresh is required
+for an already working Phase 12 host. Confirm migration, verify readiness reports
+0.14.0 / schema 10, and make a verified new backup. No startup migration, Restore
+shortcut, .env/Compose/port/timezone change or production deployment is performed.

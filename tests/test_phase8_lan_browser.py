@@ -115,7 +115,14 @@ def test_http_browser_updates_no_login_and_status_survives_web_stop(lan_browser)
     assert page.locator('input[type="password"]').count()==0
     # Forged POST lacks CSRF and cannot trigger the worker.
     assert page.request.post(base+'/settings/updates',form={'action':'check'}).status==400
-    page.get_by_role('button',name='Check for Updates',exact=True).click()
+    # Wait for the actual POST/303 navigation before asking CDP to reload.
+    # An immediate reload can race the newly attached page under heavy load.
+    with page.expect_navigation(wait_until='load'):
+        page.get_by_role('button',name='Check for Updates',exact=True).click()
+    deadline=time.monotonic()+5
+    while engine.state()['status']!='Available' and time.monotonic()<deadline:
+        time.sleep(.05)
+    assert engine.state()['status']=='Available'
     page.reload();expect(page.get_by_text('Latest approved version: 0.9.0 · Required database schema: 6',exact=True)).to_be_visible()
     expect(page.get_by_text('Approved fixture release',exact=True)).to_be_visible()
     status_page=page.context.new_page();status_page.goto(status_base+'/status')

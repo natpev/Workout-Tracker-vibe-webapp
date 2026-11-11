@@ -1,0 +1,11 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Signed settings-only preview; confirmation updates global defaults and personal routines atomically. #}
+{% extends 'base.html' %}{% from 'macros.html' import security with context %}
+{% block content %}<h1>Update your routine settings?</h1>
+<p>New shared name: {{ settings.name }} · Selected person: {{ person.name }}</p>
+<p>Tracking mode: {{ "Weight + Duration" if settings.measurement_type=="weight_duration" else "Weight" if settings.measurement_type=="weight" else "Time" }}</p>
+<p>Save shared Library defaults and replace compatible settings in {{ routines }} of your routines ({{ items }} exercise entries). Other people’s existing routines stay unchanged. Completed workouts stay unchanged.</p>
+<p>{{ settings.target_sets }} sets × {% if settings.measurement_type=='weight' %}{{ settings.target_reps }} target reps{% else %}{{ settings.target_duration_seconds // 60 }}:{{ '%02d'|format(settings.target_duration_seconds % 60) }} per set{% endif %}</p>
+{% if settings.measurement_type!='time' %}<p>Weight unit: Pounds (lb) · Weight Basis: {{ basis_label(settings.weight_basis) }} 🔒</p>{% endif %}<p>{{ settings.notes }}</p>
+<form method="post">{{ security() }}<input type="hidden" name="action" value="confirm"><input type="hidden" name="preview" value="{{ token }}"><label class="acknowledge"><input type="checkbox" name="confirm" value="yes" required>I confirm overwriting my existing routine settings.</label><button>Confirm Update My Routines</button></form>
+<a href="{{ url_for('manage.edit_defaults',person_id=person.id,exercise_id=definition.id) }}">Cancel</a>{% endblock %}

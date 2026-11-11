@@ -6,6 +6,12 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 This reference retains prior implementation evidence. Release-specific instructions below describe older releases. Use the current [README](../README.md) and [deployment guide](../deployment/README.md) for installation and updates.
 
+## Current Phase 14 implementation
+
+Application 0.14.0 targets schema 10. Read [schema and audit compatibility](SCHEMA_10.md)
+and [Phase 14 review](../PHASE_14_REVIEW.md). Earlier implementation sections are
+archived descriptions. Current users cannot change basis or create conversions.
+
 ## Architecture and data flow
 
 - `workout_tracker/__init__.py`: Flask factory, configuration, readiness, safe errors and browser protections.

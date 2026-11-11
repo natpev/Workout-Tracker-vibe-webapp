@@ -40,14 +40,19 @@ def occurrence_errors(values,zone):
     return errors
 
 
-def measurement_errors(rows,values):
+def measurement_errors(rows,values,modern=False):
     """Collect all exercise errors, preserving blank/zero and one actual per exercise."""
     errors={};performed=False
     for index,row in enumerate(rows):
-        fields={key:values.get(f'{key}_{index}','') for key in ('weight','minutes','seconds','increase')}
+        fields=h.measurement_fields(row,values,index)
         try:
             weight,duration,flag=w.measurement(row,fields)
             performed|=weight is not None or duration is not None
+            if modern and row['measurement_type']=='weight' and weight is not None:
+                from .repetitions import inputs
+                try:inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None)
+                except c.ValidationError as error:
+                    for set_index in range(row['target_sets']):errors[f'reps_{index}_{set_index}']=str(error)
         except c.ValidationError as error:
             if isinstance(error,w.MeasurementError):
                 errors.update({f'{key}_{index}':row['name']+': '+message for key,message in error.fields.items()})
@@ -72,4 +77,9 @@ def values_for_rows(parent,rows,correction,display_clock,fold=''):
                            f'minutes_{index}':'' if duration is None else str(duration//60),
                            f'seconds_{index}':'' if duration is None else str(duration%60),
                            f'increase_{index}':'1' if row['increase_next_time']==1 else ''})
+    for index,row in enumerate(rows):
+        if row['measurement_type']=='weight':
+            actual=row.get('actual_reps')
+            for set_index in range(row['target_sets']):
+                values[f'reps_{index}_{set_index}']=str(actual[set_index]) if actual is not None else '' if correction else str(row['target_reps'])
     return values

@@ -37,6 +37,7 @@ def wide_csv(db, person_id, filters, selected):
     Ordinary groups have actual/target pairs; combined groups have a weight,
     duration and historical-target triple.
     """
+    modern=db.execute('PRAGMA user_version').fetchone()[0]>=10
     _, names = h.choices(db, person_id)
     selected = list(dict.fromkeys(selected))
     if not selected:
@@ -62,6 +63,9 @@ def wide_csv(db, person_id, filters, selected):
             prescription = f"{row['target_sets']} × {target}"
             cells[key] = ((weight_cell,duration_cell,prescription) if kind == 'weight_duration'
                           else (weight_cell if kind == 'weight' else duration_cell,prescription))
+            if modern and kind=='weight':
+                actual=row.get('actual_reps')
+                cells[key]+=('; '.join(str(value) for value in actual) if actual is not None else '',)
             keys.add(key)
         if cells:
             records.append((parent, cells))
@@ -99,12 +103,13 @@ def wide_csv(db, person_id, filters, selected):
             label += f' [occurrence {slot}]'
         labels = (('Weight (lb)', 'Duration', 'Sets × Target Duration') if kind == 'weight_duration'
                   else ('Weight (lb)', 'Sets × Reps') if kind == 'weight' else ('Duration', 'Sets × Target Duration'))
+        if modern and kind=='weight':labels+=('Actual Repetitions by Set',)
         header.extend(label + ' — ' + part for part in labels)
     buffer = StringIO(newline=''); writer = csv.writer(buffer, lineterminator='\r\n')
     writer.writerow([spreadsheet_text(cell) for cell in header])
     for parent, cells in records:
         row = [parent['workout_date'], (parent['workout_time'] or '')[:5], parent['routine_name'], parent['id']]
         for key in ordered:
-            row.extend(cells.get(key, ('',) * (3 if key[1]=='weight_duration' else 2)))
+            row.extend(cells.get(key, ('',) * (3 if key[1]=='weight_duration' or (modern and key[1]=='weight') else 2)))
         writer.writerow([spreadsheet_text(cell) for cell in row])
     return buffer.getvalue()

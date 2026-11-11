@@ -1,0 +1,12 @@
+{
+  "version": "0.14.0",
+  "notes": [
+    "Record actual repetitions for every set while entering weight only once.",
+    "See your estimated lifetime weight lifted and the weight lifted in each workout.",
+    "Compare workouts with your previous 30-day average for the same routine.",
+    "View totals in pounds, imperial short tons, kilotons, megatons and larger units.",
+    "Weight Basis is permanently locked after creating an exercise.",
+    "Older workouts use their original prescribed repetitions for lifting estimates.",
+    "Removed temporary Weight Basis setup and historical conversion tools."
+  ]
+}

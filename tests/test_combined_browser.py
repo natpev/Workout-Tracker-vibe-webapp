@@ -145,7 +145,7 @@ def test_create_library_combined_and_copy_defaults_via_forms(combined_page):
     form.get_by_role('radio',name='Weight + Duration',exact=True).check()
     form.get_by_label('Number of sets',exact=True).fill('2')
     form.get_by_label('Minutes',exact=True).fill('0');form.get_by_label('Seconds',exact=True).fill('90')
-    form.get_by_label('Weight meaning (optional)',exact=True).fill('total weight')
+    expect(form.locator('[name=weight_meaning]')).to_have_count(0)
     form.get_by_role('button').last.click()
     with database_session(root) as db:
         definition=db.execute("SELECT id FROM exercises WHERE name='Weighted dead hang'").fetchone()[0]
@@ -154,4 +154,4 @@ def test_create_library_combined_and_copy_defaults_via_forms(combined_page):
     page.get_by_role('button',name='Add library exercise',exact=True).click()
     with database_session(root) as db:
         row=db.execute('SELECT * FROM routine_exercises WHERE exercise_id=? AND routine_id=?',(definition,r)).fetchone()
-        assert (row['measurement_type'],row['target_sets'],row['target_duration_seconds'],row['weight_meaning'])==('weight_duration',2,90,'total weight')
+        assert (row['measurement_type'],row['target_sets'],row['target_duration_seconds'],row['weight_meaning'])==('weight_duration',2,90,'')

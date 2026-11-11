@@ -90,6 +90,8 @@ def original(db, person_id, identity):
         rows=[dict(row) for row in db.execute('SELECT * FROM historical_entries WHERE session_id=? AND person_id=? ORDER BY position',(identity,person_id))]
         if len(rows)!=parent['entry_count'] or [r['position'] for r in rows]!=list(range(len(rows))):
             raise StorageError('Historical snapshot consistency failed.')
+    from .repetitions import decode
+    rows=[decode(row) for row in rows]
     parent['routine_deleted'] = db.execute('SELECT 1 FROM routines WHERE id=? AND person_id=?',(parent['routine_id'],person_id)).fetchone() is None
     return parent,rows
 
@@ -97,7 +99,8 @@ def original(db, person_id, identity):
 def value_state(parent, rows):
     """Capture only correctable occurrence/measurement fields, not snapshot metadata."""
     return dict(workout_date=parent['workout_date'],workout_time=parent['workout_time'],occurred_at=parent['occurred_at'],
-                entries=[{key:row[key] for key in ('id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time')} for row in rows])
+                entries=[{**{key:row[key] for key in ('id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time')},
+                          **({'actual_reps':row['actual_reps']} if row.get('actual_reps') is not None else {})} for row in rows])
 
 
 def validate_state(parent, rows, values):
@@ -119,8 +122,12 @@ def validate_state(parent, rows, values):
         if local.date().isoformat()!=values['workout_date'] or local.strftime('%H:%M:%S')!=clock:
             raise ValueError('Correction date/time mismatch')
     for row,value in zip(rows,values['entries']):
-        if set(value)!= {'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'}:
+        if set(value) not in ({'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'}, {'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time','actual_reps'}):
             raise ValueError('Correction fields mismatch')
+        from .repetitions import validate as validate_reps
+        actual=validate_reps(row,value.get('actual_reps'))
+        if value['actual_weight_tenths_lb'] is None and actual is not None:
+            raise ValueError('Skipped actual repetitions must be NULL')
         weight,duration,flag=(value[key] for key in ('actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'))
         if weight is not None and (type(weight) is not int or not 0<=weight<=w.MAX_INTEGER):
             raise ValueError('Invalid audit weight')
@@ -146,9 +153,9 @@ def effective(db, person_id, identity):
             values=json.loads(latest['after_json'])
             validate_state(parent,rows,values)
             for row,measurement in zip(rows,values['entries']):
-                if set(measurement)!= {'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'}:
-                    raise ValueError('Correction fields mismatch')
                 row.update(measurement)
+                if 'actual_reps_json' in row:
+                    row['actual_reps']=measurement.get('actual_reps')
             parent.update({key:values[key] for key in ('workout_date','workout_time','occurred_at')})
             parent['correction_revision']=latest['revision']
         except (ValueError,TypeError,KeyError) as error:
@@ -273,9 +280,6 @@ def prepare(db, person_id, routine_id, values, zone):
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),zone,w.field(values,'fold'))
     rows=[dict(row) for row in db.execute('SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id WHERE re.routine_id=? ORDER BY re.position',(routine_id,))]
     if not rows: raise c.ValidationError('Choose a routine with at least one exercise.')
-    from .basis import enabled,baseline
-    if enabled(db):
-        for row in rows:row['basis_epoch']=baseline(db,person_id,row['exercise_id'])[1]
     identity=uuid4().hex
     db.execute('INSERT INTO historical_forms VALUES (?,?,?,?,?,?,?,?,?,?)',
                (identity,person_id,routine_id,routine['name'],zone,day,clock,stamp,w.now().isoformat(),json_text(rows)))
@@ -290,13 +294,26 @@ def prepared(db, person_id, form_id):
     return dict(row),json.loads(row['snapshots_json'])
 
 
-def entered_measurements(rows, values):
+def measurement_fields(row, values, index):
+    """Map indexed historical form names to the live parser's per-set field names."""
+    result={key:values.get(f'{key}_{index}','') for key in ('weight','minutes','seconds','increase')}
+    for set_index in range(row['target_sets']):
+        result[f'reps_{set_index}']=values.get(f'reps_{index}_{set_index}','')
+    return result
+
+
+def entered_measurements(rows, values, modern=False):
     """Validate every typed row before any completion/correction SQL is issued."""
     results=[]
     for index,row in enumerate(rows):
-        fields={key:values.get(f'{key}_{index}','') for key in ('weight','minutes','seconds','increase')}
+        fields=measurement_fields(row,values,index)
         weight,duration,flag=w.measurement(row,fields)
-        results.append(dict(id=row['id'],actual_weight_tenths_lb=weight,actual_duration_seconds=duration,increase_next_time=flag))
+        result=dict(id=row['id'],actual_weight_tenths_lb=weight,actual_duration_seconds=duration,increase_next_time=flag)
+        if modern and row['measurement_type']=='weight' and weight is not None:
+            from .repetitions import inputs
+            actual=inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None)
+            if actual is not None:result['actual_reps']=actual
+        results.append(result)
     if not any(row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None for row in results) and values.get('confirm_all_skipped')!='yes':
         raise w.AllSkipped('Confirm saving an entirely skipped workout.')
     return results
@@ -311,11 +328,11 @@ def complete_historical(db, person_id, form_id, values):
     form,rows=prepared(db,person_id,form_id)
     existing=db.execute('SELECT id FROM historical_workouts WHERE form_id=? AND person_id=?',(form_id,person_id)).fetchone()
     if existing: return existing[0]
-    from .basis import enabled,baseline
+    from .basis import enabled
     modern=enabled(db)
-    if modern and any(row['measurement_type']!='time' and row.get('basis_epoch',0)!=baseline(db,person_id,row['exercise_id'])[1] and row.get('weight_basis','not_configured')!=baseline(db,person_id,row['exercise_id'])[0] for row in rows):
-        raise c.ValidationError('Weight Basis changed since this historical review was prepared. Prepare a new review before saving.')
-    measurements=entered_measurements(rows,values)
+    if modern and any(row['measurement_type']!='time' and row.get('weight_basis','not_configured')=='not_configured' for row in rows):
+        raise c.ValidationError('This old historical review lacks Weight Basis. Prepare a new review before saving.')
+    measurements=entered_measurements(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10)
     identity=uuid4().hex
     db.execute('INSERT INTO historical_workouts VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                (identity,person_id,form['routine_id'],form['routine_name'],form['timezone'],form['workout_date'],form['workout_time'],form['occurred_at'],w.now().isoformat(),form_id,len(rows)))
@@ -323,6 +340,9 @@ def complete_historical(db, person_id, form_id, values):
         columns='id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,actual_weight_tenths_lb,actual_duration_seconds,increase_next_time'
         stored=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'],result['actual_weight_tenths_lb'],result['actual_duration_seconds'],result['increase_next_time'])
         if modern:columns+=',weight_basis';stored+=(row.get('weight_basis','not_configured'),)
+        if db.execute('PRAGMA user_version').fetchone()[0]>=10:
+            from .repetitions import encode
+            columns+=',actual_reps_json';stored+=(encode(result.get('actual_reps')),)
         db.execute(f"INSERT INTO historical_entries({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
     return identity
 
@@ -345,8 +365,9 @@ def correct(db, person_id, identity, values):
         # Preserve native fractional seconds only when the chosen instant is
         # unchanged. A repeated-hour fold change must retain its new UTC instant.
         stamp=parent['occurred_at']
-    after=dict(workout_date=day,workout_time=clock,occurred_at=stamp,entries=entered_measurements(rows,values))
-    before=value_state(parent,rows)
+    after=dict(workout_date=day,workout_time=clock,occurred_at=stamp,entries=entered_measurements(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10))
+    latest=db.execute('SELECT after_json FROM workout_corrections WHERE workout_id=? ORDER BY revision DESC LIMIT 1',(identity,)).fetchone()
+    before=json.loads(latest[0]) if latest else value_state(parent,rows)
     if after==before:
         raise c.ValidationError('No corrected values were changed.')
     db.execute('INSERT INTO workout_corrections VALUES (?,?,?,?,?,?,?)',

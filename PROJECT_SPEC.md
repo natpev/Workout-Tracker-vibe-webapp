@@ -4,8 +4,41 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Phase 13 Update 1 / application 0.13.0 / schema 9 passed all 590 tests (471 backend/script, 100 Chromium, 19 Docker; zero failed/skipped), recorded in PHASE_13_REVIEW.md. Update 2 and Total Weight Lifted remain excluded. Previous release: Patch 0.12.2 passed 535 tests (425 backend/script, 93 Chromium, 17 Docker; zero failed/skipped), recorded in WORKOUT_HISTORY_UI_REVIEW.md. Prior patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 13 Update 1 is authorized below.
-**Current scope:** Phase 13 Update 1 / application 0.13.0 / schema 9. Section 30 adds structured Weight Basis, two atomic save scopes, personal append-only classification/conversion and explicit candidate migration. Keep Weight Meaning and Not Configured; do not implement Update 2 or totals. Previous patch: 0.12.2 / schema 8. Section 29 improves compact workout typography, preserves focused weight text through autosave and simplifies History times/filters. See WORKOUT_HISTORY_UI_REVIEW.md. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+
+Phase 14 / application 0.14.0 / schema 10 is the current authorized release.
+Verification: 659 distinct passing tests (530 backend/script, 109 Chromium,
+20 Docker); detailed run/fix evidence is in PHASE_14_REVIEW.md.
+Earlier phase contracts below are historical where superseded by this section.
+No PR, production access, deployment or unrelated identity investigation.
+
+Permanent Phase 14 contract:
+- New weighted IDs require explicit total/per_side selection; existing bases are
+  locked in UI, services and database guards. Library defaults win classified
+  current-configuration conflicts during migration, per explicit user direction.
+  Original historical bases and conversion audits remain unchanged.
+- Both save scopes remain; personal routine overwrite needs signed confirmation
+  and one atomic transaction. Neither scope edits completed history or basis.
+- No new historical conversions: remove transition writers, counters, old forms
+  and editable Weight Meaning. Retain read-only audit validation and old migrations.
+- Schema 10 adds nullable ordered actual reps JSON per exercise occurrence. One
+  weight per exercise; reps initialized from captured targets and autosaved.
+  Zero valid, blank incomplete, skips NULL; duration modes have no reps fields.
+- Legacy completed reps remain unknown; estimates use original sets × target reps.
+  Corrections append revisions and may introduce reps; old JSON remains valid.
+- Use one exact calculation/formatting engine for lifetime and workout estimates,
+  same-routine preceding-30-day comparisons, pounds and imperial short tons.
+- Explicit candidate migration only; reject unclassified weighted data with Update
+  1 guidance, preserve originals/audits/NULLs/drafts and verify integrity/restore.
+- Mandatory README, human release notes and full backend/Chromium/Docker/updater
+  checks precede authorized direct main merge/push/remote verification/branch cleanup.
+See PHASE_14_REVIEW.md and docs/SCHEMA_10.md for current implementation and evidence.
+
+**Project status:** Phase 14 / application 0.14.0 / schema 10 is implemented with
+verification recorded in PHASE_14_REVIEW.md. Phase 13 remains the archived baseline
+(590 tests, 0.13.0/schema 9). Prior phase sections retain historical decisions where
+not superseded by the permanent Phase 14 contract above. Direct main merge/push
+is authorized only after complete regression verification, with no PR or deployment.
+
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -36,7 +69,7 @@
 3. Select one of that person's routines to start.
 4. Record the session date and start time automatically using a consistent server-local timezone; allow explicit past dates in the separate historical-entry workflow.
 5. Display **one exercise at a time**, with its exercise name, prescribed sets × reps (Weight) or sets × target duration (Time), that person's previous matching measurement, and its previous **increase next time** flag.
-6. Enter **one current measurement for the whole exercise** (weight for Weight; duration for Time, not one per set) and optionally mark **increase next time**. Do **not** ask for actual reps/set-by-set results during normal workout entry.
+6. Enter **one current measurement for the whole exercise** (weight for Weight; duration for Time, not one per set) and optionally mark **increase next time**. For Weight exercises, also record actual reps per captured set, initialized from target reps and preserved by autosave.
 7. Navigate by **Back**, **Next**, exercise jump list, and expandable routine overview; show all exercise completion states and a whole-workout progress bar.
 8. **Finish & Save** both saves and completes the workout in one clear action. All routine exercises, including skipped ones, are captured in the completed session.
 9. If unfinished, automatically preserve a resumable draft when navigating away or losing the browser session. Save draft changes promptly on the server and show a clear save/error status so a failed save is not mistaken for a successful one.
@@ -82,7 +115,7 @@
 
 ### Screen C — Workout entry (primary mobile screen)
 - Top: selected person, routine, automatic date/time, exercise count and completion progress bar.
-- One focused exercise card: name, sets × reps (Weight) or sets × duration (Time), previous matching measurement and increase indicator, one blank actual measurement input, and the type-specific increase-next-time toggle. A minutes/seconds duration control represents one measurement, never separate per-set results.
+- One focused exercise card: name, sets × reps (Weight) or sets × duration (Time), previous matching measurement and increase indicator, one blank weight/duration input, actual reps per set for Weight, and the type-specific increase-next-time toggle. A minutes/seconds duration control represents one measurement, never separate per-set results.
 - **Back / Next** oval buttons; exercise jump list and full/expandable routine overview to navigate out of order.
 - **Finish & Save** always available; **Discard Workout** with checkbox acknowledgment confirmation.
 - Show completed/skipped/unentered states without confusing navigation progress with actual logged measurements.
@@ -172,7 +205,7 @@ These directories must be outside the Git repository and the ephemeral Docker im
 
 - Exact server operating system, Proxmox VM/container layout and binding LAN interface/port. Installed checkout/storage/updater paths were supplied with Phase 7 and are recorded in section 18.
 - Statistics are highest logged weight or longest logged duration in the selected date range, with separated exercise/type/unit/meaning. Any additional personal-record definitions and future product-specific upper bound remain undecided. Phase 3 actual durations use integer seconds within SQLite signed 64-bit range, accept either nonnegative whole part, normalize seconds above 59, reject zero totals and preserve two blanks as SQL NULL.
-- Any future product-specific weight limit or configurable units beyond pounds; weight-meaning labels remain configurable per routine exercise. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
+- Any future product-specific weight limit or configurable units beyond pounds; legacy weight-meaning labels remain historical metadata; current conventions use permanent structured Weight Basis. Phase 3 uses the SQLite signed 64-bit limit for stored tenths. Precision is settled: integer tenths of pounds, truncate beyond one decimal place, never round; zero is valid and blank is SQL NULL.
 - Whether workout-level notes are needed in addition to approved optional exercise notes.
 - Correction behavior is implemented for actual weight/duration, increase flag and occurrence date/optional time only, with append-only before/after/timestamp/revision audit. Snapshot identity/name/type/targets/units/notes cannot be corrected. Completed-workout deletion remains unauthorized.
 - Household backup frequency/time/zone must be explicitly configured; scheduling starts disabled. Phase 5 implements local calendar-day cadence, earlier fold, first valid gap minute, and at-most-one missed-run handling. On corruption, startup must refuse unsafe storage rather than replace it.
@@ -982,50 +1015,10 @@ direct merge/push/cleanup apply. No PR, deployment, real data or unrelated ident
 investigation. See WORKOUT_HISTORY_UI_REVIEW.md.
 
 
-## 30. Phase 13 — Weight Basis transition, Update 1 only
+## 30. Archived Phase 13 Update 1
 
-Application 0.13.0 targets schema 9. Add structured not_configured (temporary),
-total (×1), per_side (×2) for Weight and combined configurations. Time-only needs
-no selection. Keep all Weight Meaning text and controls; infer nothing from names
-or old strings. Initial migration assigns NC without changing original cells.
-
-Defaults Only saves shared name/configuration/basis for new additions. Update My
-Routines previews every selected-person routine/item replacement and historical
-action, requires explicit confirmation, then commits defaults, personal settings
-and appended history revisions atomically. Other people's existing settings and
-results stay intact. Copy every configuration field, not just sets/basis.
-
-Personal applied baseline is independent of shared defaults. Original snapshot
-basis and appended assignment metadata handle independent new records correctly.
-First classification of NC records changes no weight. Total→per_side divides
-exact integer tenths by two; reverse multiplies by two. Never round/truncate a
-conversion. Odd division or I64 overflow refuses all changes, identifies exercise/
-workout and retains inputs. Zero and NULL remain distinct. Repeated/retried saves
-do not reconvert. Preserve duration, dates, original prescriptions and identities.
-
-Conversions append ordinary correction revisions plus traceable immutable basis
-transition/entry audits. Numerical History, charts, corrections, previous results,
-CSV and summaries share the existing effective layer. Later corrections use the
-converted values without undoing/repeating old events. Keep incompatible bases
-separate. Active matching drafts block personal bulk application; frozen pending
-reviews with an incompatible basis must be prepared again with raw inputs retained.
-Do not silently rewrite any active/prepared snapshot.
-
-Schema 9 requires copied-candidate migration with original byte/cell/NULL/audit
-preservation, exact DDL, integrity/FK/row/logical validation and atomic activation/
-rollback safeguards. No startup migration. Same-schema backups/restores preserve
-all new records; old versions/archives remain for recovery. Browser/v4 detect
-target 9 and require explicit migration consent; no new updater script.
-
-Library setup counters distinguish shared defaults, selected-person routines and
-history. No automatic finalization. Update 2 (remove old text/NC/temporary tool)
-and Estimated Total Weight Lifted remain unimplemented. The data supports future
-weight×sets×reps×basis multiplier, combined weight×sets×multiplier, and zero
-contribution for time/skips without changing NULL. No totals/lifetime/ton displays.
-
-Run all retained/new backend, migration/fault, precision, concurrency, ownership,
-append-only audit, browser/mobile/themes, Docker, backup/restore and updater tests.
-Keep permanent README/release-note requirements. Direct main merge/push/verify/
-branch cleanup is authorized after all blocking checks pass, without a PR, force
-push, deployment, production data or unrelated duplicate/orphan investigation.
-See PHASE_13_REVIEW.md for evidence and exact installed-server upgrade steps.
+Application 0.13.0 introduced schema 9, structured Weight Basis and audited personal
+classification/conversion. PHASE_13_REVIEW.md preserves its released behavior,
+upgrade instructions and test evidence. Phase 14 above supersedes temporary controls;
+current users cannot reclassify existing IDs or run automatic historical conversions.
+Released migrations and original audit payloads remain unchanged for recovery.

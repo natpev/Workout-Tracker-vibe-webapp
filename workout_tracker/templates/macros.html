@@ -19,8 +19,10 @@
 </div>
 <div data-fields="weight weight_duration">
   <label>Weight unit<select name="unit"><option value="lb">Pounds (lb)</option></select></label>
-  {% if active_schema_version is number and active_schema_version>=9 %}<fieldset class="mode weight-basis"><legend>Weight Basis</legend>{% for value,label in [('not_configured','Not Configured'),('total','Total Weight'),('per_side','Per Hand / Side')] %}<label><input type="radio" name="weight_basis" value="{{ value }}" {% if (item.weight_basis if item and item.weight_basis is defined else 'not_configured')==value %}checked{% endif %}>{{ label }}</label>{% endfor %}</fieldset><p class="input-hint">Total counts the entered weight once (×1); Per Hand / Side counts both sides (×2). Choose your convention. Not Configured is temporary. No weight is changed merely by editing this setting.</p>{% endif %}
-  <label>Weight meaning (optional) <input name="weight_meaning" maxlength="200" placeholder="For example: per dumbbell" value="{{ item.weight_meaning if item else '' }}"></label>
+  {% if active_schema_version is number and active_schema_version>=9 %}
+  {% if item and item.weight_basis is defined %}<p>Weight Basis: <strong>{{ basis_label(item.weight_basis) }}</strong> 🔒</p><p class="input-hint">This setting cannot be changed after creating the exercise.</p>
+  {% else %}<fieldset class="mode weight-basis"><legend>Weight Basis (required)</legend>{% for value,label in [('total','Total Weight'),('per_side','Per Hand / Side')] %}<label><input type="radio" name="weight_basis" value="{{ value }}" required>{{ label }}</label>{% endfor %}</fieldset><p class="input-hint">Total Weight counts ×1; Per Hand / Side counts ×2. Choose your convention; it becomes permanent when saved.</p>{% endif %}{% endif %}
+
 </div>
 <div data-fields="time weight_duration">
   <p>Target duration per set</p>
