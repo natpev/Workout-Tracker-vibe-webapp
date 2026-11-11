@@ -42,7 +42,7 @@ def test_release_metadata_never_opens_or_initializes_storage(tmp_path):
     assert result.exit_code == 0, result.output
     assert json.loads(result.output) == {'app_version': APP_VERSION,
                                        'target_schema_version': TARGET_SCHEMA_VERSION}
-    assert TARGET_SCHEMA_VERSION == 8 and not absent.exists()
+    assert TARGET_SCHEMA_VERSION == 9 and not absent.exists()
 
 
 def cells(db):
@@ -183,8 +183,8 @@ def test_versions_cli_noop_and_schema5_protection(library_root):
     assert client.get('/health/ready').json==dict(status='ready',app_version=APP_VERSION,schema_version=5)
     for path in ('/people','/settings'):
         response=client.get(path);assert response.status_code==200
-        assert b'Workout Tracker v0.12.2' in response.data and b'Database v5' in response.data
-    assert b'Application version: 0.12.2' in client.get('/settings/administration').data
+        assert b'Workout Tracker v0.13.0' in response.data and b'Database v5' in response.data
+    assert b'Application version: 0.13.0' in client.get('/settings/administration').data
     assert original.read_bytes()==before and set((root/'data').iterdir())==paths
 
 

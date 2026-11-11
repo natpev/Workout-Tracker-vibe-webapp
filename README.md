@@ -15,9 +15,11 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.12.2**. Database schema: **8**. Existing schema-8
-installations need **no database migration**. This patch also needs no host updater
-refresh if you already completed the Phase 12 host-service setup.
+Current application: **0.13.0**. Database schema: **9**. Existing schema-8
+installations need an explicitly confirmed migration to a **separate database
+candidate**. The original is preserved. Your Phase 12 host updater needs no
+additional refresh. See [updating](#updating-the-application); never initialize
+an existing installation again.
 
 ### 1. Choose a server
 
@@ -165,15 +167,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 8
+  --confirm-upgrade --target-version 9
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-8 database, preserving the original. The final
-command should report **Storage verified; schema version 8.** Stop at any error;
+and verifies a separate schema-9 database, preserving the original. The final
+command should report **Storage verified; schema version 9.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -191,7 +193,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.12.2",schema_version=8)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.13.0",schema_version=9)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -204,7 +206,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.12.2 / database 8**. Check all three themes in Settings.
+should report **0.13.0 / database 9**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -273,6 +275,43 @@ is newly added to a routine; changing them does not change existing routine sett
 **Delete Exercise** in the menu opens a separate permanent-deletion review: it deliberately erases that identity
 and its history across all people after an impact preview and confirmation. Older
 backups can resurrect deleted records on deliberate compatible restore.
+
+
+### Weight Basis — temporary transition (Update 1)
+
+Weight and Weight + Duration exercises now have **Not Configured**, **Total
+Weight (×1)** and **Per Hand / Side (×2)** radio choices. Choose how you record
+weight; the app never guesses from exercise names or equipment. Duration-only
+exercises do not need this setting. Existing exercises start Not Configured, and
+the old **Weight Meaning** text remains for reference.
+
+In Edit Defaults:
+
+- **Save Defaults Only** saves the shared name/defaults for future routine additions.
+  Existing routines and history do not change.
+- **Save Defaults & Update My Routines** previews replacing all exercise settings
+  in the selected person's routines, and any historical classification/conversion.
+  Confirm explicitly. Other people's existing settings and measurements stay intact.
+
+First assignment of unclassified history keeps its weights unchanged. Later
+Total → Per Hand divides recorded weights by exactly 2; Per Hand → Total multiplies
+by exactly 2. Repeated saves do not repeat a conversion. Each person's actual
+history basis is tracked separately from shared defaults; independently configured
+new snapshots keep their own basis until deliberately included in a transition.
+
+If halving needs more than one decimal (25.5 → 12.75), or doubling exceeds storage
+limits, **nothing is saved**. Review the identified workout for accuracy; do not
+round a true measurement just to force a conversion. Originals and correction
+audits remain retained. Dates, durations and historical prescriptions never change.
+Finish or deliberately discard your draft through the existing workflow before
+bulk-changing an exercise it uses. An incompatible pending historical review must
+be prepared again; its submitted fields remain visible on error.
+
+History, charts, previous results and CSV use current effective values. Different
+bases stay separate for comparisons. Today's measurement still starts blank, and
+the value you type is never automatically doubled/halved. Setup counters show
+shared defaults, your routines and your history independently. Update 2 and
+Estimated Total Weight Lifted statistics are **not implemented** in this update.
 
 ## Weight, Duration, and Weight + Duration exercises
 
@@ -356,8 +395,13 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-An existing schema-8 installation needs no migration for 0.12.2. Confirmed updates
-still create a verified backup. Never initialize a database as part of an update.
+For 0.13.0, an existing schema-8 installation needs a confirmed upgrade to schema
+9. The updater backs up verified storage, migrates a separate candidate, checks
+its integrity and audits, then switches selection atomically. Original database
+versions remain available. Never initialize or restore storage as an update shortcut.
+After success, make a new verified schema-9 backup. Older schema-8 backups remain
+retained but cannot be silently restored into schema 9.
+See [Phase 13 upgrade steps](PHASE_13_REVIEW.md#existing-installation-upgrade).
 
 ### One-time browser updater installation
 
@@ -429,9 +473,10 @@ See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
 [deployment/recovery](deployment/README.md), [developer reference](docs/DEVELOPER_REFERENCE.md),
 [Phase 12 verification](PHASE_12_REVIEW.md), and
 [Library menu verification](LIBRARY_MENU_REVIEW.md) and
-[current workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md). Older phase reviews retain their
+[workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md) and
+[current Phase 13 verification](PHASE_13_REVIEW.md). Older phase reviews retain their
 historical results and limitations. Current release verification is recorded in
-WORKOUT_HISTORY_UI_REVIEW.md; no physical-server or live-data testing is implied.
+PHASE_13_REVIEW.md; no physical-server or live-data testing is implied.
 
 Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this

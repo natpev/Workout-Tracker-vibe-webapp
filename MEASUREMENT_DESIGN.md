@@ -6,7 +6,7 @@
 
 ## Historical Phase 9 state and authorization
 
-Current release is Phase 12 patch 0.12.2 (schema 8), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.
+Current release is Phase 13 Update 1 (0.13.0/schema 9), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.
 
 Phases 1–8 are approved. Phase 9 is authorized for implementation, verification
 and direct main merge without a PR attempt: application 0.9.0 / schema 7 adds
@@ -296,3 +296,30 @@ record; only a common target becomes a duration reference line. CSV uses three
 adjacent columns (Weight (lb), Duration, Sets × Target Duration), total m:ss,
 corrected effective values and historical targets; skip actuals blank and zero
 retained. Ordinary Weight/Time CSV pairs are unchanged. See PHASE_11_REVIEW.md.
+
+
+## Phase 13 Update 1 — structured Weight Basis
+
+Schema 9 adds weight_basis to defaults, routine configurations and original live/
+historical entries, initially not_configured without interpreting Weight Meaning.
+Total means ×1; per_side means ×2; time-only rows retain a neutral internal
+not_configured value and expose no basis control. No totals are calculated yet.
+
+Routine/default edits copy basis metadata once, never transform a typed actual.
+Explicit confirmed personal bulk transitions append basis_transitions and exact
+per-workout basis_assignments linked to ordinary workout_corrections. Originals,
+old correction JSON and target prescriptions remain immutable. First assignment
+from unknown leaves weight unchanged; total↔per_side uses exact integer tenths.
+Odd tenths on division and overflow on multiplication reject the entire operation.
+
+Per-person applied revision is independent of global defaults; every entry also
+retains its actual original/effective basis. Later corrections operate on current
+converted values and cannot reapply an old conversion. All readers use the same
+ordinary effective-value layer; classification overlays change metadata only.
+Pending incompatible historical reviews retain inputs but require a new snapshot.
+Drafts containing the identity block bulk application. Permanent deletion retains
+its existing deliberate capability and removes only that identity's audit links.
+
+Update 2 must retain original basis metadata and all transition/correction audits
+when removing temporary UI/conversion tools. Not Configured is not a final
+classification. See PHASE_13_REVIEW.md and PROJECT_SPEC.md section 30.

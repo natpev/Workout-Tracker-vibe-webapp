@@ -153,14 +153,22 @@ def effective(db, person_id, identity):
             parent['correction_revision']=latest['revision']
         except (ValueError,TypeError,KeyError) as error:
             raise StorageError('Correction audit validation failed.') from error
+    from .basis import overlay
+    overlay(db,person_id,identity,rows)
     return parent,rows
 
 
 def audit(db, person_id, identity):
     """Read immutable before/after values, ordered by correction sequence."""
     original(db,person_id,identity)
-    return [dict(row, before=json.loads(row['before_json']),after=json.loads(row['after_json']))
+    result=[dict(row, before=json.loads(row['before_json']),after=json.loads(row['after_json']))
             for row in db.execute('SELECT * FROM workout_corrections WHERE person_id=? AND workout_id=? ORDER BY revision',(person_id,identity))]
+    from .basis import enabled
+    if enabled(db):
+        for row in result:
+            transitions=[dict(r) for r in db.execute('SELECT a.before_basis,a.after_basis,t.created_at FROM basis_assignments a JOIN basis_transitions t ON t.id=a.transition_id WHERE a.correction_id=?',(row['id'],))]
+            if transitions:row['basis_transitions']=transitions
+    return result
 
 
 def chronology(parent):
@@ -221,8 +229,8 @@ def chart_series(db, person_id, values):
             combined = row['measurement_type']=='weight_duration'
             axes = ('weight','time') if combined else (row['measurement_type'],)
             for axis in axes:
-                key=(row['exercise_id'],row['measurement_type'],row['unit'],row['weight_meaning'],axis)
-                series=groups.setdefault(key,dict(name=row['name'],kind=axis,combined=combined,meaning=row['weight_meaning'],exercise_id=row['exercise_id'],points=[],records=[],highest=None,targets=set()))
+                key=(row['exercise_id'],row['measurement_type'],row['unit'],row['weight_meaning'],row.get('weight_basis','not_configured'),axis)
+                series=groups.setdefault(key,dict(name=row['name'],weight_basis=row.get('weight_basis','not_configured'),kind=axis,combined=combined,meaning=row['weight_meaning'],exercise_id=row['exercise_id'],points=[],records=[],highest=None,targets=set()))
                 value=row['actual_weight_tenths_lb'] if axis=='weight' else row['actual_duration_seconds']
                 label=w.display_measurement(dict(actual_weight_tenths_lb=value if axis=='weight' else None,actual_duration_seconds=value if axis=='time' else None))
                 target = row['target_duration_seconds'] if combined and axis=='time' else None
@@ -265,6 +273,9 @@ def prepare(db, person_id, routine_id, values, zone):
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),zone,w.field(values,'fold'))
     rows=[dict(row) for row in db.execute('SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id WHERE re.routine_id=? ORDER BY re.position',(routine_id,))]
     if not rows: raise c.ValidationError('Choose a routine with at least one exercise.')
+    from .basis import enabled,baseline
+    if enabled(db):
+        for row in rows:row['basis_epoch']=baseline(db,person_id,row['exercise_id'])[1]
     identity=uuid4().hex
     db.execute('INSERT INTO historical_forms VALUES (?,?,?,?,?,?,?,?,?,?)',
                (identity,person_id,routine_id,routine['name'],zone,day,clock,stamp,w.now().isoformat(),json_text(rows)))
@@ -300,13 +311,19 @@ def complete_historical(db, person_id, form_id, values):
     form,rows=prepared(db,person_id,form_id)
     existing=db.execute('SELECT id FROM historical_workouts WHERE form_id=? AND person_id=?',(form_id,person_id)).fetchone()
     if existing: return existing[0]
+    from .basis import enabled,baseline
+    modern=enabled(db)
+    if modern and any(row['measurement_type']!='time' and row.get('basis_epoch',0)!=baseline(db,person_id,row['exercise_id'])[1] and row.get('weight_basis','not_configured')!=baseline(db,person_id,row['exercise_id'])[0] for row in rows):
+        raise c.ValidationError('Weight Basis changed since this historical review was prepared. Prepare a new review before saving.')
     measurements=entered_measurements(rows,values)
     identity=uuid4().hex
     db.execute('INSERT INTO historical_workouts VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                (identity,person_id,form['routine_id'],form['routine_name'],form['timezone'],form['workout_date'],form['workout_time'],form['occurred_at'],w.now().isoformat(),form_id,len(rows)))
     for position,(row,result) in enumerate(zip(rows,measurements)):
-        db.execute('INSERT INTO historical_entries(id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,actual_weight_tenths_lb,actual_duration_seconds,increase_next_time) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                   (uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'],result['actual_weight_tenths_lb'],result['actual_duration_seconds'],result['increase_next_time']))
+        columns='id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,actual_weight_tenths_lb,actual_duration_seconds,increase_next_time'
+        stored=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'],result['actual_weight_tenths_lb'],result['actual_duration_seconds'],result['increase_next_time'])
+        if modern:columns+=',weight_basis';stored+=(row.get('weight_basis','not_configured'),)
+        db.execute(f"INSERT INTO historical_entries({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
     return identity
 
 
@@ -351,6 +368,8 @@ def previous_comparable(db, person_id, parent, entry):
         elif (workout['workout_date'],'')>=cutoff:
             continue
         for row in reversed(rows):
-            if all(row[key]==entry[key] for key in ('exercise_id','measurement_type','unit','weight_meaning')):
+            comparable=('exercise_id','measurement_type','unit')
+            classified=row.get('weight_basis','not_configured')!='not_configured' and 'weight_basis' in entry.keys() and entry['weight_basis']!='not_configured'
+            if all(row[key]==entry[key] for key in comparable) and ((classified and row['weight_basis']==entry['weight_basis']) or (not classified and row['weight_meaning']==entry['weight_meaning'] and row.get('weight_basis','not_configured')==(entry['weight_basis'] if 'weight_basis' in entry.keys() else 'not_configured'))):
                 matches.append(dict(row,workout_date=workout['workout_date']))
     return (matches[0] if matches else None,next((row for row in matches if w.count_performed([row])),None))

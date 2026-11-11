@@ -103,14 +103,14 @@ def test_global_library_named_cross_person_copy_and_versions(library_browser):
     unused.get_by_role('checkbox').check();unused.get_by_role('button',name='Archive exercise',exact=True).click()
     expect(page.get_by_role('heading',name='Squat',exact=True)).to_have_count(0)
     page.goto(f'{base}/settings/administration')
-    expect(page.get_by_text('Application version: 0.12.2',exact=True)).to_be_visible()
+    expect(page.get_by_text('Application version: 0.13.0',exact=True)).to_be_visible()
     expect(page.get_by_text('Database schema: 5',exact=True)).to_be_visible()
     page.goto(f'{base}/settings')
     for theme in ('auto','light','dark'):
         page.select_option('#theme',theme)
         for width in (320,390,1280):
             page.set_viewport_size({'width':width,'height':844})
-            expect(page.locator('footer')).to_contain_text('Workout Tracker v0.12.2 · Database v5')
+            expect(page.locator('footer')).to_contain_text('Workout Tracker v0.13.0 · Database v5')
             assert page.locator('footer').evaluate('element => getComputedStyle(element).position') not in ('fixed','sticky')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.goto(f'{base}/people/{b}/routines/{copy}')

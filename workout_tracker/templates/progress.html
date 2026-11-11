@@ -21,6 +21,7 @@
 </details></form>
 {% for chart in series %}{% set chart_index=loop.index %}{% if chart.combined and chart.kind=='weight' %}<section class="combined-progress" data-exercise-id="{{ chart.exercise_id }}"><h2>{{ chart.name }} — Weight + Duration{% if chart.meaning %} · {{ chart.meaning }}{% endif %}</h2>{% endif %}<section class="progress-series" data-kind="{{ chart.kind }}">
 <h3>{{ chart.name }} — {{ 'Weight (lb)' if chart.kind=='weight' else 'Time (minutes:seconds)' }}{% if chart.meaning %} · {{ chart.meaning }}{% endif %}</h3>
+{% if chart.weight_basis is defined and chart.weight_basis!='not_configured' %}<p>Weight Basis: {{ basis_label(chart.weight_basis) }}</p>{% endif %}
 {% if chart.highest %}<p>{{ 'Highest logged weight' if chart.kind=='weight' else 'Longest logged duration' }} in this date range: <strong>{{ chart.highest.label }}</strong> ({{ chart.highest.date }})</p>
 <svg class="progress-chart" viewBox="0 0 720 290" role="group" aria-labelledby="chart-title-{{ loop.index }}"><title id="chart-title-{{ loop.index }}">{{ chart.name }}: {{ 'pounds' if chart.kind=='weight' else 'duration in seconds, labeled as minutes and seconds' }} by workout date. Skipped entries are not plotted.</title>
 <line x1="130" y1="40" x2="130" y2="220" class="chart-axis"/><line x1="130" y1="220" x2="660" y2="220" class="chart-axis"/>

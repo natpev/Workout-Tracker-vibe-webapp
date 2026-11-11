@@ -160,11 +160,12 @@ def start(db, person_id, routine_id, zone):
                "started_at,updated_at,entry_count) VALUES (?,?,?,?,?,?,?,?,?)",
                (identity, person_id, routine_id, routine['name'], zone, stamp.astimezone(ZoneInfo(zone)).date().isoformat(),
                 stamp.isoformat(), stamp.isoformat(), len(rows)))
+    modern=db.execute('PRAGMA user_version').fetchone()[0]>=9
     for position, row in enumerate(rows):
-        db.execute("INSERT INTO workout_entries(id,session_id,person_id,exercise_id,name,position,measurement_type,"
-                   "target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                   (uuid4().hex, identity, person_id, row['exercise_id'], row['name'], position, row['measurement_type'],
-                    row['target_sets'], row['target_reps'], row['target_duration_seconds'], row['unit'], row['weight_meaning'], row['notes']))
+        columns="id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes"
+        values=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'])
+        if modern:columns+=",weight_basis";values+= (row['weight_basis'],)
+        db.execute(f"INSERT INTO workout_entries({columns}) VALUES ({','.join('?' for _ in values)})",values)
     return identity, True
 
 

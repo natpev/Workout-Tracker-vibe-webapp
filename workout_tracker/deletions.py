@@ -36,6 +36,7 @@ def fingerprint(db):
     """
     names=('people','exercises','routines','routine_exercises','workout_sessions','workout_entries',
            'historical_forms','historical_workouts','historical_entries','workout_registry','workout_corrections')
+    if db.execute('PRAGMA user_version').fetchone()[0]>=9:names+=('basis_transitions','basis_assignments')
     digest=hashlib.sha256()
     for table in names:
         digest.update(repr([tuple(r) for r in db.execute(f'SELECT * FROM {table} ORDER BY 1')]).encode())
@@ -87,7 +88,7 @@ def delete_routine(db,person_id,identity,values):
     db.execute('DELETE FROM routines WHERE id=? AND person_id=?',(identity,person_id))
     if db.execute('PRAGMA foreign_key_check').fetchall(): raise StorageError('Deletion foreign key validation failed.')
     from .maintenance import logical_check_connection
-    logical_check_connection(db,6)
+    logical_check_connection(db,db.execute('PRAGMA user_version').fetchone()[0])
 
 
 def delete_exercise(db,person_id,identity,values):
@@ -148,4 +149,4 @@ def delete_exercise(db,person_id,identity,values):
         # Reuse the same logical audit/snapshot invariants as backup validation,
         # on this uncommitted connection before the caller can commit.
         from .maintenance import logical_check_connection
-        logical_check_connection(db,6)
+        logical_check_connection(db,db.execute('PRAGMA user_version').fetchone()[0])

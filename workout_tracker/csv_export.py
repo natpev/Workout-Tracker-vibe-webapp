@@ -51,7 +51,7 @@ def wide_csv(db, person_id, filters, selected):
         for row in rows:
             if row['exercise_id'] not in selected:
                 continue
-            group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'])
+            group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
             repeats[group] += 1
             key = (*group, repeats[group])
             kind = row['measurement_type']
@@ -77,21 +77,24 @@ def wide_csv(db, person_id, filters, selected):
             for row in rows:
                 if row['exercise_id'] not in absent:
                     continue
-                group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'])
+                group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
                 repeats[group] += 1
                 keys.add((*group, repeats[group]))
     # Use the existing history names, never current library defaults. Full IDs
     # disambiguate matching names without merging or repairing any definitions.
     duplicates = Counter(names[identity].casefold() for identity in selected)
     rank = {identity: index for index, identity in enumerate(selected)}
-    ordered = sorted(keys, key=lambda key: (rank[key[0]], key[1], key[2] or '', key[3] or '', key[4]))
+    ordered = sorted(keys, key=lambda key: (rank[key[0]], key[1], key[2] or '', key[3] or '', key[4],key[5]))
     header = ['Date', 'Time', 'Routine', 'Workout ID']
-    for identity, kind, unit, meaning, slot in ordered:
+    for identity, kind, unit, meaning, basis, slot in ordered:
         label = names[identity]
         if duplicates[label.casefold()] > 1:
             label += ' [' + identity + ']'
         if meaning:
             label += ' (' + meaning + ')'
+        if basis!='not_configured':
+            from .basis import label as basis_label
+            label += ' ('+basis_label(basis)+')'
         if slot > 1:
             label += f' [occurrence {slot}]'
         labels = (('Weight (lb)', 'Duration', 'Sets × Target Duration') if kind == 'weight_duration'

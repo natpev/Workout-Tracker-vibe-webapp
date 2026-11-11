@@ -11,6 +11,7 @@
 <section class="exercise-card" role="group" aria-labelledby="exercise-name">
 <h2 id="exercise-name">{{ current.name }}</h2>
 <p class="target">{% if current.measurement_type=='weight' %}{{ current.target_sets }} sets × {{ current.target_reps }} reps{% if current.weight_meaning %} · {{ current.weight_meaning }}{% endif %}{% else %}{% if current.measurement_type=='weight_duration' %}Weight + Duration · {% endif %}{{ current.target_sets }} sets × {{ current.target_duration_seconds // 60 }}:{{ '%02d'|format(current.target_duration_seconds % 60) }} per set{% if current.weight_meaning %} · {{ current.weight_meaning }}{% endif %}{% endif %}</p>
+{% if current.weight_basis is defined and current.measurement_type!='time' %}<p class="input-hint">Weight Basis: {{ basis_label(current.weight_basis) }} · Record the value you enter; no automatic doubling or halving.</p>{% endif %}
 <div class="previous-line"><span>Previous session: <strong>{{ display(previous) }}</strong></span>{% if previous and previous.increase_next_time==1 %}<span class="increase-indicator" aria-label="Previous session requested an increase">Increase ↑</span>{% endif %}</div>
 {% if previous and previous.actual_weight_tenths_lb is none and previous.actual_duration_seconds is none %}<p class="last-performed">Last performed: <strong>{{ display(last_performed) }}</strong></p>{% endif %}
 <form id="workout-form" method="post" action="{{ url_for('workout.save',person_id=person.id,session_id=workout.id) }}" data-autosave="{{ url_for('workout.autosave',person_id=person.id,session_id=workout.id) }}">

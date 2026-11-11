@@ -4,8 +4,8 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Patch 0.12.2 passed 535 tests (425 backend/script, 93 Chromium, 17 Docker; zero failed/skipped), recorded in WORKOUT_HISTORY_UI_REVIEW.md. Prior patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
-**Current scope:** Patch 0.12.2 / unchanged schema 8. Section 29 improves compact workout typography, preserves focused weight text through autosave and simplifies History times/filters. See WORKOUT_HISTORY_UI_REVIEW.md. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Phase 13 Update 1 / application 0.13.0 / schema 9 passed all 590 tests (471 backend/script, 100 Chromium, 19 Docker; zero failed/skipped), recorded in PHASE_13_REVIEW.md. Update 2 and Total Weight Lifted remain excluded. Previous release: Patch 0.12.2 passed 535 tests (425 backend/script, 93 Chromium, 17 Docker; zero failed/skipped), recorded in WORKOUT_HISTORY_UI_REVIEW.md. Prior patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 13 Update 1 is authorized below.
+**Current scope:** Phase 13 Update 1 / application 0.13.0 / schema 9. Section 30 adds structured Weight Basis, two atomic save scopes, personal append-only classification/conversion and explicit candidate migration. Keep Weight Meaning and Not Configured; do not implement Update 2 or totals. Previous patch: 0.12.2 / schema 8. Section 29 improves compact workout typography, preserves focused weight text through autosave and simplifies History times/filters. See WORKOUT_HISTORY_UI_REVIEW.md. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -980,3 +980,52 @@ Release 0.12.2 keeps schema 8, existing updater and backup protections. Mandator
 README/release-note review, all backend/Chromium/mobile/Docker tests and authorized
 direct merge/push/cleanup apply. No PR, deployment, real data or unrelated identity
 investigation. See WORKOUT_HISTORY_UI_REVIEW.md.
+
+
+## 30. Phase 13 — Weight Basis transition, Update 1 only
+
+Application 0.13.0 targets schema 9. Add structured not_configured (temporary),
+total (×1), per_side (×2) for Weight and combined configurations. Time-only needs
+no selection. Keep all Weight Meaning text and controls; infer nothing from names
+or old strings. Initial migration assigns NC without changing original cells.
+
+Defaults Only saves shared name/configuration/basis for new additions. Update My
+Routines previews every selected-person routine/item replacement and historical
+action, requires explicit confirmation, then commits defaults, personal settings
+and appended history revisions atomically. Other people's existing settings and
+results stay intact. Copy every configuration field, not just sets/basis.
+
+Personal applied baseline is independent of shared defaults. Original snapshot
+basis and appended assignment metadata handle independent new records correctly.
+First classification of NC records changes no weight. Total→per_side divides
+exact integer tenths by two; reverse multiplies by two. Never round/truncate a
+conversion. Odd division or I64 overflow refuses all changes, identifies exercise/
+workout and retains inputs. Zero and NULL remain distinct. Repeated/retried saves
+do not reconvert. Preserve duration, dates, original prescriptions and identities.
+
+Conversions append ordinary correction revisions plus traceable immutable basis
+transition/entry audits. Numerical History, charts, corrections, previous results,
+CSV and summaries share the existing effective layer. Later corrections use the
+converted values without undoing/repeating old events. Keep incompatible bases
+separate. Active matching drafts block personal bulk application; frozen pending
+reviews with an incompatible basis must be prepared again with raw inputs retained.
+Do not silently rewrite any active/prepared snapshot.
+
+Schema 9 requires copied-candidate migration with original byte/cell/NULL/audit
+preservation, exact DDL, integrity/FK/row/logical validation and atomic activation/
+rollback safeguards. No startup migration. Same-schema backups/restores preserve
+all new records; old versions/archives remain for recovery. Browser/v4 detect
+target 9 and require explicit migration consent; no new updater script.
+
+Library setup counters distinguish shared defaults, selected-person routines and
+history. No automatic finalization. Update 2 (remove old text/NC/temporary tool)
+and Estimated Total Weight Lifted remain unimplemented. The data supports future
+weight×sets×reps×basis multiplier, combined weight×sets×multiplier, and zero
+contribution for time/skips without changing NULL. No totals/lifetime/ton displays.
+
+Run all retained/new backend, migration/fault, precision, concurrency, ownership,
+append-only audit, browser/mobile/themes, Docker, backup/restore and updater tests.
+Keep permanent README/release-note requirements. Direct main merge/push/verify/
+branch cleanup is authorized after all blocking checks pass, without a PR, force
+push, deployment, production data or unrelated duplicate/orphan investigation.
+See PHASE_13_REVIEW.md for evidence and exact installed-server upgrade steps.

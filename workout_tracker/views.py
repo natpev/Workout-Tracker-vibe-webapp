@@ -51,7 +51,8 @@ def protect_forms():
 @bp.app_context_processor
 def form_helpers():
     """Expose token generation and routine conflict checks to Jinja forms."""
-    return {"csrf_token": csrf_token,"labels_for_exercises":catalog.exercise_labels,"labels_for_choices":lambda choices:catalog.exercise_labels([dict(id=identity,name=name) for identity,name in choices.items()])}
+    from .basis import label as basis_label
+    return {"basis_label":basis_label,"csrf_token": csrf_token,"labels_for_exercises":catalog.exercise_labels,"labels_for_choices":lambda choices:catalog.exercise_labels([dict(id=identity,name=name) for identity,name in choices.items()])}
 
 
 def connection(write=False):
@@ -148,11 +149,13 @@ def exercises(person_id):
                     confirmation()
                 catalog.update_definition(db, person_id, request.form.get("exercise_id"),
                                           request.form.get("name"), request.form.get("action"))
+        from .basis import status as basis_status
+        classification=basis_status(db,person_id)
         rows = (db.execute('SELECT * FROM exercises ORDER BY archived,name,id').fetchall()
                 if db.execute('PRAGMA user_version').fetchone()[0]>=6 else catalog.definitions(db, person_id))
     if request.method == "POST":
         return redirect(url_for("manage.exercises", person_id=person_id), code=303)
-    return render_template("exercises.html", person=selected, exercises=rows)
+    return render_template("exercises.html", person=selected, exercises=rows,classification=classification)
 
 
 @bp.route("/people/<person_id>/routines/<routine_id>", methods=["GET", "POST"])
@@ -230,7 +233,12 @@ def edit_entry(person_id, routine_id, entry_id):
 
 @bp.route('/people/<person_id>/exercises/<exercise_id>/defaults',methods=['GET','POST'])
 def edit_defaults(person_id,exercise_id):
-    """Edit a global preset in one transaction, never existing routine configurations."""
+    """Legacy defaults-only editing; schema 9 explicitly adds the confirmed scope."""
+    from . import basis
+    with connection() as db:modern=basis.enabled(db)
+    if modern:
+        from .basis_views import editor
+        return editor(person_id,exercise_id)
     error=None;item=None
     try:
         with connection(write=request.method=='POST') as db:

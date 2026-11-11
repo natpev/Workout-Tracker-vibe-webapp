@@ -10,6 +10,16 @@ import re
 from uuid import uuid4
 
 
+def basis_configuration(connection, values, kind):
+    """Validate structured metadata only on explicit schema 9; old schemas remain readable."""
+    from . import basis
+    value=basis.parse(values,kind)
+    if value!='not_configured' and not basis.enabled(connection):
+        raise ValidationError('Weight Basis requires explicit schema-9 migration.')
+    return value
+
+
+
 class ValidationError(ValueError):
     """A user-correctable form error; transactions are rolled back by the caller."""
 
@@ -121,11 +131,14 @@ def create_definition(connection, person_id, name, values=None):
     configuration=(configure(values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
                    if connection.execute('PRAGMA user_version').fetchone()[0]>=7 else None)
     if configuration is not None:require_configuration_schema(connection,configuration)
+    selected=basis_configuration(connection,values or {},configuration[0]) if configuration is not None else 'not_configured'
     identity = uuid4().hex
     connection.execute("INSERT INTO exercises(id,person_id,name) VALUES (?,?,?)",
                        (identity, person_id, unique_name(connection, person_id, name)))
     if configuration is not None:
-        connection.execute('INSERT INTO exercise_defaults VALUES (?,?,?,?,?,?,?,?)',(identity,*configuration))
+        if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+            connection.execute('INSERT INTO exercise_defaults(exercise_id,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,weight_basis) VALUES (?,?,?,?,?,?,?,?,?)',(identity,*configuration,selected))
+        else:connection.execute('INSERT INTO exercise_defaults VALUES (?,?,?,?,?,?,?,?)',(identity,*configuration))
     return identity
 
 
@@ -141,10 +154,15 @@ def exercise_defaults(connection,person_id,identity):
 
 def update_defaults(connection,person_id,identity,values):
     """Validate and change only global defaults; existing routines stay independent."""
-    exercise_defaults(connection,person_id,identity)
+    current=exercise_defaults(connection,person_id,identity)
+    if 'weight_basis' in current.keys() and 'weight_basis' not in values:
+        values=dict(values,weight_basis=current['weight_basis'])
     configuration=configure(values)
     require_configuration_schema(connection,configuration)
-    connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE exercise_id=?',(*configuration,identity))
+    selected=basis_configuration(connection,values,configuration[0])
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+        connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE exercise_id=?',(*configuration,selected,identity))
+    else:connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE exercise_id=?',(*configuration,identity))
 
 
 def default_values(row):
@@ -226,6 +244,7 @@ def add_entry(connection, person_id, routine_id, values):
         values=default_values(exercise_defaults(connection,person_id,exercise_id))
     configuration = configure(values)
     require_configuration_schema(connection,configuration)
+    basis_configuration(connection,values,configuration[0])
     if exercise_id:
         definition(connection, person_id, exercise_id)
     else:
@@ -239,6 +258,9 @@ def add_entry(connection, person_id, routine_id, values):
         "target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (identity, person_id, routine_id, exercise_id, position, *configuration),
     )
+    selected=basis_configuration(connection,values,configuration[0])
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+        connection.execute('UPDATE routine_exercises SET weight_basis=? WHERE id=?',(selected,identity))
     return identity
 
 
@@ -256,9 +278,15 @@ def entry(connection, person_id, routine_id, entry_id):
 
 def update_entry(connection, person_id, routine_id, entry_id, values):
     """Edit only routine configuration; permanent exercise identity stays unchanged."""
-    entry(connection, person_id, routine_id, entry_id)
+    current=entry(connection, person_id, routine_id, entry_id)
+    if 'weight_basis' in current.keys() and 'weight_basis' not in values:
+        values=dict(values,weight_basis=current['weight_basis'])
     configuration = configure(values)
     require_configuration_schema(connection,configuration)
+    selected=basis_configuration(connection,values,configuration[0])
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+        connection.execute("UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE id=? AND person_id=? AND routine_id=?",(*configuration,selected,entry_id,person_id,routine_id))
+        return
     connection.execute(
         "UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,"
         "target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE id=? AND person_id=? AND routine_id=?",
@@ -320,6 +348,7 @@ def copy_routine(connection, source_person, source_id, destination_person, name)
             "target_sets": row["target_sets"], "target_reps": row["target_reps"],
             "minutes": duration // 60, "seconds": duration % 60,
             "weight_meaning": row["weight_meaning"], "notes": row["notes"],
+            "weight_basis": row["weight_basis"] if "weight_basis" in row.keys() else "not_configured",
         })
     return new_routine
 

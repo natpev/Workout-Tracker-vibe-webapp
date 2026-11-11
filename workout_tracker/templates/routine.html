@@ -16,6 +16,7 @@
 {% for row in entries %}<section>
 <h4><a href="{{ url_for('manage.edit_entry', person_id=person.id, routine_id=routine.id, entry_id=row.id) }}">{{ row.name }}</a></h4>
 <p>{% if row.measurement_type == 'weight' %}Weight · {{ row.target_sets }} sets × {{ row.target_reps }} reps · pounds{% else %}{{ 'Weight + Duration' if row.measurement_type=='weight_duration' else 'Time' }} · {{ row.target_sets }} sets × {{ row.target_duration_seconds // 60 }} min {{ row.target_duration_seconds % 60 }} sec{% if row.weight_meaning %} · {{ row.weight_meaning }}{% endif %}{% endif %}</p>
+{% if row.weight_basis is defined and row.measurement_type!='time' %}<p class="input-hint">Weight Basis: {{ basis_label(row.weight_basis) }}</p>{% endif %}
 {% if row.notes %}<p>{{ row.notes }}</p>{% endif %}
 <form method="post" class="actions" action="{{ url_for('manage.edit_entry', person_id=person.id, routine_id=routine.id, entry_id=row.id) }}">{{ security(revision) }}<input type="hidden" name="action" value="move"><button name="direction" value="up" aria-label="Move {{ row.name }} up">↑ Up</button><button name="direction" value="down" aria-label="Move {{ row.name }} down">↓ Down</button></form>
 </section>{% else %}<p>This routine has no exercises yet.</p>{% endfor %}

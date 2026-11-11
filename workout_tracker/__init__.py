@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.12.2"
+APP_VERSION = "0.13.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 8
+TARGET_SCHEMA_VERSION = 9
 
 
 def create_app(test_config=None):

@@ -1,0 +1,9 @@
+{
+  "version": "0.13.0",
+  "notes": [
+    "Added Total Weight and Per Hand options to exercise settings.",
+    "Added a button to update all your routines from Exercise Library defaults.",
+    "Added a temporary tool to convert previous workout weights when switching weight conventions.",
+    "Added progress indicators for exercises that still need their weight settings configured."
+  ]
+}

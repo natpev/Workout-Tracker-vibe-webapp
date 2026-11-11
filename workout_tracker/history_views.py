@@ -142,7 +142,8 @@ def review_historical(person_id,form_id):
                 existing=db.execute('SELECT id FROM historical_workouts WHERE form_id=? AND person_id=?',(form_id,person_id)).fetchone()
                 errors={} if existing else forms.measurement_errors(rows,values)
                 if errors:raise forms.FormErrors(errors)
-                identity=h.complete_historical(db,person_id,form_id,values)
+                try:identity=h.complete_historical(db,person_id,form_id,values)
+                except c.ValidationError as error:raise forms.FormErrors({'form':str(error)}) from error
         if request.method=='POST':return redirect(url_for('history.detail',person_id=person_id,workout_id=identity,**navigation_context()),code=303)
     except forms.FormErrors as error:errors=error.errors;status=400
     if values is None:values=forms.values_for_rows(parent,rows,False,clock)

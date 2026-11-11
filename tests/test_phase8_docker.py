@@ -23,7 +23,7 @@ from workout_tracker import APP_VERSION, TARGET_SCHEMA_VERSION
 pytestmark=pytest.mark.skipif(os.environ.get('WORKOUT_CONTAINER_TESTS')!='1',reason='Opt-in isolated Docker rehearsal')
 
 
-@pytest.mark.parametrize('source_schema,fault',[(6,None),(7,None),(8,'code-only'),(6,'shutdown'),(7,'shutdown'),(6,'startup'),(7,'startup')])
+@pytest.mark.parametrize('source_schema,fault',[(6,None),(7,None),(8,'code-only'),(9,'code-only'),(6,'shutdown'),(7,'shutdown'),(6,'startup'),(7,'startup')])
 def test_actual_v4_host_service_and_docker_migration(tmp_path,source_schema,fault):
     """CLI updates actual containers while independent LAN-style HTTP/Unix survive."""
     short=tempfile.TemporaryDirectory(prefix='p8-',dir='/tmp')

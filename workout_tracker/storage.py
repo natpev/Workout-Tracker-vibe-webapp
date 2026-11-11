@@ -21,6 +21,7 @@ from .library_schema import LIBRARY_OBJECTS
 from .deletion_schema import DELETION_OBJECTS
 from .defaults_schema import DEFAULT_OBJECTS
 from .combined_schema import COMBINED_OBJECTS
+from .basis_schema import BASIS_OBJECTS
 from .workout_schema import WORKOUT_OBJECTS
 from .history_schema import HISTORY_OBJECTS
 
@@ -114,7 +115,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
         filename = manifest["database"]
         if not isinstance(filename, str) or not (
             filename == f"schema-1-{storage_id}.sqlite3" or
-            re.fullmatch(rf"schema-[2345678]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+            re.fullmatch(rf"schema-[23456789]-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = database_override if database_override is not None else root / "data" / filename
@@ -139,7 +140,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (1, 2, 3, 4, 5, 6, 7, 8):
+            if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -162,6 +163,8 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                 expected = TABLES | DEFAULT_OBJECTS
             if version == 8:
                 expected = TABLES | COMBINED_OBJECTS
+            if version == 9:
+                expected = TABLES | BASIS_OBJECTS
             if not filename.startswith(f"schema-{version}-"):
                 raise StorageError("The selected filename and schema version disagree.")
             if objects != expected:
@@ -175,8 +178,14 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                     raise StorageError('Every global exercise must have exactly one defaults row.')
             if version >= 8:
                 migrations.append((8, 'combined_weight_duration'))
+            if version >= 9:
+                migrations.append((9, 'weight_basis_transition'))
             if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
+            if version>=9:
+                connection.row_factory=sqlite3.Row
+                from .basis import validate
+                validate(connection)
         finally:
             connection.close()
     except (OSError, ValueError, sqlite3.Error) as error:

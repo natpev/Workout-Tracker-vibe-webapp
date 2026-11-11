@@ -6,7 +6,7 @@
 {% if revision %}<input type="hidden" name="revision" value="{{ revision }}">{% endif %}
 {% endmacro %}
 {% macro configuration(item=none,scope='routine') %}
-<p class="input-hint settings-scope">{% if scope=='library' %}These are the default settings for this exercise. Changes will apply to newly added routine exercises. Existing routines will not change.{% else %}These settings apply only to this routine. Changes will not affect Exercise Library defaults or other routines.{% endif %}</p>
+<p class="input-hint settings-scope">{% if scope=='library' and active_schema_version is number and active_schema_version>=9 %}Save Defaults Only applies to newly added routine exercises. Save Defaults &amp; Update My Routines also replaces your existing configurations after explicit confirmation.{% elif scope=='library' %}These are the default settings for this exercise. Changes will apply to newly added routine exercises. Existing routines will not change.{% else %}These settings apply only to this routine. Changes will not affect Exercise Library defaults or other routines.{% endif %}</p>
 <fieldset class="mode" aria-label="Tracking mode">
   <legend>Tracking mode</legend>
   <label><input type="radio" name="measurement_type" value="weight" {% if not item or item.measurement_type == 'weight' %}checked{% endif %}> <span>Weight</span></label>
@@ -19,6 +19,7 @@
 </div>
 <div data-fields="weight weight_duration">
   <label>Weight unit<select name="unit"><option value="lb">Pounds (lb)</option></select></label>
+  {% if active_schema_version is number and active_schema_version>=9 %}<fieldset class="mode weight-basis"><legend>Weight Basis</legend>{% for value,label in [('not_configured','Not Configured'),('total','Total Weight'),('per_side','Per Hand / Side')] %}<label><input type="radio" name="weight_basis" value="{{ value }}" {% if (item.weight_basis if item and item.weight_basis is defined else 'not_configured')==value %}checked{% endif %}>{{ label }}</label>{% endfor %}</fieldset><p class="input-hint">Total counts the entered weight once (×1); Per Hand / Side counts both sides (×2). Choose your convention. Not Configured is temporary. No weight is changed merely by editing this setting.</p>{% endif %}
   <label>Weight meaning (optional) <input name="weight_meaning" maxlength="200" placeholder="For example: per dumbbell" value="{{ item.weight_meaning if item else '' }}"></label>
 </div>
 <div data-fields="time weight_duration">
