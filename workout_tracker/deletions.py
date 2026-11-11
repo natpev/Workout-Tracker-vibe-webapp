@@ -37,6 +37,7 @@ def fingerprint(db):
     names=('people','exercises','routines','routine_exercises','workout_sessions','workout_entries',
            'historical_forms','historical_workouts','historical_entries','workout_registry','workout_corrections')
     if db.execute('PRAGMA user_version').fetchone()[0]>=9:names+=('basis_transitions','basis_assignments')
+    if db.execute('PRAGMA user_version').fetchone()[0]>=11:names+=('exercise_icons','exercise_weight_basis')
     digest=hashlib.sha256()
     for table in names:
         digest.update(repr([tuple(r) for r in db.execute(f'SELECT * FROM {table} ORDER BY 1')]).encode())

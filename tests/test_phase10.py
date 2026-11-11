@@ -117,7 +117,8 @@ def test_progress_default_local_timezone_custom_errors_and_isolation(historical_
         response=client.get(f'/people/{a}/progress')
         assert b'2024-01-01 through 2024-03-31' in response.data
     assert b'class="progress-series"' in client.get(f'/people/{a}/progress?range=all').data
-    assert b'class="progress-series"' not in client.get(f'/people/{b}/progress?range=all').data
+    empty=client.get(f'/people/{b}/progress?range=all').data
+    assert b'No performed measurements' in empty and b'class="chart-point"' not in empty and b'40.0 lb' not in empty
     with database_session(root) as db:exercise=db.execute('SELECT exercise_id FROM historical_entries WHERE measurement_type=?',('weight',)).fetchone()[0]
     response=client.get(f'/people/{a}/progress?range=custom&from=2021-02-01&to=2020-01-01&exercise={exercise}&previous_range=all')
     assert response.status_code==400 and b'2021-02-01' in response.data and exercise.encode() in response.data

@@ -106,8 +106,10 @@ def progress(person_id):
                 except c.ValidationError as error:export_error=str(error)
             else:export_error='Correct the date range before exporting.'
             status=400
-        series=h.chart_series(db,person_id,chart_filters)
-        _,exercises=h.choices(db,person_id)
+        from .exercise_listing import ordering,chart_order
+        completed=h.all_completed(db,person_id)
+        _,exercises,_=ordering(db,person_id,completed)
+        series=chart_order(db,person_id,chart_filters,completed,exercises)
     return render_template('progress.html',person=person,series=series,exercises=exercises,filters=filters,
                            selected_export=selected_export,export_error=export_error,
                            range_token=token,range_description=description,range_options=ranges.RANGES,range_errors=errors,
@@ -142,6 +144,7 @@ def review_historical(person_id,form_id):
     try:
         with connection(write=request.method=='POST') as db:
             person=owner(db,person_id);parent,rows=h.prepared(db,person_id,form_id)
+            parent['schema_version']=db.execute('PRAGMA user_version').fetchone()[0]
             if request.method=='POST':
                 existing=db.execute('SELECT id FROM historical_workouts WHERE form_id=? AND person_id=?',(form_id,person_id)).fetchone()
                 errors={} if existing else forms.measurement_errors(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10)
@@ -150,7 +153,7 @@ def review_historical(person_id,form_id):
                 except c.ValidationError as error:raise forms.FormErrors({'form':str(error)}) from error
         if request.method=='POST':return redirect(url_for('history.detail',person_id=person_id,workout_id=identity,**navigation_context()),code=303)
     except forms.FormErrors as error:errors=error.errors;status=400
-    if values is None:values=forms.values_for_rows(parent,rows,False,clock)
+    if values is None:values=forms.values_for_rows(parent,rows,False,clock,blank_reps='schema_version' in parent and parent['schema_version']>=11)
     return render_template('history_form.html',person=person,workout=parent,entries=rows,correction=False,values=values,errors=errors),status
 
 

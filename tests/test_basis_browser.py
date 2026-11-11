@@ -137,6 +137,7 @@ def test_manual_history_actual_reps_corrections_and_legacy_display(basis_page):
 def test_new_exercise_native_required_basis_and_permanent_saved_value(basis_page):
     page,base,x=basis_page;expect=pw.expect
     page.goto(base+f"/people/{x['a']}/exercises")
+    page.locator('.add-exercise summary').click()
     form=page.locator('form[data-configuration]')
     form.get_by_label('Exercise name',exact=True).fill('Explicit new basis')
     assert form.locator('[name=weight_basis]:checked').count()==0

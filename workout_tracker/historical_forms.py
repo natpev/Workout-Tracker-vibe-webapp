@@ -50,7 +50,7 @@ def measurement_errors(rows,values,modern=False):
             performed|=weight is not None or duration is not None
             if modern and row['measurement_type']=='weight' and weight is not None:
                 from .repetitions import inputs
-                try:inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None)
+                try:inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None and not row.get('reps_required',0))
                 except c.ValidationError as error:
                     for set_index in range(row['target_sets']):errors[f'reps_{index}_{set_index}']=str(error)
         except c.ValidationError as error:
@@ -66,7 +66,7 @@ def measurement_errors(rows,values,modern=False):
     return errors
 
 
-def values_for_rows(parent,rows,correction,display_clock,fold=''):
+def values_for_rows(parent,rows,correction,display_clock,fold='',*,blank_reps=False):
     """Build GET-only initial values; POST redisplay always uses its raw dictionary."""
     values=dict(workout_date=parent['workout_date'],workout_time=display_clock(parent.get('workout_time')),fold=fold,
                 correction_revision=str(parent.get('correction_revision',0)))
@@ -81,5 +81,5 @@ def values_for_rows(parent,rows,correction,display_clock,fold=''):
         if row['measurement_type']=='weight':
             actual=row.get('actual_reps')
             for set_index in range(row['target_sets']):
-                values[f'reps_{index}_{set_index}']=str(actual[set_index]) if actual is not None else '' if correction else str(row['target_reps'])
+                values[f'reps_{index}_{set_index}']=str(actual[set_index]) if actual is not None else '' if correction or blank_reps else str(row['target_reps'])
     return values

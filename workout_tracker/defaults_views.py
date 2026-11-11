@@ -21,17 +21,17 @@ def fingerprint(db, person, exercise):
 def settings(db, person, exercise, raw):
     """Canonicalize user settings through permanent lock validation before preview."""
     current=c.exercise_defaults(db,person,exercise)
-    values=c.locked_configuration(db,exercise,current,raw)
+    values=c.locked_configuration(db,exercise,current,raw,confirmed_type_change=True)
     fields=('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')
     result=dict(zip(fields,c.configure(values)))
     result.update(name=c.text(raw.get('name'),'Exercise name'),weight_basis=values.get('weight_basis',current['weight_basis']))
     return c.default_values(result)
 
 
-def save(db, person, exercise, values, update_routines=False):
+def save(db, person, exercise, values, update_routines=False, *, confirmed_type_change=False):
     """One caller-owned transaction saves globals and compatible personal fields."""
     values=settings(db,person,exercise,values)
-    c.update_defaults(db,person,exercise,values)
+    c.update_defaults(db,person,exercise,values,confirmed_type_change=confirmed_type_change)
     if c.definition(db,person,exercise)['name']!=values['name']:
         c.update_definition(db,person,exercise,values['name'],'rename')
     if update_routines:
@@ -39,15 +39,18 @@ def save(db, person, exercise, values, update_routines=False):
             # Includes archived routines without altering IDs/order or snapshots.
             current=db.execute('SELECT * FROM routine_exercises WHERE id=?',(row['id'],)).fetchone()
             configuration=c.configure(dict(values,weight_meaning=current['weight_meaning']))
-            c.locked_configuration(db,exercise,current,values)
-            db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE id=?',(*configuration,row['id']))
+            c.locked_configuration(db,exercise,current,values,confirmed_type_change=confirmed_type_change)
+            if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+                db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE id=?',(*configuration,values['weight_basis'],row['id']))
+            else:
+                db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE id=?',(*configuration,row['id']))
 
 
 def editor(person_id, exercise_id):
     """Retain raw settings on errors; expired/stale signed previews cannot write."""
     from .views import connection
     raw=request.form.to_dict(); signed=None; error=None; status=200; preview_context=None
-    serializer=URLSafeTimedSerializer(current_app.secret_key,salt='permanent-defaults-preview-v2')
+    serializer=URLSafeTimedSerializer(current_app.secret_key,salt='permanent-defaults-preview-v3')
     if request.method=='POST' and raw.get('action')=='confirm':
         try:
             signed=serializer.loads(raw.get('preview',''),max_age=1800)
@@ -61,22 +64,25 @@ def editor(person_id, exercise_id):
             person=c.person(db,person_id);definition=c.definition(db,person_id,exercise_id)
             item=c.exercise_defaults(db,person_id,exercise_id)
             revision=fingerprint(db,person_id,exercise_id)
+            from .exercise_icons import pairs
+            artwork=pairs(db,[exercise_id])[exercise_id]
             if request.method=='POST':
                 if signed:
                     if request.form.get('confirm')!='yes':
                         raise c.ValidationError('Confirm overwriting your routine settings.')
                     if signed['revision']!=revision:
                         raise w.RevisionConflict('Settings changed after preview. Review the current settings again.')
-                    save(db,person_id,exercise_id,raw,True)
+                    save(db,person_id,exercise_id,raw,signed.get('scope')=='apply',confirmed_type_change=True)
                 else:
                     if raw.get('revision')!=revision:
                         raise w.RevisionConflict('Exercise name or settings changed; reload before saving.')
                     raw.setdefault('name',definition['name'])
                     values=settings(db,person_id,exercise_id,raw)
-                    if raw.get('action')=='apply':
+                    type_change=values['measurement_type']!=item['measurement_type'] and db.execute('PRAGMA user_version').fetchone()[0]>=11
+                    if raw.get('action')=='apply' or (raw.get('action','defaults')=='defaults' and type_change):
                         counts=db.execute('SELECT count(DISTINCT routine_id),count(*) FROM routine_exercises WHERE person_id=? AND exercise_id=?',(person_id,exercise_id)).fetchone()
-                        token=serializer.dumps(dict(person=person_id,exercise=exercise_id,values=values,revision=revision))
-                        preview_context=dict(person=person,definition=definition,settings=values,routines=counts[0],items=counts[1],token=token)
+                        token=serializer.dumps(dict(person=person_id,exercise=exercise_id,values=values,revision=revision,scope=raw.get('action','defaults')))
+                        preview_context=dict(person=person,definition=definition,settings=values,routines=counts[0],items=counts[1],token=token,type_change=type_change,old_kind=item['measurement_type'],scope=raw.get('action','defaults'))
                     elif raw.get('action','defaults')=='defaults':
                         save(db,person_id,exercise_id,values)
                     else:
@@ -89,4 +95,4 @@ def editor(person_id, exercise_id):
         error=str(exc);status=409 if isinstance(exc,w.RevisionConflict) else 400
         # A rejected crafted basis cannot change the read-only displayed value.
         item={**dict(item),**raw,'weight_basis':item['weight_basis']}
-    return render_template('exercise_defaults.html',person=person,definition=definition,item=item,revision=revision,name=raw.get('name',definition['name']),error=error),status
+    return render_template('exercise_defaults.html',person=person,definition=definition,item=item,revision=revision,name=raw.get('name',definition['name']),error=error,artwork=artwork),status

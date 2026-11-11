@@ -5,7 +5,7 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% if revision %}<input type="hidden" name="revision" value="{{ revision }}">{% endif %}
 {% endmacro %}
-{% macro configuration(item=none,scope='routine') %}
+{% macro configuration(item=none,scope='routine',creating=false) %}
 <p class="input-hint settings-scope">{% if scope=='library' and active_schema_version is number and active_schema_version>=9 %}Save Defaults Only applies to newly added routine exercises. Save Defaults &amp; Update My Routines also replaces your existing configurations after explicit confirmation.{% elif scope=='library' %}These are the default settings for this exercise. Changes will apply to newly added routine exercises. Existing routines will not change.{% else %}These settings apply only to this routine. Changes will not affect Exercise Library defaults or other routines.{% endif %}</p>
 <fieldset class="mode" aria-label="Tracking mode">
   <legend>Tracking mode</legend>
@@ -20,15 +20,15 @@
 <div data-fields="weight weight_duration">
   <label>Weight unit<select name="unit"><option value="lb">Pounds (lb)</option></select></label>
   {% if active_schema_version is number and active_schema_version>=9 %}
-  {% if item and item.weight_basis is defined %}<p>Weight Basis: <strong>{{ basis_label(item.weight_basis) }}</strong> 🔒</p><p class="input-hint">This setting cannot be changed after creating the exercise.</p>
-  {% else %}<fieldset class="mode weight-basis"><legend>Weight Basis (required)</legend>{% for value,label in [('total','Total Weight'),('per_side','Per Hand / Side')] %}<label><input type="radio" name="weight_basis" value="{{ value }}" required>{{ label }}</label>{% endfor %}</fieldset><p class="input-hint">Total Weight counts ×1; Per Hand / Side counts ×2. Choose your convention; it becomes permanent when saved.</p>{% endif %}{% endif %}
+  {% if not creating and item and item.weight_basis is defined and not (active_schema_version>=11 and item.weight_basis=='not_configured') %}<p>Weight Basis: <strong>{{ basis_label(item.weight_basis) }}</strong> 🔒</p><p class="input-hint">This setting cannot be changed after creating the exercise.</p>
+  {% else %}<fieldset class="mode weight-basis"><legend>Weight Basis (required)</legend>{% for value,label in [('total','Total Weight'),('per_side','Per Hand / Side')] %}<label><input type="radio" name="weight_basis" value="{{ value }}" {% if item and item.weight_basis is defined and item.weight_basis==value %}checked{% endif %} required>{{ label }}</label>{% endfor %}</fieldset><p class="input-hint">Total Weight counts ×1; Per Hand / Side counts ×2. Choose your convention; it becomes permanent when saved.</p>{% endif %}{% endif %}
 
 </div>
 <div data-fields="time weight_duration">
   <p>Target duration per set</p>
   <div class="duration">
-    <label>Minutes <input name="minutes" type="number" min="0" max="5999" step="1" value="{{ item.minutes if item and item.minutes is defined else item.target_duration_seconds // 60 if item and item.target_duration_seconds is not none else 0 }}"></label>
-    <label>Seconds <input name="seconds" type="number" min="0" max="359999" step="1" value="{{ item.seconds if item and item.seconds is defined else item.target_duration_seconds % 60 if item and item.target_duration_seconds is not none else 45 }}"></label>
+    <label>Minutes <input name="minutes" type="number" min="0" max="5999" step="1" value="{{ item.minutes if item and item.minutes is defined else item.target_duration_seconds // 60 if item and item.target_duration_seconds is defined and item.target_duration_seconds is not none else 0 }}"></label>
+    <label>Seconds <input name="seconds" type="number" min="0" max="359999" step="1" value="{{ item.seconds if item and item.seconds is defined else item.target_duration_seconds % 60 if item and item.target_duration_seconds is defined and item.target_duration_seconds is not none else 45 }}"></label>
   </div>
 </div>
 <label>Exercise notes (optional) <textarea name="notes" maxlength="2000" rows="3">{{ item.notes if item else '' }}</textarea></label>

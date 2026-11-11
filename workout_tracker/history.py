@@ -126,6 +126,8 @@ def validate_state(parent, rows, values):
             raise ValueError('Correction fields mismatch')
         from .repetitions import validate as validate_reps
         actual=validate_reps(row,value.get('actual_reps'))
+        if row.get('reps_required',0) and value['actual_weight_tenths_lb'] is not None and actual is None:
+            raise ValueError('Actual repetitions are required for this completed entry')
         if value['actual_weight_tenths_lb'] is None and actual is not None:
             raise ValueError('Skipped actual repetitions must be NULL')
         weight,duration,flag=(value[key] for key in ('actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'))
@@ -201,10 +203,10 @@ def filters(values):
     return start,end,values.get('routine',''),values.get('exercise','')
 
 
-def listing(db, person_id, values):
+def listing(db, person_id, values, *, completed=None):
     """Filter effective sessions by date, original routine identity and exercise identity."""
     start,end,routine,exercise=filters(values)
-    return [(parent,rows) for parent,rows in all_completed(db,person_id)
+    return [(parent,rows) for parent,rows in (all_completed(db,person_id) if completed is None else completed)
             if (not start or parent['workout_date']>=start) and (not end or parent['workout_date']<=end)
             and (not routine or parent['routine_id']==routine)
             and (not exercise or any(row['exercise_id']==exercise for row in rows))]
@@ -220,14 +222,14 @@ def choices(db, person_id):
     return routines,exercises
 
 
-def chart_series(db, person_id, values):
+def chart_series(db, person_id, values, *, completed=None):
     """Prepare separate series per permanent ID/type/unit/meaning, including zero.
 
     NULL rows are retained as skipped table records and excluded from numerical
     points and maxima. Target sets never multiply actual performance.
     """
     groups={}
-    for parent,rows in reversed(listing(db,person_id,values)):
+    for parent,rows in reversed(listing(db,person_id,values,completed=completed)):
         for row in rows:
             if values.get('exercise') and row['exercise_id']!=values['exercise']:
                 continue
@@ -280,6 +282,8 @@ def prepare(db, person_id, routine_id, values, zone):
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),zone,w.field(values,'fold'))
     rows=[dict(row) for row in db.execute('SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id WHERE re.routine_id=? ORDER BY re.position',(routine_id,))]
     if not rows: raise c.ValidationError('Choose a routine with at least one exercise.')
+    for row in rows:
+        if row['measurement_type']=='time' and 'weight_basis' in row:row['weight_basis']='not_configured'
     identity=uuid4().hex
     db.execute('INSERT INTO historical_forms VALUES (?,?,?,?,?,?,?,?,?,?)',
                (identity,person_id,routine_id,routine['name'],zone,day,clock,stamp,w.now().isoformat(),json_text(rows)))
@@ -311,7 +315,7 @@ def entered_measurements(rows, values, modern=False):
         result=dict(id=row['id'],actual_weight_tenths_lb=weight,actual_duration_seconds=duration,increase_next_time=flag)
         if modern and row['measurement_type']=='weight' and weight is not None:
             from .repetitions import inputs
-            actual=inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None)
+            actual=inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None and not row.get('reps_required',0))
             if actual is not None:result['actual_reps']=actual
         results.append(result)
     if not any(row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None for row in results) and values.get('confirm_all_skipped')!='yes':
@@ -343,6 +347,8 @@ def complete_historical(db, person_id, form_id, values):
         if db.execute('PRAGMA user_version').fetchone()[0]>=10:
             from .repetitions import encode
             columns+=',actual_reps_json';stored+=(encode(result.get('actual_reps')),)
+        if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+            columns+=',reps_required';stored+=(int(row['measurement_type']=='weight'),)
         db.execute(f"INSERT INTO historical_entries({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
     return identity
 

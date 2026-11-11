@@ -5,13 +5,15 @@
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
 
-Phase 14 / application 0.14.0 / schema 10 is the current authorized release.
-Verification: 659 distinct passing tests (530 backend/script, 109 Chromium,
+Phase 15 / application 0.15.0 / schema 11 is the current authorized release.
+Phase 15 verification: 740 distinct passing tests (600 backend/script, 118 Chromium,
+22 Docker); see PHASE_15_REVIEW.md for full results and resolved failures.
+Verified Phase 14 baseline: 659 distinct passing tests (530 backend/script, 109 Chromium,
 20 Docker); detailed run/fix evidence is in PHASE_14_REVIEW.md.
 Earlier phase contracts below are historical where superseded by this section.
 No PR, production access, deployment or unrelated identity investigation.
 
-Permanent Phase 14 contract:
+Retained Phase 14 foundation (Phase 15 changes below take precedence):
 - New weighted IDs require explicit total/per_side selection; existing bases are
   locked in UI, services and database guards. Library defaults win classified
   current-configuration conflicts during migration, per explicit user direction.
@@ -21,7 +23,7 @@ Permanent Phase 14 contract:
 - No new historical conversions: remove transition writers, counters, old forms
   and editable Weight Meaning. Retain read-only audit validation and old migrations.
 - Schema 10 adds nullable ordered actual reps JSON per exercise occurrence. One
-  weight per exercise; reps initialized from captured targets and autosaved.
+  weight per exercise; new reps start blank and partial drafts autosave (schema 11).
   Zero valid, blank incomplete, skips NULL; duration modes have no reps fields.
 - Legacy completed reps remain unknown; estimates use original sets × target reps.
   Corrections append revisions and may introduce reps; old JSON remains valid.
@@ -31,10 +33,10 @@ Permanent Phase 14 contract:
   1 guidance, preserve originals/audits/NULLs/drafts and verify integrity/restore.
 - Mandatory README, human release notes and full backend/Chromium/Docker/updater
   checks precede authorized direct main merge/push/remote verification/branch cleanup.
-See PHASE_14_REVIEW.md and docs/SCHEMA_10.md for current implementation and evidence.
+See PHASE_14_REVIEW.md and docs/SCHEMA_10.md for the archived baseline; see PHASE_15_REVIEW.md for current implementation.
 
-**Project status:** Phase 14 / application 0.14.0 / schema 10 is implemented with
-verification recorded in PHASE_14_REVIEW.md. Phase 13 remains the archived baseline
+**Project status:** Phase 15 / application 0.15.0 / schema 11 is implemented with
+verification recorded in PHASE_15_REVIEW.md. Phase 13 remains the archived baseline
 (590 tests, 0.13.0/schema 9). Prior phase sections retain historical decisions where
 not superseded by the permanent Phase 14 contract above. Direct main merge/push
 is authorized only after complete regression verification, with no PR or deployment.
@@ -69,7 +71,7 @@ is authorized only after complete regression verification, with no PR or deploym
 3. Select one of that person's routines to start.
 4. Record the session date and start time automatically using a consistent server-local timezone; allow explicit past dates in the separate historical-entry workflow.
 5. Display **one exercise at a time**, with its exercise name, prescribed sets × reps (Weight) or sets × target duration (Time), that person's previous matching measurement, and its previous **increase next time** flag.
-6. Enter **one current measurement for the whole exercise** (weight for Weight; duration for Time, not one per set) and optionally mark **increase next time**. For Weight exercises, also record actual reps per captured set, initialized from target reps and preserved by autosave.
+6. Enter **one current measurement for the whole exercise** (weight for Weight; duration for Time, not one per set) and optionally mark **increase next time**. For Weight exercises, also record actual reps per captured set, initialized blank and preserved by autosave, including partial drafts.
 7. Navigate by **Back**, **Next**, exercise jump list, and expandable routine overview; show all exercise completion states and a whole-workout progress bar.
 8. **Finish & Save** both saves and completes the workout in one clear action. All routine exercises, including skipped ones, are captured in the completed session.
 9. If unfinished, automatically preserve a resumable draft when navigating away or losing the browser session. Save draft changes promptly on the server and show a clear save/error status so a failed save is not mistaken for a successful one.
@@ -1022,3 +1024,29 @@ classification/conversion. PHASE_13_REVIEW.md preserves its released behavior,
 upgrade instructions and test evidence. Phase 14 above supersedes temporary controls;
 current users cannot reclassify existing IDs or run automatic historical conversions.
 Released migrations and original audit payloads remain unchanged for recovery.
+
+## Phase 15 current contract (0.15.0 / schema 11)
+
+This section supersedes earlier current-interface descriptions; archived release
+reviews describe their original versions. See [schema 11](docs/SCHEMA_11.md),
+[SVG rules](docs/EXERCISE_ICONS.md) and [Phase 15 review](PHASE_15_REVIEW.md).
+
+New weight workouts initialize actual reps blank and retain partial/null draft
+sets. Performed sets must all be explicitly entered before forward navigation or
+completion. Zero remains valid; skips remain SQL NULL. Legacy completed workouts
+retain prescribed-target assumptions. Initial measurement focus and recorded-set
+indicators must preserve focused typing and autosave sequence protection.
+
+Library/Progress sort by selected-person all-time effective non-NULL progress, then
+case-insensitive name and permanent ID. Empty date ranges retain exercise choices.
+Add Exercise uses a collapsed native disclosure, reopening with raw input on errors.
+Exactly two default SVGs and independent shared custom slots render sanitized inline
+artwork with inherited personal accent. Never render raw uploaded SVG.
+
+Measurement-type corrections require explicit signed confirmation. Defaults Only
+changes the Library; Apply additionally changes only the selected person’s routines.
+Already started drafts and historical snapshots/audits remain unchanged. An assigned
+canonical basis stays immutable through every type change, including dormant Duration.
+First weighted conversion of an unassigned exercise requires an explicit choice.
+Schema 11 permits household configurations to retain different types and enforces
+canonical assigned bases. Migration remains explicit, candidate-only and lossless.

@@ -6,10 +6,10 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 This reference retains prior implementation evidence. Release-specific instructions below describe older releases. Use the current [README](../README.md) and [deployment guide](../deployment/README.md) for installation and updates.
 
-## Current Phase 14 implementation
+## Current Phase 15 implementation
 
-Application 0.14.0 targets schema 10. Read [schema and audit compatibility](SCHEMA_10.md)
-and [Phase 14 review](../PHASE_14_REVIEW.md). Earlier implementation sections are
+Application 0.15.0 targets schema 11. Read [schema and audit compatibility](SCHEMA_11.md),
+[SVG allowlist](EXERCISE_ICONS.md) and [Phase 15 review](../PHASE_15_REVIEW.md). Earlier implementation sections are
 archived descriptions. Current users cannot change basis or create conversions.
 
 ## Architecture and data flow

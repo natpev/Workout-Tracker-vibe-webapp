@@ -4,7 +4,7 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.14.0**, full-feature schema **10**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-9 installations need an explicitly confirmed separate-candidate migration to 10. Classify all weighted data in Update 1 first. See PHASE_14_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
+Application **0.15.0**, full-feature schema **11**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-10 installations need an explicitly confirmed separate-candidate migration to 11. See PHASE_15_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -550,7 +550,7 @@ repository v4 entry point. No automatic host-service or startup schema upgrade.
 
 ## Phase 14 schema 9 to 10 upgrade
 
-Use [the exact current upgrade instructions](../PHASE_14_REVIEW.md#existing-server-upgrade).
+Archived Phase 14 instructions: [schema 9 to 10](../PHASE_14_REVIEW.md#existing-server-upgrade).
 Before updating, classify every weighted Library default, routine and person's
 history in Update 1. Finish unclassified drafts before classification. Current
 routine basis conflicts use Library defaults; completed snapshots never change.
@@ -558,3 +558,11 @@ Browser/v4 reads target 10 dynamically; no new host service refresh is required
 for an already working Phase 12 host. Confirm migration, verify readiness reports
 0.14.0 / schema 10, and make a verified new backup. No startup migration, Restore
 shortcut, .env/Compose/port/timezone change or production deployment is performed.
+
+## v0.15.0 upgrade
+
+Schema 10 requires the explicit candidate migration to schema 11. Browser/host
+and emergency updaters obtain the target from release-info; no startup migration
+is performed. See [Phase 15](../PHASE_15_REVIEW.md#existing-server-upgrade).
+SVG artwork is database-backed and included in backups; there is no asset volume
+to configure. After success, create a fresh verified schema-11 backup.

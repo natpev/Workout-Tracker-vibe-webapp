@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.14.0"
+APP_VERSION = "0.15.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 10
+TARGET_SCHEMA_VERSION = 11
 
 
 def create_app(test_config=None):
@@ -50,6 +50,8 @@ def create_app(test_config=None):
     from .views import bp
     from .catalog import ValidationError, MissingRecord
     app.register_blueprint(bp)
+    from .icon_views import bp as icon_bp
+    app.register_blueprint(icon_bp)
     from .deletion_views import bp as deletion_bp
     app.register_blueprint(deletion_bp)
     from .update_views import bp as update_bp

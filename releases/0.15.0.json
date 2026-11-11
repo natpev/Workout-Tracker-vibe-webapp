@@ -1,0 +1,12 @@
+{
+  "version": "0.15.0",
+  "notes": [
+    "Exercise Library and Progress are alphabetized, with exercises lacking recorded progress listed last.",
+    "The Add Exercise form is tucked away until needed.",
+    "Actual repetitions start blank, with improved keyboard navigation and recorded-set indicators.",
+    "Added Start and End illustrations, with custom SVG uploads and personal accent highlights.",
+    "Two default illustrations show dumbbells and a plated barbell.",
+    "Correct an exercise\u2019s measurement type without deleting its history.",
+    "Permanent Weight Basis protection and historical workout records remain intact."
+  ]
+}

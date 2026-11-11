@@ -1,5 +1,5 @@
 # SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
-"""Explicit known-schema -> target-2-through-10 candidate migration called only by the CLI.
+"""Explicit known-schema -> target-2-through-11 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -71,6 +71,10 @@ def _upgrade_candidate(connection, target_version=2):
             from .final_schema import upgrade_final
             upgrade_final(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (10, 'actual_repetitions_and_permanent_basis')")
+        if current < 11 and target_version >= 11:
+            from .interface_schema import upgrade_interface
+            upgrade_interface(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (11, 'exercise_interface_and_icons')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
@@ -90,13 +94,13 @@ def _write_manifest(path, selection):
 def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schemas 1–9 may upgrade to supported targets through 10. A matching target
+    Known schemas 1–10 may upgrade to supported targets through 11. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9, 10) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -135,6 +139,8 @@ def _migrate_storage(value, target_version=2):
                     existing.append('exercise_defaults')
                 if source["schema_version"] >= 9:
                     existing += ["basis_transitions", "basis_assignments"]
+                if source["schema_version"]>=11:
+                    existing += ["exercise_icons", "exercise_weight_basis"]
                 for name in existing:
                     # New metadata columns are allowed; every original column/cell
                     # must remain exactly identical, including NULL and audit JSON.
@@ -143,7 +149,7 @@ def _migrate_storage(value, target_version=2):
                     after = target_connection.execute(f"SELECT {columns} FROM {name} ORDER BY 1").fetchall()
                     if name == "schema_migrations":
                         after = [row for row in after if row[0] <= source["schema_version"]]
-                    if target_version >= 10 and name == 'routine_exercises':
+                    if target_version >= 10 and source['schema_version']<10 and name == 'routine_exercises':
                         # Library convention wins for future configurations only.
                         # Every other original cell remains identical.
                         basis_index=[r[1] for r in source_connection.execute(f'PRAGMA table_info({name})')].index('weight_basis') if source['schema_version']>=9 else None
@@ -243,7 +249,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9, 10) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 

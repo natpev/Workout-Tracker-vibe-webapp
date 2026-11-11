@@ -76,6 +76,8 @@ def test_export_selection_ranges_download_and_scope_notes(phase10_page,tmp_path,
     with database_session(root) as db:
         assert [tuple(row) for row in db.execute('SELECT * FROM routine_exercises ORDER BY id')]==before
     page.goto(base+f'/people/{a}/exercises')
+    expect(page.get_by_text(LIBRARY_NOTE,exact=True)).to_be_hidden()
+    page.locator('.add-exercise summary').click()
     expect(page.get_by_text(LIBRARY_NOTE,exact=True)).to_be_visible()
     page.goto(base+f'/people/{a}/progress')
     page.get_by_text('CSV export — choose exercises',exact=True).click()

@@ -140,6 +140,7 @@ def test_create_library_combined_and_copy_defaults_via_forms(combined_page):
     """Library creation and Add Library exercise copy the selected mode/targets once."""
     page,base,root,a,b,r,e,item,saved=combined_page;expect=pw.expect
     page.goto(base+f'/people/{a}/exercises')
+    page.locator('.add-exercise summary').click()
     form=page.locator('form[data-configuration]')
     form.get_by_label('Exercise name',exact=True).fill('Weighted dead hang')
     form.get_by_role('radio',name='Weight + Duration',exact=True).check()

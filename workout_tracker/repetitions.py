@@ -10,30 +10,30 @@ from .catalog import ValidationError, integer
 MAX_REPS = 10000
 
 
-def validate(row, actual):
+def validate(row, actual, *, partial=False):
     """Validate a complete ordered array, including legitimate zero repetitions."""
     if actual is None:
         return None
     if row['measurement_type'] != 'weight' or not isinstance(actual, list) or len(actual) != row['target_sets']:
         raise ValueError('Actual repetition count does not match the captured sets.')
-    if any(type(value) is not int or not 0 <= value <= MAX_REPS for value in actual):
+    if any((value is None and not partial) or (value is not None and (type(value) is not int or not 0 <= value <= MAX_REPS)) for value in actual):
         raise ValueError('Actual repetitions must be whole numbers from 0 to 10000.')
     return actual
 
 
-def decode(row):
+def decode(row, *, partial=False):
     """Expose an array alongside SQL columns; old schemas remain unchanged."""
     result = dict(row)
     if 'actual_reps_json' in result:
-        result['actual_reps'] = validate(result, json.loads(result['actual_reps_json']) if result['actual_reps_json'] is not None else None)
+        result['actual_reps'] = validate(result, json.loads(result['actual_reps_json']) if result['actual_reps_json'] is not None else None,partial=partial)
     return result
 
 
-def inputs(row, values, prefix='reps_', *, legacy=False):
+def inputs(row, values, prefix='reps_', *, legacy=False, partial=False):
     """Read all configured set fields; empty is incomplete, not zero.
 
     Legacy correction forms may leave every field blank to retain unknown reps.
-    Incomplete draft input remains visible but is never acknowledged as saved.
+    Partial null/valid draft input is saved when partial=True; completion stays strict.
     """
     if row['measurement_type'] != 'weight':
         return None
@@ -44,6 +44,8 @@ def inputs(row, values, prefix='reps_', *, legacy=False):
     for index, value in enumerate(raw):
         if not isinstance(value, str) or len(value) > 100:
             raise ValidationError(f'Set {index+1}: enter whole repetitions from 0 to {MAX_REPS}.')
+        if value == '' and partial:
+            actual.append(None);continue
         if value == '':
             raise ValidationError(f'Set {index+1}: repetitions are incomplete.')
         actual.append(integer(value, f'Set {index+1} repetitions', 0, MAX_REPS))

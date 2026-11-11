@@ -23,6 +23,8 @@ def entry_total(row):
         repetitions = row['target_sets']
     else:
         actual = row.get('actual_reps')
+        if actual is None and row.get('reps_required',0):
+            raise ValueError('Actual repetitions are required for this workout.')
         repetitions = sum(actual) if actual is not None else row['target_sets'] * row['target_reps']
     return Fraction(weight * repetitions * (2 if basis == 'per_side' else 1), 10)
 

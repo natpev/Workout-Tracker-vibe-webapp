@@ -74,6 +74,7 @@ def test_library_defaults_navigation_and_deletion_destinations(phase9_browser):
     page.get_by_role('button',name='Permanently Delete Exercise',exact=True).click()
     expect(page.get_by_role('heading',name='Exercise Library',exact=True)).to_be_visible()
     expect(page.get_by_role('status')).to_contain_text('Exercise permanently deleted')
+    page.locator('.add-exercise summary').click()
     page.get_by_label('Exercise name',exact=True).fill('Plank')
     page.get_by_role('button',name='Add exercise name',exact=True).click()
     with database_session(root) as db:assert db.execute('SELECT id FROM exercises WHERE name=?',('Plank',)).fetchone()[0]!=e

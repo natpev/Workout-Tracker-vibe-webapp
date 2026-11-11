@@ -1,0 +1,3 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Only sanitized Markup from exercise_icons.artwork is rendered inline for CSS accents. #}
+<div class="exercise-icons" aria-label="Exercise positions">{% for slot,label in [('start','Start Position'),('end','End Position')] %}<figure class="exercise-icon" data-icon-position="{{ slot }}">{{ pair[slot].svg }}<figcaption>{{ label }}</figcaption></figure>{% endfor %}</div>

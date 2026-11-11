@@ -20,6 +20,38 @@
   }
   const form = document.getElementById("workout-form");
   if (!form) return;
+  // Focus only on an ordinary new page navigation. Reload/back restoration,
+  // validation redisplay and later autosaves never steal the user's focus.
+  const navigation = performance.getEntriesByType('navigation')[0];
+  if (form.dataset.initialFocus === 'true' && (!navigation || navigation.type === 'navigate') &&
+      (!document.activeElement || document.activeElement === document.body)) {
+    const first = form.querySelector('[name=weight],[name=minutes],[name=seconds]');
+    if (first) first.focus({preventScroll: true});
+  }
+  const repState = (input) => {
+    const blank = input.value === '';
+    const valid = /^[0-9]{1,9}$/.test(input.value) && Number(input.value) <= 10000;
+    input.dataset.repState = blank ? 'empty' : valid ? 'recorded' : 'invalid';
+    const label = input.closest('label').querySelector('[data-rep-status]');
+    if (label) label.textContent = blank ? 'Not recorded' : valid ? '✓ Recorded' : 'Check value';
+    input.setAttribute('aria-invalid', !blank && !valid ? 'true' : 'false');
+  };
+  form.querySelectorAll('[data-actual-reps]').forEach(input => {
+    repState(input);
+    input.addEventListener('input', () => repState(input));
+  });
+  // Native Tab order already follows weight then sets. Mobile Next/Enter uses
+  // the same order without submitting a half-entered exercise.
+  const entryInputs = [...form.querySelectorAll('[name=weight],[name=minutes],[name=seconds],[data-actual-reps]')];
+  entryInputs.forEach((input,index) => input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (entryInputs[index+1]) entryInputs[index+1].focus();
+    else {
+      const next = document.querySelector('[data-navigation-action="next"]') || form.querySelector('button[formaction]');
+      if (next) next.focus();
+    }
+  }));
   const status = document.getElementById("save-status");
   const revision = form.elements.namedItem("revision");
   const cursor = form.elements.namedItem("current_position");
@@ -32,7 +64,7 @@
     form.querySelectorAll('[data-field-error]').forEach(note => {
       const name = note.dataset.fieldError;
       note.textContent = errors[name] || ''; note.hidden = !errors[name];
-      if (name === 'actual_reps') form.querySelectorAll('[data-actual-reps]').forEach(input => input.setAttribute('aria-invalid', errors[name] ? 'true' : 'false'));
+      if (name === 'actual_reps') form.querySelectorAll('[data-actual-reps]').forEach(input => input.setAttribute('aria-invalid', errors[name] && input.dataset.repState !== 'recorded' ? 'true' : 'false'));
       const input = form.elements.namedItem(name);
       if (input) {
         input.setAttribute('aria-invalid', errors[name] ? 'true' : 'false');

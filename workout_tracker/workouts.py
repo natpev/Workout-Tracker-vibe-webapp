@@ -137,7 +137,12 @@ def entries(db, person_id, session_id):
     if len(rows) != parent['entry_count'] or [r['position'] for r in rows] != list(range(len(rows))):
         raise StorageError("Workout snapshot consistency verification failed.")
     from .repetitions import decode
-    return [decode(row) for row in rows]
+    result=[decode(row,partial=parent['status']!='completed') for row in rows]
+    if db.execute('PRAGMA user_version').fetchone()[0]>=11 and parent['status']=='draft':
+        for row in result:
+            if row['measurement_type']=='weight' and row.get('actual_reps') is None:
+                row['actual_reps']=[None]*row['target_sets']
+    return result
 
 
 def start(db, person_id, routine_id, zone):
@@ -165,10 +170,13 @@ def start(db, person_id, routine_id, zone):
     for position, row in enumerate(rows):
         columns="id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes"
         values=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'])
-        if modern:columns+=",weight_basis";values+= (row['weight_basis'],)
+        if modern:columns+=",weight_basis";values+= ('not_configured' if row['measurement_type']=='time' else row['weight_basis'],)
         if db.execute('PRAGMA user_version').fetchone()[0]>=10 and row['measurement_type']=='weight':
             from .repetitions import encode
-            columns+=',actual_reps_json';values+=(encode([row['target_reps']]*row['target_sets']),)
+            actual=[None if db.execute('PRAGMA user_version').fetchone()[0]>=11 else row['target_reps']]*row['target_sets']
+            columns+=',actual_reps_json';values+=(encode(actual),)
+        if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+            columns+=',reps_required';values+=(int(row['measurement_type']=='weight'),)
         db.execute(f"INSERT INTO workout_entries({columns}) VALUES ({','.join('?' for _ in values)})",values)
     return identity, True
 
@@ -179,7 +187,7 @@ def revision(parent, value):
         raise RevisionConflict("This workout changed in another tab. Reload before saving; your unsaved input is still visible.")
 
 
-def update(db, person_id, session_id, values):
+def update(db, person_id, session_id, values, *, completing=False):
     """Persist actuals and a Next-only navigation checkpoint with revision protection."""
     parent = session(db, person_id, session_id)
     if parent['status'] != 'draft':
@@ -207,7 +215,9 @@ def update(db, person_id, session_id, values):
     if db.execute('PRAGMA user_version').fetchone()[0]>=10:
         from .repetitions import inputs, encode
         try:
-            actual=inputs(current,values)
+            partial=db.execute('PRAGMA user_version').fetchone()[0]>=11
+            require=completing or (action in ('next','jump') and position>current['position'])
+            actual=inputs(current,values,partial=partial and not require) if weight is not None else inputs(current,values,partial=True) if partial else None
         except catalog.ValidationError as error:
             raise MeasurementError({'actual_reps':str(error)}) from error
         db.execute('UPDATE workout_entries SET actual_reps_json=? WHERE id=?',(encode(actual),entry_id))
@@ -218,7 +228,7 @@ def update(db, person_id, session_id, values):
 
 def count_performed(rows):
     """Count non-NULL actual values; explicit zero weight counts, navigation does not."""
-    return sum(row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None for row in rows)
+    return sum((row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None) and not (isinstance(dict(row).get('actual_reps'),list) and None in row['actual_reps']) for row in rows)
 
 
 def finish(db, person_id, session_id, values):
@@ -230,7 +240,7 @@ def finish(db, person_id, session_id, values):
     parent = session(db, person_id, session_id)
     if parent['status'] == 'completed':
         return parent
-    parent = update(db, person_id, session_id, values)
+    parent = update(db, person_id, session_id, values,completing=True)
     rows = entries(db, person_id, session_id)
     if count_performed(rows) == 0 and values.get('confirm_all_skipped') != 'yes':
         raise AllSkipped("Confirm that you want to save an entirely skipped workout.")
@@ -238,8 +248,12 @@ def finish(db, person_id, session_id, values):
         from .repetitions import encode
         for row in rows:
             actual=row.get('actual_reps')
-            if row['measurement_type']=='weight' and row['actual_weight_tenths_lb'] is not None and actual is None:
-                actual=[row['target_reps']]*row['target_sets']
+            if row['measurement_type']=='weight' and row['actual_weight_tenths_lb'] is not None:
+                if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+                    if actual is None or None in actual:
+                        missing=1 if actual is None else actual.index(None)+1
+                        raise MeasurementError({'actual_reps':f"{row['name']}: enter actual repetitions for Set {missing}."})
+                elif actual is None:actual=[row['target_reps']]*row['target_sets']
             if row['actual_weight_tenths_lb'] is None:
                 actual=None
             db.execute('UPDATE workout_entries SET actual_reps_json=? WHERE id=?',(encode(actual),row['id']))

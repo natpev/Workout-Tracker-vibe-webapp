@@ -56,8 +56,10 @@ def page_context(person_id, session_id, message=None):
         requested = request.form.get('view_position',str(parent['current_position'])) if request.method=='POST' else request.args.get('position',str(parent['current_position']))
         position = catalog.integer(requested, 'Exercise position', 0, len(rows) - 1)
         current = rows[position]
+        from .exercise_icons import pairs
+        artwork=pairs(db,[current['exercise_id']])[current['exercise_id']]
         prior, performed = workouts.previous(db, person_id, parent, current)
-        return dict(statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
+        return dict(artwork=artwork,statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
                     previous=prior, last_performed=performed, completed=workouts.count_performed(rows), navigation_progress=len(rows) if parent['status']=='completed' else parent['current_position'],
                     display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))

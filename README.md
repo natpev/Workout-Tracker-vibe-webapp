@@ -15,11 +15,12 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.14.0**. Database schema: **10**. Existing schema-9
+Current application: **0.15.0**. Database schema: **11**. Existing schema-10
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
-an existing installation again. Before upgrading, classify all weight-based exercises in Update 1. If current routine bases conflict, the Exercise Library basis wins for future configuration; historical values stay unchanged.
+an existing installation again. Older installations must complete the archived
+Phase 13 classification prerequisites before upgrading through Phase 14.
 
 ### 1. Choose a server
 
@@ -167,15 +168,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 10
+  --confirm-upgrade --target-version 11
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-10 database, preserving the original. The final
-command should report **Storage verified; schema version 10.** Stop at any error;
+and verifies a separate schema-11 database, preserving the original. The final
+command should report **Storage verified; schema version 11.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -193,7 +194,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.14.0",schema_version=10)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.15.0",schema_version=11)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -206,7 +207,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.14.0 / database 10**. Check all three themes in Settings.
+should report **0.15.0 / database 11**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -234,7 +235,7 @@ never over real workouts just to test it.
 
 Open the app, choose a person, choose a routine, and press **Start workout**.
 Record one exercise per screen. Weight and duration start blank; each repetition
-field starts at its captured target. Previous results are shown prominently for reference alongside the exercise targets. Weight text stays
+field starts blank; enter the actual result for every set before Next. Previous results are shown prominently for reference alongside the exercise targets. Weight text stays
 unchanged while you type, even during autosave. A valid weight normalizes to one
 decimal place when you leave the field or use Next; extra digits truncate. Invalid
 text stays visible with an error. **Next** advances navigation progress, including skipped
@@ -283,7 +284,8 @@ When creating a Weight or Weight + Duration exercise, explicitly choose **Total
 Weight (×1)** or **Per Hand / Side (×2)**. Neither is selected for you. The choice
 is permanent for that exercise ID and displayed read-only with a lock thereafter.
 The app never infers it from names/equipment. Duration-only exercises need no basis.
-An incompatible measurement-type change requires a new exercise.
+Measurement-type corrections require confirmation and preserve historical snapshots;
+assigned Weight Basis remains immutable even while dormant in Duration.
 
 - **Save Defaults Only** updates shared defaults for future routine additions.
 - **Save Defaults & Update My Routines** previews and confirms overwriting all
@@ -400,18 +402,13 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-For **0.14.0**, an existing schema-9 installation needs a confirmed upgrade to
-schema **10**. **Before updating**, use Update 1 to classify all weight-based
-Library defaults, routine configurations and each person's completed history.
-Finish any unclassified active draft, then classify it in Update 1. Migration
-refuses unclassified values without guessing or changing the original database.
-If classified current routine bases disagree with Library defaults, Library wins
-for future configurations; historical snapshots/audits remain unchanged.
-
-The updater verifies a backup, migrates a separate candidate, validates it and
-switches selection atomically. Original databases remain retained. Make a new
-verified schema-10 backup after success. Older backups remain retained but cannot
-silently restore into schema 10. See [exact Phase 14 upgrade steps](PHASE_14_REVIEW.md#existing-server-upgrade).
+For **0.15.0**, an existing schema-10 installation needs a confirmed upgrade to
+schema **11**. The updater verifies a backup, migrates a separate candidate and
+activates it only after integrity checks. Original databases remain retained.
+Make a new verified schema-11 backup after success. Older backups remain retained
+but cannot silently restore into schema 11. See [Phase 15 upgrade instructions](PHASE_15_REVIEW.md#existing-server-upgrade).
+Installations older than Phase 14 must first complete the archived Weight Basis
+classification prerequisites; no classifications or historical conversions are guessed.
 
 ### One-time browser updater installation
 
@@ -492,3 +489,20 @@ Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this
 beginner-friendly opening and disclosure. Verify accurate human-readable release
 notes in the approved release source. These are permanent release requirements.
+
+### Exercise illustrations and measurement corrections (v0.15.0)
+
+Library and Progress group each person’s all-time recorded exercises first, then
+alphabetize both groups. Zero measurements count; skipped entries do not. Add
+Exercise is a collapsed disclosure and retains input after validation errors.
+
+New workouts start with blank actual repetitions. Enter every set (including an
+explicit zero when appropriate) before advancing past a performed weight exercise.
+Partial drafts autosave and resume unchanged. Legacy completed workouts retain
+their original target-repetition assumptions.
+
+Edit Defaults manages independent shared Start/End SVG illustrations. Removing
+a custom image restores the dumbbells/barbell default. See the [SVG allowlist](docs/EXERCISE_ICONS.md).
+Measurement-type changes require confirmation and leave captured drafts, completed
+history and audits untouched. Once assigned, Weight Basis remains permanent,
+including while dormant on a Duration configuration. Both save scopes remain available.

@@ -180,7 +180,7 @@ dialog::backdrop { background:#0008; }
 .library-exercise-heading { display:flex; align-items:center; gap:.75rem; position:relative; min-width:0; }
 .library-exercise-heading h2 { flex:1; min-width:0; margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .library-exercise-heading .menu-wrap { position:static; margin-left:auto; }
-.library-menu { width:min(20rem,100%); }
+.library-menu { width:min(20rem,100%); scroll-margin-block:.5rem; }
 .library-menu .delete-exercise { color:#a32338; font-weight:650; border-top:1px solid var(--border); }
 :root[data-theme="dark"] .library-menu .delete-exercise { color:#ff9cad; }
 @media(prefers-color-scheme:dark) { :root:not([data-theme="light"]) .library-menu .delete-exercise { color:#ff9cad; } }
@@ -201,3 +201,17 @@ dialog::backdrop { background:#0008; }
 .actual-repetitions input { max-width: 100%; }
 .weight-statistics { padding: 1rem; margin-block: 1rem; border: 1px solid var(--border); border-radius: 1rem; overflow-wrap: anywhere; }
 .set-repetitions { list-style: none; padding-inline-start: 0; }
+
+/* Shared inline SVG inherits each person's accent without external-image CSS limits. */
+.exercise-icons { display:flex; justify-content:center; gap:.8rem; margin:.4rem 0 .7rem; }
+.exercise-icon { width:5.5rem; max-width:42%; margin:0; text-align:center; }
+.exercise-icon svg { display:block; width:100%; height:auto; aspect-ratio:1; }
+.exercise-icon figcaption { font-size:.72rem; color:var(--muted); }
+.library-exercise > .exercise-icons { justify-content:flex-start; }
+.icon-manager > section { min-width:0; }
+.icon-manager input[type=file] { width:100%; max-width:100%; }
+.rep-status { display:block; font-size:.76rem; color:var(--muted); margin-top:.15rem; }
+[data-rep-state=recorded] { border-color:var(--accent); box-shadow:inset .2rem 0 0 var(--accent); background:color-mix(in srgb,var(--accent) 9%,var(--card)); }
+[data-rep-state=invalid] { border-color:#b42338; }
+.actual-repetitions input[aria-invalid=true] { outline:2px solid #b42338; }
+.add-exercise > summary { min-height:44px; display:list-item; cursor:pointer; padding:.6rem; }

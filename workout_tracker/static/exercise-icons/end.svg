@@ -1,0 +1,15 @@
+<!-- SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+     Default End artwork: one plated barbell, authored as transparent vector shapes. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><title>Barbell with weight plates</title>
+<g stroke="currentColor" stroke-width="5" stroke-linejoin="round">
+<rect x="7" y="117" width="242" height="22" rx="6" fill="#cbd5e1"/>
+<path d="M99 122v12m10-12v12m10-12v12m10-12v12m10-12v12m10-12v12m10-12v12" fill="none" stroke-width="2"/>
+<rect x="40" y="60" width="29" height="136" rx="9" fill="var(--accent)"/>
+<rect x="21" y="78" width="22" height="100" rx="7" fill="#94a3b8"/>
+<rect x="69" y="99" width="12" height="58" rx="4" fill="#64748b"/>
+<rect x="187" y="60" width="29" height="136" rx="9" fill="var(--accent)"/>
+<rect x="213" y="78" width="22" height="100" rx="7" fill="#94a3b8"/>
+<rect x="175" y="99" width="12" height="58" rx="4" fill="#64748b"/>
+<path d="M50 73v109m147-109v109" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+<path d="M28 89v78m192-78v78" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+</g></svg>

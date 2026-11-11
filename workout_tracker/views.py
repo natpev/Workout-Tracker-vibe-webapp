@@ -142,23 +142,29 @@ def dashboard(person_id):
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
 def exercises(person_id):
     """Manage the shared library; routine targets and historical names stay separate."""
-    with connection(write=request.method == "POST") as db:
-        selected = catalog.person(db, person_id)
-        if request.method == "POST":
-            if request.form.get("action") == "create":
-                catalog.create_definition(db, person_id, request.form.get("name"), request.form if "measurement_type" in request.form else None)
-            else:
-                if request.form.get("action") == "archive":
-                    if db.execute('PRAGMA user_version').fetchone()[0]>=6:
-                        raise catalog.ValidationError('Use the dedicated household Permanent Delete Exercise page. Remove from Routine never deletes global history.')
-                    confirmation()
-                catalog.update_definition(db, person_id, request.form.get("exercise_id"),
-                                          request.form.get("name"), request.form.get("action"))
-        rows = (db.execute('SELECT * FROM exercises ORDER BY archived,name,id').fetchall()
-                if db.execute('PRAGMA user_version').fetchone()[0]>=6 else catalog.definitions(db, person_id))
-    if request.method == "POST":
-        return redirect(url_for("manage.exercises", person_id=person_id), code=303)
-    return render_template("exercises.html", person=selected, exercises=rows)
+    error=None;status=200;values=request.form.to_dict() if request.method=='POST' else {}
+    try:
+        with connection(write=request.method=='POST') as db:
+            selected=catalog.person(db,person_id)
+            if request.method=='POST':
+                if request.form.get('action')=='create':
+                    catalog.create_definition(db,person_id,request.form.get('name'),request.form if 'measurement_type' in request.form else None)
+                else:
+                    if request.form.get('action')=='archive':
+                        if db.execute('PRAGMA user_version').fetchone()[0]>=6:
+                            raise catalog.ValidationError('Use the dedicated Permanent Delete Exercise page.')
+                        confirmation()
+                    catalog.update_definition(db,person_id,request.form.get('exercise_id'),request.form.get('name'),request.form.get('action'))
+        if request.method=='POST':return redirect(url_for('manage.exercises',person_id=person_id),code=303)
+    except catalog.ValidationError as exc:
+        if values.get('action')!='create':raise
+        error=str(exc);status=400
+    with connection() as db:
+        from .exercise_listing import ordering
+        from .exercise_icons import pairs
+        rows,_,_=ordering(db,person_id)
+        artwork=pairs(db,[row['id'] for row in rows])
+    return render_template('exercises.html',person=selected,exercises=rows,creation=values or None,creation_error=error,artwork=artwork),status
 
 
 @bp.route("/people/<person_id>/routines/<routine_id>", methods=["GET", "POST"])
@@ -210,28 +216,46 @@ def edit_routine(person_id, routine_id):
 @bp.route("/people/<person_id>/routines/<routine_id>/items/<entry_id>", methods=["GET", "POST"])
 def edit_entry(person_id, routine_id, entry_id):
     """Edit/remove/reorder a routine item, preserving its permanent exercise ID."""
-    with connection(write=request.method == "POST") as db:
-        selected = catalog.person(db, person_id)
-        parent = catalog.routine(db, person_id, routine_id)
-        item = catalog.entry(db, person_id, routine_id, entry_id)
-        if request.method == "POST":
-            check_revision(db, person_id, routine_id)
-            action = request.form.get("action")
-            if action == "save":
-                catalog.update_entry(db, person_id, routine_id, entry_id, request.form)
-            elif action == "remove":
-                confirmation()
-                db.execute("DELETE FROM routine_exercises WHERE id=? AND person_id=? AND routine_id=?",
-                           (entry_id, person_id, routine_id))
-            elif action == "move":
-                catalog.move(db, "routine_exercises", "routine_id", routine_id, entry_id, request.form.get("direction"))
-            else:
-                raise catalog.ValidationError("Unknown routine exercise action.")
+    from itsdangerous import URLSafeTimedSerializer,BadSignature
+    serializer=URLSafeTimedSerializer(current_app.secret_key,salt='routine-type-correction-v1')
+    preview=None;raw=request.form.to_dict();signed=None
+    if raw.get('action')=='confirm_type':
+        try:
+            signed=serializer.loads(raw.get('preview',''),max_age=1800)
+            if (signed['person'],signed['routine'],signed['entry'])!=(person_id,routine_id,entry_id):raise BadSignature('Wrong configuration')
+            if raw.get('confirm')!='yes':raise catalog.ValidationError('Confirm the measurement-type correction.')
+        except (BadSignature,KeyError,TypeError) as error:
+            raise catalog.ValidationError('Correction confirmation expired or is invalid.') from error
+    with connection(write=request.method=='POST') as db:
+        selected=catalog.person(db,person_id);parent=catalog.routine(db,person_id,routine_id)
+        item=catalog.entry(db,person_id,routine_id,entry_id)
+        if request.method=='POST':
+            check_revision(db,person_id,routine_id)
+            action=raw.get('action')
+            if action=='confirm_type':
+                if signed['revision']!=routine_token(db,person_id,routine_id):raise catalog.ValidationError('Routine changed. Review the correction again.')
+                catalog.update_entry(db,person_id,routine_id,entry_id,signed['values'],confirmed_type_change=True)
+            elif action=='save':
+                changing=db.execute('PRAGMA user_version').fetchone()[0]>=11 and raw.get('measurement_type')!=item['measurement_type']
+                if changing:
+                    checked=catalog.locked_configuration(db,item['exercise_id'],item,raw,confirmed_type_change=True)
+                    catalog.configure(checked)
+                    revision=routine_token(db,person_id,routine_id)
+                    token=serializer.dumps(dict(person=person_id,routine=routine_id,entry=entry_id,values=checked,revision=revision))
+                    preview=dict(person=selected,routine=parent,item=item,new_kind=raw.get('measurement_type'),token=token,revision=revision)
+                else:catalog.update_entry(db,person_id,routine_id,entry_id,raw)
+            elif action=='remove':
+                confirmation();db.execute('DELETE FROM routine_exercises WHERE id=? AND person_id=? AND routine_id=?',(entry_id,person_id,routine_id))
+            elif action=='move':catalog.move(db,'routine_exercises','routine_id',routine_id,entry_id,raw.get('direction'))
+            else:raise catalog.ValidationError('Unknown routine exercise action.')
         else:
-            revision = routine_token(db, person_id, routine_id)
-    if request.method == "POST":
-        return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=routine_id), code=303)
-    return render_template("entry.html", person=selected, routine=parent, item=item, revision=revision)
+            revision=routine_token(db,person_id,routine_id)
+            if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+                from .measurement_rules import assigned
+                item=dict(item,weight_basis=assigned(db,item['exercise_id']) or 'not_configured')
+    if preview:return render_template('measurement_confirm.html',**preview)
+    if request.method=='POST':return redirect(url_for('manage.edit_routine',person_id=person_id,routine_id=routine_id),code=303)
+    return render_template('entry.html',person=selected,routine=parent,item=item,revision=revision)
 
 
 @bp.route('/people/<person_id>/exercises/<exercise_id>/defaults',methods=['GET','POST'])
