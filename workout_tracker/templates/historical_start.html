@@ -6,5 +6,5 @@
 <script src="{{ url_for('static',filename='historical.js') }}" defer></script>
 <section><form method="post" novalidate>{{ security() }}<label for="routine_id">Routine</label><select {{ attributes('routine_id',errors) }} name="routine_id" required><option value="">Choose routine</option>{% for routine in routines %}<option value="{{ routine.id }}" {% if values.get('routine_id',routines[0].id if routines and not errors else '')==routine.id %}selected{% endif %}>{{ routine.name }}</option>{% endfor %}</select>{{ error('routine_id',errors) }}
 <label for="workout_date">Workout date</label><input {{ attributes('workout_date',errors) }} type="{{ 'text' if errors.get('workout_date') else 'date' }}" name="workout_date" value="{{ values.get('workout_date','') }}" required>{{ error('workout_date',errors) }}
-{{ clock_input(values.get('workout_time',''),errors) }}<p>Timezone: {{ zone }}.</p>{{ fold_input(values,errors) }}
+{{ clock_input(values.get('workout_time',''),errors) }}{{ fold_input(values,errors) }}
 {{ summary(errors) }}<button>Prepare historical workout</button></form></section>{% endblock %}

@@ -15,8 +15,8 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.12.1**. Database schema: **8**. Updating from 0.11.0 or 0.12.0 with
-schema 8 needs **no database migration**. This patch also needs no host updater
+Current application: **0.12.2**. Database schema: **8**. Existing schema-8
+installations need **no database migration**. This patch also needs no host updater
 refresh if you already completed the Phase 12 host-service setup.
 
 ### 1. Choose a server
@@ -191,7 +191,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.12.1",schema_version=8)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.12.2",schema_version=8)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -204,7 +204,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.12.1 / database 8**. Check all three themes in Settings.
+should report **0.12.2 / database 8**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -232,7 +232,10 @@ never over real workouts just to test it.
 
 Open the app, choose a person, choose a routine, and press **Start workout**.
 Record one exercise per screen. Today's fields start blank; previous results are
-shown for reference. **Next** advances navigation progress, including skipped
+shown prominently for reference alongside the exercise targets. Weight text stays
+unchanged while you type, even during autosave. A valid weight normalizes to one
+decimal place when you leave the field or use Next; extra digits truncate. Invalid
+text stays visible with an error. **Next** advances navigation progress, including skipped
 exercises. Typing and autosaving do not advance it. **Back**, revisits, refresh
 and Resume retain the furthest Next checkpoint without double-counting.
 
@@ -292,7 +295,11 @@ are required. Partial pairs stay unsaved until corrected. Use the manual
 
 ## Workout history
 
-History lists completed workouts by when they happened. Open one to view its
+History lists completed workouts by when they happened. Ordinary dates/times omit
+time-zone names; the stored zone and DST handling stay unchanged. Open Timing
+diagnostics on a saved workout when troubleshooting. History date filters stack
+on narrow phones and sit side by side when there is room. Open a saved workout to
+view its
 original exercise order, prescriptions, actual measurements and skips. Enter older
 workouts through **Enter historical workout**, choosing a routine, date and optional
 time. Unknown time stays unknown. Saved-workout corrections require confirmation;
@@ -349,7 +356,7 @@ Updates → Check for Updates**. Read the plain-English notes, confirm installat
 tab remains available while the app restarts. Notes and logs scroll within their
 boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
 
-An existing schema-8 installation needs no migration for 0.12.1. Confirmed updates
+An existing schema-8 installation needs no migration for 0.12.2. Confirmed updates
 still create a verified backup. Never initialize a database as part of an update.
 
 ### One-time browser updater installation
@@ -421,9 +428,10 @@ See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
 [measurement design](MEASUREMENT_DESIGN.md), [release-note format](releases/README.md),
 [deployment/recovery](deployment/README.md), [developer reference](docs/DEVELOPER_REFERENCE.md),
 [Phase 12 verification](PHASE_12_REVIEW.md), and
-[current Library menu verification](LIBRARY_MENU_REVIEW.md). Older phase reviews retain their
+[Library menu verification](LIBRARY_MENU_REVIEW.md) and
+[current workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md). Older phase reviews retain their
 historical results and limitations. Current release verification is recorded in
-LIBRARY_MENU_REVIEW.md; no physical-server or live-data testing is implied.
+WORKOUT_HISTORY_UI_REVIEW.md; no physical-server or live-data testing is implied.
 
 Before **every** release—including patches—review this README against actual
 features, installation/update commands, versions, links and filenames. Keep this

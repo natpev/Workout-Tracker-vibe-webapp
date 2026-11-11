@@ -136,6 +136,9 @@ def test_offline_failure_and_concurrent_tab_conflict(workout_page):
     """Failures keep local input visible and cannot overwrite an acknowledged save."""
     page,_,root=workout_page;expect=pw.expect
     page.get_by_label('Weight (lb)').fill('40')
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('40')
+    page.get_by_label('Weight (lb)').blur()
     expect(page.get_by_label('Weight (lb)')).to_have_value('40.0')
     other=page.context.new_page();other.on('dialog',lambda dialog:dialog.accept());other.goto(page.url)
     page.route('**/draft',lambda route:route.abort())
@@ -146,6 +149,9 @@ def test_offline_failure_and_concurrent_tab_conflict(workout_page):
         assert db.execute("SELECT actual_weight_tenths_lb FROM workout_entries WHERE measurement_type='weight'").fetchone()[0]==400
     page.unroute('**/draft')
     page.get_by_label('Weight (lb)').fill('42.56')
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('42.56')
+    page.get_by_label('Weight (lb)').blur()
     expect(page.get_by_label('Weight (lb)')).to_have_value('42.5')
     other.get_by_label('Weight (lb)').fill('99')
     expect(other.locator('#save-error')).to_contain_text('changed in another tab')
@@ -180,6 +186,9 @@ def test_typing_during_held_acknowledgment_serializes_saves(workout_page):
     page.wait_for_timeout(400)
     expect(page.get_by_label('Weight (lb)')).to_have_value('42.56')
     route,response=held[0];route.fulfill(response=response)
+    expect(page.locator('#save-status')).to_have_text('✓ Saved')
+    expect(page.get_by_label('Weight (lb)')).to_have_value('42.56')
+    page.get_by_label('Weight (lb)').blur()
     expect(page.get_by_label('Weight (lb)')).to_have_value('42.5')
     expect(page.locator('#save-status')).to_have_text('✓ Saved')
     with database_session(root) as db:

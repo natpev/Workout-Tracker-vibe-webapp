@@ -1,0 +1,9 @@
+{
+  "version": "0.12.2",
+  "notes": [
+    "Made workout targets and previous results easier to see.",
+    "Improved weight entry so decimals no longer interfere with typing.",
+    "Removed unnecessary time-zone information from workout history.",
+    "Improved date filters on smaller phone screens."
+  ]
+}

@@ -6,7 +6,7 @@
 
 ## Historical Phase 9 state and authorization
 
-Current release is Phase 12 patch 0.12.1 (schema 8), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.
+Current release is Phase 12 patch 0.12.2 (schema 8), with the same Phase 11 combined-measurement/storage contract below. Phase 12 changes Library editing, selector labels, Progress month presets and release documentation only; see PROJECT_SPEC.md section 27 and PHASE_12_REVIEW.md. Earlier phase boundaries and two-mode-only rules are superseded.
 
 Phases 1–8 are approved. Phase 9 is authorized for implementation, verification
 and direct main merge without a PR attempt: application 0.9.0 / schema 7 adds

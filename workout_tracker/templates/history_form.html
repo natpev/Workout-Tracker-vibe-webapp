@@ -3,7 +3,7 @@
    Existing atomic services remain the sole database writers. #}
 {% extends 'base.html' %}{% from 'macros.html' import security with context %}
 {% from 'historical_fields.html' import attributes,error,summary,clock_input,fold_input %}
-{% block content %}<h1>{{ 'Correct saved workout' if correction else 'Review historical workout' }}</h1><p>{{ workout.routine_name }} · {{ workout.timezone }}</p>
+{% block content %}<h1>{{ 'Correct saved workout' if correction else 'Review historical workout' }}</h1><p>{{ workout.routine_name }}</p>
 <script src="{{ url_for('static',filename='historical.js') }}" defer></script>
 <form method="post" novalidate>{{ security() }}
 {% if correction %}<input type="hidden" name="correction_revision" value="{{ values.get('correction_revision','') }}"><p>Only actual measurements, increase flags and workout date/time can change. Original snapshots and previous values remain in the audit.</p>

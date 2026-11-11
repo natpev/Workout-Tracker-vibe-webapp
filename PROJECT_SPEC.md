@@ -4,8 +4,8 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This is a human-directed, AI-generated software project. Its code has not been assumed to be professionally audited, secure, or correct.
 
-**Project status:** Patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
-**Current scope:** Patch 0.12.1 / unchanged schema 8. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
+**Project status:** Patch 0.12.2 passed 535 tests (425 backend/script, 93 Chromium, 17 Docker; zero failed/skipped), recorded in WORKOUT_HISTORY_UI_REVIEW.md. Prior patch 0.12.1 passed 519 tests (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped), recorded in LIBRARY_MENU_REVIEW.md. Phases 1–12 are implemented; Phase 12 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_12_REVIEW.md. Prior Phase 11 passed all 476 tests (402 backend/script, 57 Chromium, 17 Docker; zero failed/skipped), recorded in PHASE_11_REVIEW.md. Prior patch verification: 439 tests. Final Phase 10 suite: 384 passed, zero failed/skipped; evidence is in PHASE_10_REVIEW.md. Direct fast-forward merge/push and cleanup are explicitly authorized after verification. Do not create or attempt a pull request. No live deployment, production data or unrelated development. Phase 12 is authorized below.
+**Current scope:** Patch 0.12.2 / unchanged schema 8. Section 29 improves compact workout typography, preserves focused weight text through autosave and simplifies History times/filters. See WORKOUT_HISTORY_UI_REVIEW.md. Section 28 supersedes Library action-button display with a bounded three-dot menu and CSS-only name truncation. See LIBRARY_MENU_REVIEW.md. Phase 12 functionality remains intact. Section 27 adds Library/UI cleanup, month ranges, versioned human-readable release notes and permanent README/release review. The Phase 11 measurement/storage contract remains intact. Section 26 supersedes two-mode-only rules. Progress/CSV/settings requirements are in section 25. Header/date requirements supersede earlier placement in section 24. Patch 0.10.1 sorts routine cards (section 22); patch 0.10.2 fixes hamburger positioning (section 23). Phase 10 adds inline historical validation, structured optional time, Progress quick ranges and point tooltips, automatic independent update tabs and sanitized live host output. Existing defaults, Administration, navigation, accents and safe storage remain. No accounts, passwords, login, roles, HTTPS or certificates.
 **Goal:** a small, reliable, phone-friendly household workout tracker, with a better desktop view for history and charts.
 
 ## 1. Technology, environment, and repository
@@ -959,3 +959,24 @@ Application 0.12.1, schema 8. Verify 320/390/844/768/1280 widths in Light/Dark a
 all existing tests, review README commands/version/links and concise versioned
 notes before direct main merge/push/verification/cleanup without a PR or deployment.
 See LIBRARY_MENU_REVIEW.md. Existing Phase 12 host services need no new refresh.
+
+
+## 29. Patch 0.12.2 — workout readability, typing and History
+
+Emphasize current prescriptions and previous weight/duration with slightly larger,
+stronger compact text, retaining weight meanings and increase indicators in every
+mode/theme. Do not replace or rewrite focused weight input during autosave. Keep
+raw text/cursor through slow/fast typing and decimal editing; normalize on blur or
+Next using successful server-validated values only. Preserve existing truncation,
+NULL/zero, validation, revision conflicts, serialized saves and Next-only progress.
+
+Ordinary History listing/detail/review/correction displays omit IANA names. Keep
+all stored zones/timestamps/DST behavior and configuration; deliberate Timing
+diagnostics remains available on saved details. Use a scoped wrapping date-filter
+row with practical field widths, stacking on phones and pairing on wider screens.
+Do not change global duration layouts, filters, navigation, history or identity.
+
+Release 0.12.2 keeps schema 8, existing updater and backup protections. Mandatory
+README/release-note review, all backend/Chromium/mobile/Docker tests and authorized
+direct merge/push/cleanup apply. No PR, deployment, real data or unrelated identity
+investigation. See WORKOUT_HISTORY_UI_REVIEW.md.

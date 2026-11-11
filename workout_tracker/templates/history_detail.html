@@ -4,9 +4,10 @@
 {% extends 'base.html' %}
 {% block content %}{% if workout.routine_deleted %}<p>Original routine was permanently deleted. This workout snapshot is retained.</p>{% endif %}
 <h1>{{ workout.routine_name }} — saved workout</h1>
-<p>Occurred: {{ workout.workout_date }} · {{ workout.workout_time|clock or 'Time unknown' }} · {{ workout.timezone }}</p>
+<p>Occurred: {{ workout.workout_date }} · {{ workout.workout_time|clock or 'Time unknown' }}</p>
+<details class="timing-diagnostics"><summary>Timing diagnostics</summary><p>Stored time zone: {{ workout.timezone }}</p>
 {% if workout.occurred_at %}<p>Known occurrence in UTC: {{ workout.occurred_at|workout_timestamp }}</p>{% endif %}
-<p>Entered/completed in the system: {{ workout.entered_at|workout_timestamp }}</p>
+<p>Entered/completed in the system: {{ workout.entered_at|workout_timestamp }}</p></details>
 <p><a class="pill" href="{{ url_for('history.correct',person_id=person.id,workout_id=workout.id,**progress_context) }}">Correct saved workout</a> <a href="{{ url_for('history.index',person_id=person.id,**progress_context) }}">Back to history</a></p>
 <ol>{% for row in entries %}<li><section><h3>{{ row.name }}</h3><p>{% if row.measurement_type=='weight' %}Weight · {{ row.target_sets }} sets × {{ row.target_reps }} reps · pounds{% if row.weight_meaning %} · {{ row.weight_meaning }}{% endif %}{% else %}{{ 'Weight + Duration' if row.measurement_type=='weight_duration' else 'Time' }} · {{ row.target_sets }} sets × {{ row.target_duration_seconds // 60 }} min {{ row.target_duration_seconds % 60 }} sec{% if row.weight_meaning %} · {{ row.weight_meaning }}{% endif %}{% endif %}</p><p class="measurement">{{ display(row) }}</p><p>Increase next time: {{ 'Not applicable (skipped)' if row.increase_next_time is none else 'Yes' if row.increase_next_time else 'No' }}</p>{% if row.notes %}<p>Notes: {{ row.notes }}</p>{% endif %}</section></li>{% endfor %}</ol>
 <details><summary>Original saved values</summary><p>{{ original_workout.workout_date }} · {{ original_workout.workout_time|clock or 'Time unknown' }}</p><ol>{% for row in original_entries %}<li>{{ row.name }} — {{ display(row) }}</li>{% endfor %}</ol></details>

@@ -24,6 +24,7 @@
   const revision = form.elements.namedItem("revision");
   const cursor = form.elements.namedItem("current_position");
   let navigationAction = "";
+  let acknowledgedWeight = null;
   let dirty = false, sequence = 0, timer, pending = null, draining = null, conflict = false, submitting = false, allowSubmit = false;
 
   // Field names come from the validated API; textContent never interprets HTML.
@@ -87,7 +88,13 @@
             navigationAction = "";
             for (const name of ["weight", "minutes", "seconds"]) {
               const input = form.elements.namedItem(name);
-              if (input) input.value = data[name];
+              if (input) {
+                // SQLite may acknowledge a normalized weight during typing.
+                // Retain that validated result, but never touch focused text or
+                // its selection. Other measurement behavior stays unchanged.
+                if (name === "weight") acknowledgedWeight = {raw: body.get(name), value: data[name]};
+                if (name !== "weight" || document.activeElement !== input) input.value = data[name];
+              }
             }
             form.elements.namedItem("increase").checked = data.increase;
             fieldErrors();
@@ -117,9 +124,18 @@
     return draining;
   };
 
+  const weight = form.elements.namedItem("weight");
+  if (weight) weight.addEventListener("blur", () => {
+    // Only use a successful server result for exactly this raw text. Pending
+    // edits flush through the same revision/validation path; invalid text stays.
+    if (acknowledgedWeight && acknowledgedWeight.raw === weight.value) weight.value = acknowledgedWeight.value;
+    else void flush();
+  });
+
   form.querySelectorAll("[name=weight],[name=minutes],[name=seconds],[name=increase]").forEach((input) => {
     input.addEventListener("input", () => {
       // Mark unsaved immediately, not only once the debounce request begins.
+      if (input === weight) acknowledgedWeight = null;
       dirty = true;
       sequence += 1;
       status.textContent = conflict ? "Save failed" : "Unsaved";
