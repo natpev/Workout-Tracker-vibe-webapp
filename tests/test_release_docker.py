@@ -33,7 +33,7 @@ def wait_url(url):
         try:
             with urllib.request.urlopen(url + "/health/ready", timeout=2) as response:
                 info = json.load(response)
-            assert info == dict(status="ready", app_version="1.0.0", schema_version=13)
+            assert info == dict(status="ready", app_version="1.0.1", schema_version=13)
             return
         except OSError:
             if time.monotonic() > deadline:

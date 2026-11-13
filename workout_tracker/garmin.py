@@ -54,10 +54,13 @@ def request(path, authorization, *, method="GET"):
     """Fixed official HTTPS origin, no redirects, bounded time and response bytes."""
     if not path.startswith("/") or "\n" in authorization or "\r" in authorization:
         raise GarminError("Invalid Garmin request configuration.")
+    # Token exchange returns a plain-text JWT; weight endpoints return JSON.
+    # Choose by the fixed endpoint, without changing credentials or token caching.
+    accept = "*/*" if path == TOKEN else "application/json"
     req = Request(
         BASE + path,
         data=b"" if method == "POST" else None,
-        headers={"Authorization": authorization, "Accept": "application/json"},
+        headers={"Authorization": authorization, "Accept": accept},
         method=method,
     )
     try:
@@ -79,9 +82,12 @@ def request(path, authorization, *, method="GET"):
                 chunks.append(block)
             return b"".join(chunks).decode("utf-8")
     except HTTPError as error:
+        # Only the numeric status is safe to publish. Never include the remote
+        # reason, URL, headers or response body, which could echo credentials.
+        status = f"HTTP {error.code}"
         if error.code in (401, 403):
             raise GarminError(
-                "Garmin rejected the credentials. Replace or verify the Personal API key.",
+                f"Garmin rejected the credentials ({status}). Replace or verify the Personal API key.",
                 unauthorized=True,
             ) from None
         delay = 900
@@ -100,11 +106,15 @@ def request(path, authorization, *, method="GET"):
                 except (ValueError, TypeError, OverflowError):
                     pass
             raise GarminError(
-                "Garmin is limiting requests. Synchronization will retry later.",
+                f"Garmin is limiting requests ({status}). Synchronization will retry later.",
                 retry_after=delay,
             ) from None
+        if error.code == 406:
+            raise GarminError(
+                f"Garmin rejected the requested response format ({status}). Local records are unchanged."
+            ) from None
         raise GarminError(
-            "Garmin is unavailable. Local records are unchanged."
+            f"Garmin is unavailable ({status}). Local records are unchanged."
         ) from None
     except (URLError, TimeoutError, OSError, UnicodeError):
         raise GarminError(

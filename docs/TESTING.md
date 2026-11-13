@@ -47,3 +47,26 @@ documentation/SDK was reviewed; all authenticated API calls are mocked.
 See RELEASE_1_0_0_TEST_REPORT.md for actual run counts, defects and remaining limits.
 Commands were checked against Compose and the real CLI, not invented from plans.
 The per-release README/link/command and plain-English notes checks are mandatory.
+
+## Patch 1.0.1 verification
+
+695 backend/script tests passed, plus 16 relevant Chromium cases and two Docker
+integration cases (713 distinct checks, zero failures). The complete backend
+suite includes token transport, HTTP 406/other safe status codes, cached-token
+reuse, retained connection settings and unchanged local weight records. Transport
+mocks inspect actual urllib request headers rather than replacing the adapter.
+The production image repeats the token/JSON/error checks with networking disabled;
+a real schema-13 code-only updater cycle preserves database bytes and selection.
+
+Library browser cases cover 320/390/844/768/1280 widths in Light/Dark, full-width
+names beneath top-right actions, long-name truncation, viewport-safe dropdowns,
+keyboard/focus/Escape/outside-click behavior and correct editor/deletion links.
+Six additional browser cases cover Garmin settings and body-weight workflows.
+No real Garmin credentials/accounts or production data were used. This focused
+patch did not rerun every browser/Docker case from the 1.0.0 release.
+
+README was opened/reviewed and updated for 1.0.1 and the Library layout. Installation
+and update commands were checked against the existing CLI/Compose configuration;
+local documentation links and shell examples validated. Version-matched plain-English
+release notes are in releases/1.0.1.json. Schema remains 13; neither the existing
+host service nor repository v4 needs replacement for this patch.

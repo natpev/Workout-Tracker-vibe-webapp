@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Current release and scope
 
-Version 1.0.0 targets schema 13. The user authorizes implementation, verification
+Version 1.0.1 targets schema 13. The user authorizes implementation, verification
 and direct main merging for this release, without a pull request or PR API attempt.
 Never deploy, access production workout data, force-push, bypass protections,
 discard unrelated work or investigate the excluded duplicate/orphaned-history issue.

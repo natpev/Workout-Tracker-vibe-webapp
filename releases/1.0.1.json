@@ -1,0 +1,8 @@
+{
+  "version": "1.0.1",
+  "notes": [
+    "Fixed Garmin connection errors when exchanging a Personal API key.",
+    "Added clearer Garmin error messages without revealing private credentials.",
+    "Moved Exercise Library menus to the top right so exercise names have more room."
+  ]
+}

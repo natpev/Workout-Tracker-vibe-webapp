@@ -54,8 +54,11 @@ def test_library_menu_geometry_accessibility_navigation_and_full_names(library_p
         expect(trigger).to_have_attribute('aria-expanded','false')
         expect(heading).to_have_attribute('title',name)
         trigger.scroll_into_view_if_needed();h=heading.bounding_box();t=trigger.bounding_box()
-        assert h['x']<t['x'] and h['x']+h['width']<=t['x']
-        assert abs(h['y']+h['height']/2-t['y']-t['height']/2)<2
+        top=card.locator('.library-exercise-top').bounding_box()
+        assert abs(t['x']+t['width']-top['x']-top['width'])<2
+        assert abs(t['y']-top['y'])<2
+        assert h['y']>=top['y']+top['height']
+        assert abs(h['x']-top['x'])<2 and abs(h['width']-top['width'])<2
         assert t['width']>=44 and t['height']>=44 and t['x']+t['width']<=width
         assert heading.evaluate('(n)=>getComputedStyle(n).whiteSpace')=='nowrap'
         assert heading.evaluate('(n)=>getComputedStyle(n).textOverflow')=='ellipsis'

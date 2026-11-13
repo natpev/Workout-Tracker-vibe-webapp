@@ -15,7 +15,9 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **1.0.0**. Database schema: **13**. Existing schema-12
+Current application: **1.0.1**. Database schema: **13**. This patch fixes Garmin
+connection requests and adds safe HTTP error codes. Existing schema-13 installations
+need no migration; saved connections and weight history remain intact. Existing schema-12
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
@@ -195,7 +197,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.0",schema_version=13)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.1",schema_version=13)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -208,7 +210,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **1.0.0 / database 13**. Check all three themes in Settings.
+should report **1.0.1 / database 13**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -279,6 +281,7 @@ retain their history. Settings offers Auto/Light/Dark and personal accent colors
 
 The shared **Exercise Library** has a read-only summary when you tap an exercise
 name. **Edit Exercise** or **⋯ → Edit Defaults** opens editing and renaming.
+The three-dot menu sits at the top right, above the full-width exercise name.
 Names truncate visually only; permanent IDs remain unchanged and are available
 on deliberate detail/edit screens. Renaming changes current displays globally;
 saved workouts keep their original names.
@@ -417,9 +420,9 @@ verified backup and protect the complete storage tree before updating.
 ### Normal browser update
 
 Open **Settings → Application Updates → Check for Updates**. Read the release
-notes, confirm installation and the required schema migration, then Install.
+notes, confirm installation and any required schema migration, then Install.
 The independent status tab stays available while the app restarts. After success,
-verify Settings/footer and `/health/ready`: **1.0.0 / schema 13 / ready**. Make a new
+verify Settings/footer and `/health/ready`: **1.0.1 / schema 13 / ready**. Make a new
 verified backup. Existing schema-12 installations require candidate migration.
 
 Your already upgraded Phase 12 independent updater supports this release; a new

@@ -4,12 +4,18 @@
 
 This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
 
+## Existing schema 13 installation
+
+Version 1.0.1 is a code-only patch for schema 13. Use the normal browser update;
+no database migration, connection reset or host-service upgrade is needed. It fixes
+Garmin token response negotiation and moves Library actions above the exercise name.
+
 ## Existing schema 12 installation
 
-Use Settings → Application Updates → Check for Updates, review version 1.0.0 and
+Use Settings → Application Updates → Check for Updates, review version 1.0.1 and
 explicitly consent to target schema 13 migration. Confirm Install and watch the
 independent status tab. Before updating create a verified backup and protect the
-complete storage tree/.env. Afterwards health must report app_version 1.0.0,
+complete storage tree/.env. Afterwards health must report app_version 1.0.1,
 schema_version 13, ready. Create a new verified schema-13 backup.
 
 The existing Phase-12-capable host runtime and v4 entry point understand release-info

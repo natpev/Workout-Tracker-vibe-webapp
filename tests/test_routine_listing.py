@@ -188,7 +188,7 @@ def test_patch_release_works_with_existing_updater_without_schema_migration(tmp_
     result = subprocess.run(['bash', str(REPO / 'deployment/update_workout_tracker_v4.sh'), '--root', str(root), '--confirm'], env=env, text=True, capture_output=True, timeout=70)
     assert result.returncode == 0, result.stdout + result.stderr
     state = json.loads((root / 'updater/status.json').read_text())
-    assert state['installed_version'] == '1.0.0' and state['installed_schema'] == 7 and state['status'] == 'Completed'
+    assert state['installed_version'] == '1.0.1' and state['installed_schema'] == 7 and state['status'] == 'Completed'
     assert original.read_bytes() == before and (storage / 'config/active.json').read_bytes() == manifest
     assert 'migrate-storage' not in (root / 'calls.jsonl').read_text()
 

@@ -25,7 +25,10 @@ bearer token. The documented POST endpoint is:
 `https://personal.connectapi.garmin.com/personalapitoken-service/personal-api/personal-api-key/token`
 
 Send `Authorization: ApiKey KEY`. Garmin's official Python example confirms the
-response is a plain-text JWT. Access tokens last up to 24 hours or key expiry.
+response is a plain-text JWT. Token exchange sends `Accept: */*`; weight-data
+requests retain `Accept: application/json`. HTTP failures expose only a safe numeric
+status and fixed explanation, never response bodies, reasons, URLs or credentials.
+Access tokens last up to 24 hours or key expiry.
 There are **no refresh tokens**: obtain another token from the same key. The
 application treats JWT expiry only as a cache hint; Garmin over verified HTTPS
 remains authoritative. It never treats local JWT decoding as signature validation.

@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Product and release
 
-Version 1.0.0 / schema 13 is a private home-server Flask/SQLite application for
+Version 1.0.1 / schema 13 is a private home-server Flask/SQLite application for
 multiple household people. It is passwordless trusted-LAN software, not public
 hosting or a security boundary between household members. Ordinary workouts/history
 work offline; optional Garmin and application updates need internet. Docker Compose
@@ -25,7 +25,8 @@ recommendations, history, body weights and Garmin settings. Accent colors persis
 in private external settings; themes Auto/Light/Dark are browser-local.
 
 The Exercise Library is globally shared with permanent IDs. Ordinary lists hide
-raw IDs and safely truncate long names. The accessible three-dot menu offers
+raw IDs and safely truncate long names. The three-dot menu sits at the card’s top right above the full-width name.
+The accessible three-dot menu offers
 Edit Defaults and the existing impact-reviewed permanent deletion. Clicking a
 name opens a read-only summary with icons/configuration and Edit Exercise action.
 Rename preserves IDs/references; completed snapshots keep their original names.
