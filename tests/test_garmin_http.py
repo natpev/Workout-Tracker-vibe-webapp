@@ -60,7 +60,7 @@ def test_http_transport_connection_cache_and_406_preserve_settings_and_local_rec
             assert request.get_header('Accept')=='*/*'
             return BytesIO(jwt.encode())
         assert request.get_header('Accept')=='application/json'
-        return BytesIO(json.dumps([dict(timestampGMT='2020-01-01T18:00:00Z',weight=100)]).encode())
+        return BytesIO(json.dumps([dict(timestampGMT='2020-01-01T18:00:00Z',weight=100000)]).encode())
     with patch.object(g,'build_opener') as factory:
         factory.return_value.open.side_effect=opened
         g.connect(unified_root,person,'synthetic-original-key','UTC')

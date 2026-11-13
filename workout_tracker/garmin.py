@@ -9,7 +9,6 @@ import base64
 import json
 import os
 import re
-import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_EVEN
@@ -307,12 +306,53 @@ def schedule(value, person, enabled, hours):
         write(root, state)
 
 
-def decoded_weights(raw):
-    """Official DateWeightDTO: kilograms + aware timestampGMT; no stable ID is documented.
+def measurement_time(value):
+    """Normalize Garmin epoch milliseconds or aware ISO text without float rounding.
 
-    The permanent source identity is the canonical UTC measurement timestamp per
-    person. Conflicting duplicate timestamps in one response are refused, never
-    collapsed by weight/name. Updates retain original source values in an audit.
+    Microseconds are the precision of our existing permanent timestamp identities.
+    Reject finer nonzero precision rather than merging two distinct measurements.
+    The lower date bound also rejects Unix seconds accidentally supplied as ms.
+    """
+    if type(value) in (int, Decimal):
+        milliseconds = Decimal(value)
+        if (
+            not milliseconds.is_finite()
+            or not 315532800000 <= milliseconds <= 253402300799999
+        ):
+            raise ValueError()
+        # Check source digits before Decimal context rounding can hide a tiny
+        # fractional remainder beyond our microsecond identity precision.
+        digits = milliseconds.as_tuple()
+        if digits.exponent < -3 and any(digits.digits[digits.exponent + 3 :]):
+            raise ValueError()
+        microseconds = milliseconds * 1000
+        if microseconds != microseconds.to_integral_value():
+            raise ValueError()
+        moment = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(
+            microseconds=int(microseconds)
+        )
+    elif isinstance(value, str) and len(value) <= 64:
+        fraction = re.search(r"[.,](\d+)", value)
+        if fraction and any(digit != "0" for digit in fraction[1][6:]):
+            raise ValueError()
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if moment.tzinfo is None:
+            raise ValueError()
+    else:
+        raise ValueError()
+    moment = moment.astimezone(timezone.utc)
+    if not datetime(1980, 1, 1, tzinfo=timezone.utc) <= moment <= w.now():
+        raise ValueError()
+    return moment.isoformat(timespec="microseconds")
+
+
+def decoded_weights(raw):
+    """Validate an entire individual-reading batch before any SQLite writes.
+
+    The /all wire response uses grams, including when timestamps are ISO strings.
+    Never infer units from weight magnitude or timestamp representation. The public
+    DateWeightDTO prose disagrees with this wire format; see docs/GARMIN.md.
+    Preserve original grams with an explicit unit marker in the existing TEXT field.
     """
     try:
         rows = json.loads(raw, parse_float=Decimal)
@@ -320,34 +360,45 @@ def decoded_weights(raw):
             raise ValueError()
         result = {}
         for row in rows:
-            moment = datetime.fromisoformat(row["timestampGMT"].replace("Z", "+00:00"))
-            if moment.tzinfo is None or moment > w.now():
+            if not isinstance(row, dict):
                 raise ValueError()
-            instant = moment.astimezone(timezone.utc).isoformat(timespec="microseconds")
-            kilos = Decimal(str(row["weight"]))
-            if not kilos.is_finite() or kilos <= 0:
+            instant = measurement_time(row["timestampGMT"])
+            value = row["weight"]
+            if type(value) not in (int, Decimal):
                 raise ValueError()
-            # The exact pound definition is 0.45359237 kg. Only the stored
-            # body-weight precision is rounded; original kilograms are retained.
+            grams = Decimal(value)
+            # A conservative 1–700 kg import envelope catches unit mistakes and
+            # impossible body weights. Never reinterpret a rejected value as kg.
+            if not grams.is_finite() or not 1000 <= grams <= 700000:
+                raise GarminError(
+                    "Garmin returned a weight outside the supported 1–700 kg range in grams; nothing was imported."
+                )
             milli = int(
-                (kilos * Decimal(1000) / Decimal("0.45359237")).to_integral_value(
+                (grams * 1000 / Decimal("453.59237")).to_integral_value(
                     rounding=ROUND_HALF_EVEN
                 )
             )
-            if not 1 <= milli <= w.MAX_INTEGER:
-                raise ValueError()
             measurement = dict(
-                measured_at=instant, weight_milli_lb=milli, source_value=str(kilos)
+                measured_at=instant,
+                weight_milli_lb=milli,
+                source_value=json.dumps(
+                    dict(unit="g", value=str(value)),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
             )
-            if instant in result and result[instant] != measurement:
-                raise GarminError(
-                    "Garmin returned conflicting measurements at one timestamp; nothing was imported."
-                )
+            if instant in result:
+                previous = Decimal(json.loads(result[instant]["source_value"])["value"])
+                if previous != grams:
+                    raise GarminError(
+                        "Garmin returned conflicting measurements at one timestamp; nothing was imported."
+                    )
+                continue
             result[instant] = measurement
         return list(result.values())
     except GarminError:
         raise
-    except (ValueError, KeyError, TypeError, ArithmeticError):
+    except (ValueError, KeyError, TypeError, ArithmeticError, RecursionError):
         raise GarminError(
             "Garmin returned invalid weight data; nothing was imported."
         ) from None
@@ -368,6 +419,15 @@ def import_weights(db, person, rows):
             before = dict(old)
             if all(before[key] == row[key] for key in row):
                 continue
+            # Older releases stored untagged source values under a different unit
+            # assumption. Preserve those records and audits; never mass-correct
+            # existing imports merely because the parser changed in this release.
+            if not (before["source_value"] or "").startswith('{"unit":"g",'):
+                if before["weight_milli_lb"] == row["weight_milli_lb"]:
+                    continue
+                raise GarminError(
+                    "An existing Garmin reading uses the older import format and needs review; no records were changed."
+                )
             db.execute(
                 "UPDATE body_weights SET weight_milli_lb=?,source_value=?,updated_at=?,revision=revision+1 WHERE id=?",
                 (row["weight_milli_lb"], row["source_value"], stamp, old["id"]),
@@ -473,11 +533,17 @@ def sync(value, person, zone, *, scheduled=False):
                 )
                 write(root, state)
         return count
-    except (GarminError, StorageError, sqlite3.Error, OSError) as failure:
-        # SQL failures roll back the whole import. Clear the short claim and
-        # publish only a fixed message, never database paths, tokens or payloads.
-        error = failure if isinstance(failure, GarminError) else GarminError(
-            'Garmin synchronization could not be saved. Local records are preserved; retry later.'
+    except BaseException as failure:
+        # Rollbacks and cleanup also cover programming errors and cancellation
+        # (KeyboardInterrupt/SystemExit). Never display an exception's raw text.
+        # A killed process cannot run cleanup; its five-minute lease is reclaimable
+        # above, and the claim/generation check prevents a late worker importing.
+        error = (
+            failure
+            if isinstance(failure, GarminError)
+            else GarminError(
+                "Garmin synchronization stopped unexpectedly. Local records are preserved; retry later."
+            )
         )
         with storage_lock(value, exclusive=True) as root:
             state = read(root)
@@ -501,6 +567,8 @@ def sync(value, person, zone, *, scheduled=False):
                 if error.unauthorized:
                     item["connected"] = False
                 write(root, state)
+        if not isinstance(failure, Exception):
+            raise
         raise error from None
 
 

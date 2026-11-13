@@ -4,7 +4,7 @@
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **1.0.1**, full-feature schema **13**. Existing schema-13 storage needs no migration for this patch. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-12 installations need an explicitly confirmed separate-candidate migration to 13. See [upgrade prerequisites](../docs/UPGRADING.md) for older installations. The application remains
+Application **1.0.2**, full-feature schema **13**. Existing schema-13 storage needs no migration for this patch. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-12 installations need an explicitly confirmed separate-candidate migration to 13. See [upgrade prerequisites](../docs/UPGRADING.md) for older installations. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -61,7 +61,7 @@ For emergency updates, use the same protected host engine through v4:
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-It displays approved 1.0.1 and prompts **MIGRATE 13** if necessary. Review explicitly.
+It displays approved 1.0.2 and prompts **MIGRATE 13** if necessary. Review explicitly.
 No-update checks perform no copy/migration. A confirmed update makes a verified
 backup, preserves original database/image/selection, builds, migrates a separate
 candidate and verifies health. Parent .env is privately copied with identical
@@ -164,9 +164,9 @@ silently by the updater. Backups, retained databases and old images are not prun
 This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
 
 This procedure is needed only once for hosts not yet refreshed for Phase 12.
-Version 1.0.1 does not change that host protocol; do not repeat this procedure if already refreshed.
+Version 1.0.2 does not change that host protocol; do not repeat this procedure if already refreshed.
 
-Application **1.0.1 / target schema 13** uses the same host protocol. The
+Application **1.0.2 / target schema 13** uses the same host protocol. The
 service refresh itself never migrates storage or replaces running containers.
 No new refresh is needed when this capability is already installed.
 
@@ -199,13 +199,13 @@ migrate or replace workout storage/containers. The installer refuses an active
 update lock. Root needs the distribution's matching Python venv package and Git
 credentials as previously documented.
 
-Then use browser Check → review What's New in v1.0.1 → confirm → Install, or:
+Then use browser Check → review What's New in v1.0.2 → confirm → Install, or:
 
 ```bash
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-Verify http://10.0.69.9:8000/health/ready reports app_version 1.0.1 and schema 13;
+Verify http://10.0.69.9:8000/health/ready reports app_version 1.0.2 and schema 13;
 verify the independent http://10.0.69.9:8001/status page has readable release notes
 and a non-wrapping, internally scrollable live console. Make a new verified backup.
 For a new installation, use --install-service instead of --upgrade-service after
@@ -282,7 +282,7 @@ explain what SQLite backups omit and the audit-preservation rules.
 cd /root/WorkoutTracker/app
 docker compose --env-file ../.env ps
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.1",schema_version=13)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.2",schema_version=13)'
 ```
 
 Make a new verified schema-13 backup after success. Older-schema backups remain

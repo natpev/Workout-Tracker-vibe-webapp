@@ -287,3 +287,36 @@ def test_new_historical_corrections_reports_and_full_restore_workflow(release_pa
         )
         assert db.execute("SELECT count(*) FROM body_weights").fetchone()[0] == 1
         assert db.execute("SELECT count(*) FROM exercise_icons").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("viewport", [(390, 844), (844, 390)])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_garmin_unexpected_failure_is_safe_and_retry_recovers(release_page, viewport, theme):
+    """Real CSRF forms display sanitized failure and later import grams without a stuck claim."""
+    from datetime import timedelta
+    from workout_tracker import garmin as g
+
+    page, base, x = release_page
+    page.set_viewport_size(dict(zip(("width", "height"), viewport)))
+    page.goto(base + f"/settings?person_id={x['person']}")
+    page.select_option("#theme", theme)
+    page.goto(base + f"/people/{x['person']}/garmin")
+    page.locator("[name=api_key]").fill("synthetic-a")
+    page.get_by_role("button", name="Connect and verify", exact=True).click()
+    with patch.object(g, "request", side_effect=AttributeError("synthetic-a private-weight-100000")):
+        page.get_by_role("button", name="Sync Now", exact=True).click()
+    pw.expect(page.get_by_role("alert")).to_contain_text("stopped unexpectedly")
+    assert "synthetic-a" not in page.content() and "private-weight-100000" not in page.content()
+    with g.storage_lock(x["root"]) as root:
+        state = g.read(root)["people"][x["person"]]
+        assert state["claim"] is None and state["connected"]
+    # Simulate time passing instead of clearing retry protection or waiting 15 minutes.
+    later = g.w.now() + timedelta(minutes=16)
+    with patch.object(g.w, "now", return_value=later):
+        page.get_by_role("button", name="Sync Now", exact=True).click()
+    pw.expect(page.get_by_text("Garmin synchronization complete: 2 new or updated measurements.", exact=True)).to_be_visible()
+    with database_session(x["root"]) as db:
+        rows = db.execute("SELECT weight_milli_lb FROM body_weights WHERE person_id=?", (x["person"],)).fetchall()
+        assert [r[0] for r in rows] == [220462, 220462]
+        assert db.execute("SELECT count(*) FROM body_weights WHERE person_id=?", (x["other"],)).fetchone()[0] == 0
+    assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")

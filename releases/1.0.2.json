@@ -1,0 +1,8 @@
+{
+  "version": "1.0.2",
+  "notes": [
+    "Fixed Garmin weigh-ins failing to synchronize.",
+    "Corrected Garmin weight conversion and added checks for invalid readings.",
+    "Improved recovery after interrupted or failed synchronization while keeping saved readings and connections safe."
+  ]
+}

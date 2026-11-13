@@ -70,3 +70,42 @@ and update commands were checked against the existing CLI/Compose configuration;
 local documentation links and shell examples validated. Version-matched plain-English
 release notes are in releases/1.0.1.json. Schema remains 13; neither the existing
 host service nor repository v4 needs replacement for this patch.
+
+## Patch 1.0.2 verification
+
+751 backend/script tests passed, including 56 new Garmin synchronization regressions.
+Coverage includes numeric epoch milliseconds and aware ISO timestamps with matching
+UTC identities, exact gram-to-pound conversion, retained source units/values,
+multiple daily readings, duplicate retries, malformed/missing/nonfinite/unrealistic
+values, whole-batch rejection, revised-reading audits and person isolation.
+Untyped legacy imports remain unchanged; conflicting old values refuse the whole
+transaction. Cancellation/unexpected errors release owned claims without logging
+private exception text. Tests cover abandoned five-minute leases and prevent a late
+worker from importing or clearing a newer claim. No released DDL changed.
+
+Three Docker integration cases passed: packaged token/JSON/status handling,
+real disposable SQLite gram imports and exception recovery, plus the actual
+v4/independent-host schema-13 code-only update cycle. The latter preserves the
+original database bytes, selected file, verified backup and working health.
+The image was rebuilt from the patch source; no server deployment was performed.
+
+README was opened and reviewed against the CLI, Compose configuration, features,
+installation/update/recovery commands and local file links. Versions, safe retry
+instructions and retained-legacy-import behavior were updated. Plain-English notes
+are in releases/1.0.2.json. Schema remains 13; no migration or host updater refresh
+is needed on an existing schema-13 installation.
+
+All remote Garmin responses are synthetic. The current public OpenAPI still claims
+kilograms/ISO text, conflicting with the reported gram/millisecond wire response;
+see GARMIN.md for the explicit adapter policy and safety envelope. No real Garmin
+account, physical iPhone/Safari or production database was tested. This focused
+patch does not claim a rerun of every older browser or Docker case.
+
+15 real Chromium cases passed on the final source: seven-capability workout entry,
+autosave/resume/completion, historical corrections and backup/restore, body-weight
+management/Garmin/settings/downloads, and sanitized unexpected-error/retry recovery.
+Phone portrait/landscape, narrow/tablet/desktop widths and Light/Dark are covered.
+The new failure/recovery cases run at 390×844 and 844×390 in both themes. No
+physical device or Safari testing is claimed. Total: **769 distinct tests passed,
+zero failed or skipped** across the complete backend suite and these selected
+browser/Docker suites.

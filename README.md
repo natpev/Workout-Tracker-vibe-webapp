@@ -15,9 +15,10 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **1.0.1**. Database schema: **13**. This patch fixes Garmin
-connection requests and adds safe HTTP error codes. Existing schema-13 installations
-need no migration; saved connections and weight history remain intact. Existing schema-12
+Current application: **1.0.2**. Database schema: **13**. This patch fixes Garmin
+weigh-in synchronization, weight conversion and recovery after failed attempts.
+Existing schema-13 installations need no migration; saved connections and weight
+history remain intact. Existing schema-12
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
@@ -197,7 +198,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.1",schema_version=13)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.2",schema_version=13)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -210,7 +211,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **1.0.1 / database 13**. Check all three themes in Settings.
+should report **1.0.2 / database 13**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -361,6 +362,11 @@ Personal API key, then **Connect and verify**. Saved keys never appear again.
 Use **Sync Now** or explicitly enable an automatic interval (six hours by default).
 Synchronization imports the latest 30 local calendar days. Repeated syncs do not
 create duplicates. Local history stays available when Garmin is offline.
+Incoming readings are checked before importing. Existing readings are never blindly
+reinterpreted after this fix: an older-format conflict stops the import for review.
+After updating, use **Sync Now**; an abandoned attempt can be retried after five
+minutes. Errors normally defer retries for 15 minutes; respect a later displayed
+next attempt if Garmin requests it. Do not disconnect or erase data to clear a failure.
 
 For automatic sync only, change `WORKOUT_SCHEDULER_NETWORK_MODE=none` to `bridge`
 in `/root/WorkoutTracker/.env`, then during a planned maintenance window run:
@@ -422,7 +428,7 @@ verified backup and protect the complete storage tree before updating.
 Open **Settings → Application Updates → Check for Updates**. Read the release
 notes, confirm installation and any required schema migration, then Install.
 The independent status tab stays available while the app restarts. After success,
-verify Settings/footer and `/health/ready`: **1.0.1 / schema 13 / ready**. Make a new
+verify Settings/footer and `/health/ready`: **1.0.2 / schema 13 / ready**. Make a new
 verified backup. Existing schema-12 installations require candidate migration.
 
 Your already upgraded Phase 12 independent updater supports this release; a new

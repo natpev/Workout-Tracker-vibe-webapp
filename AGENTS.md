@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Current release and scope
 
-Version 1.0.1 targets schema 13. The user authorizes implementation, verification
+Version 1.0.2 targets schema 13. The user authorizes implementation, verification
 and direct main merging for this release, without a pull request or PR API attempt.
 Never deploy, access production workout data, force-push, bypass protections,
 discard unrelated work or investigate the excluded duplicate/orphaned-history issue.
@@ -65,6 +65,9 @@ mobile navigation, one exercise per screen, themes, accent colors and local asse
   or response payloads. Garmin uses verified official endpoints, bounded HTTPS,
   no redirects, per-person credentials, idempotent source identities and safe retry.
   Keep remote requests outside workout/storage transactions.
+  Garmin wire units and timestamps require explicit validation; do not infer units
+  from magnitude or silently reinterpret legacy imports. Clear owned claims on
+  unexpected errors/cancellation; preserve bounded recovery for killed workers.
 - Passwordless trusted-LAN operation stays explicit. Do not introduce accounts,
   passwords or HTTPS requirements. LAN users can access/manage household data.
 

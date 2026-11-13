@@ -17,14 +17,14 @@ from test_phase8_updater import fixture
 def test_release13_update_failure_preserves_original_and_never_restarts_incompatible_image(tmp_path,fault):
     """Before activation retain schema12; after activation refuse old-image recovery."""
     root,env=fixture(tmp_path,12)
-    env.update(METADATA_VERSION='1.0.1',METADATA_SCHEMA='13',MODE='ok')
+    env.update(METADATA_VERSION='1.0.2',METADATA_SCHEMA='13',MODE='ok')
     manifest=root/'data/storage/config/active.json';original=root/'data/storage/data'/json.loads(manifest.read_text())['database'];content=original.read_bytes();selection=manifest.read_bytes()
     with patch.dict(os.environ,env,clear=True),patch('time.sleep'):
         engine=Engine(root);release=engine.check()
         os.environ['MODE']=fault
         if fault=='ok':
             state=engine.install(release['id'],confirm=True,migration_confirm=True)
-            assert state['status']=='Completed' and state['installed_version']=='1.0.1' and state['installed_schema']==13
+            assert state['status']=='Completed' and state['installed_version']=='1.0.2' and state['installed_schema']==13
         else:
             with pytest.raises(UpdateError):engine.install(release['id'],confirm=True,migration_confirm=True)
             state=engine.state();assert state['status']=='Failed'

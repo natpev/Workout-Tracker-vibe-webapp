@@ -31,7 +31,7 @@ def token():
 
 
 def response(path, auth, **kwargs):
-    """Use verified endpoint paths and DateWeightDTO units/fields from official docs."""
+    """Use individual wire readings in grams and Unix epoch milliseconds."""
     if path == g.TOKEN:
         assert auth in ("ApiKey synthetic-a", "ApiKey synthetic-b")
         return token()
@@ -40,8 +40,8 @@ def response(path, auth, **kwargs):
     )
     return json.dumps(
         [
-            {"timestampGMT": "2020-01-01T08:00:00.000Z", "weight": 100},
-            {"timestampGMT": "2020-01-01T18:00:00.000Z", "weight": 100},
+            {"timestampGMT": 1577865600000, "weight": 100000},
+            {"timestampGMT": 1577901600000, "weight": 100000},
         ]
     )
 
@@ -106,8 +106,8 @@ def test_garmin_failure_preserves_local_records_and_records_safe_status(unified_
 def test_conflicting_source_timestamps_refuse_without_guessing():
     """The official DTO exposes timestamps but no ID; ambiguous conflicting pairs fail."""
     rows = [
-        dict(timestampGMT="2020-01-01T08:00:00Z", weight=100),
-        dict(timestampGMT="2020-01-01T08:00:00Z", weight=90),
+        dict(timestampGMT="2020-01-01T08:00:00Z", weight=100000),
+        dict(timestampGMT="2020-01-01T08:00:00Z", weight=90000),
     ]
     with pytest.raises(g.GarminError, match="conflicting"):
         g.decoded_weights(json.dumps(rows))
@@ -141,7 +141,7 @@ def test_revised_garmin_record_is_audited_not_duplicated(unified_root):
     with patch.object(g, "request", side_effect=response):
         g.connect(unified_root, person, "synthetic-a")
         g.sync(unified_root, person, "UTC")
-    changed = json.dumps([dict(timestampGMT="2020-01-01T08:00:00Z", weight=99)])
+    changed = json.dumps([dict(timestampGMT="2020-01-01T08:00:00Z", weight=99000)])
     with patch.object(g, "request", return_value=changed):
         assert g.sync(unified_root, person, "UTC") == 1
     with database_session(unified_root) as db:

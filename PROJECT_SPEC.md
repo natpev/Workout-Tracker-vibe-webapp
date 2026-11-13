@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Product and release
 
-Version 1.0.1 / schema 13 is a private home-server Flask/SQLite application for
+Version 1.0.2 / schema 13 is a private home-server Flask/SQLite application for
 multiple household people. It is passwordless trusted-LAN software, not public
 hosting or a security boundary between household members. Ordinary workouts/history
 work offline; optional Garmin and application updates need internet. Docker Compose
@@ -135,7 +135,14 @@ success/error/schedule. Verify current official docs before API changes. Private
 0600 credentials live outside downloadable SQLite. Never expose them in responses,
 logs, reports or exports. Token acquisition/renewal follows official plain-JWT
 contract, with no invented refresh endpoint. Idempotent timestamp source IDs avoid
-duplicate imports; revised source values append audits, Manual records untouched.
+duplicate imports; revised tagged source values append audits, Manual records untouched.
+Accept numeric epoch milliseconds and aware ISO timestamps, normalize to UTC without
+float rounding. The individual-reading wire adapter converts grams using exact
+453.59237 g/lb and stores original value/unit. Refuse malformed, ambiguous or
+out-of-envelope readings atomically. Do not reinterpret existing untagged imports;
+conflicting old values stop for review. See docs/GARMIN.md for the public-reference
+discrepancy. All exceptions/cancellation release owned claims with fixed nonsecret
+errors; hard-killed workers have bounded five-minute recoverable leases.
 
 Sync uses bounded verified HTTPS, no redirects, short claims and atomic imports,
 rate-aware backoff; network never holds the workout lock. Default automatic interval

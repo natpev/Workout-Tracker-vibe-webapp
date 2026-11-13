@@ -6,16 +6,22 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Existing schema 13 installation
 
-Version 1.0.1 is a code-only patch for schema 13. Use the normal browser update;
+Version 1.0.2 is a code-only patch for schema 13. Use the normal browser update;
 no database migration, connection reset or host-service upgrade is needed. It fixes
-Garmin token response negotiation and moves Library actions above the exercise name.
+Garmin timestamp parsing, gram-to-pound conversion and sync error recovery.
+After updating, confirm **1.0.2 / schema 13 / ready**, then open the selected
+person’s Settings → Garmin → Sync Now. Saved keys and local records remain.
+An old abandoned claim expires after five minutes; an error normally defers retry
+for 15 minutes (or longer when Garmin requests it). Do not reconnect or edit private
+files merely to clear a claim. Older-format import conflicts stop safely for review;
+this release does not automatically repair potentially incorrect earlier imports.
 
 ## Existing schema 12 installation
 
-Use Settings → Application Updates → Check for Updates, review version 1.0.1 and
+Use Settings → Application Updates → Check for Updates, review version 1.0.2 and
 explicitly consent to target schema 13 migration. Confirm Install and watch the
 independent status tab. Before updating create a verified backup and protect the
-complete storage tree/.env. Afterwards health must report app_version 1.0.1,
+complete storage tree/.env. Afterwards health must report app_version 1.0.2,
 schema_version 13, ready. Create a new verified schema-13 backup.
 
 The existing Phase-12-capable host runtime and v4 entry point understand release-info
