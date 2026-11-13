@@ -21,9 +21,11 @@ def fingerprint(db, person, exercise):
 def settings(db, person, exercise, raw):
     """Canonicalize user settings through permanent lock validation before preview."""
     current=c.exercise_defaults(db,person,exercise)
-    values=c.locked_configuration(db,exercise,current,raw,confirmed_type_change=True)
+    from .measurements import adapt
+    values=c.locked_configuration(db,exercise,current,adapt(db,raw),confirmed_type_change=True)
     fields=('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')
     result=dict(zip(fields,c.configure(values)))
+    if db.execute('PRAGMA user_version').fetchone()[0]>=13:result['capabilities']=values['capabilities']
     result.update(name=c.text(raw.get('name'),'Exercise name'),weight_basis=values.get('weight_basis',current['weight_basis']))
     return c.default_values(result)
 
@@ -40,7 +42,9 @@ def save(db, person, exercise, values, update_routines=False, *, confirmed_type_
             current=db.execute('SELECT * FROM routine_exercises WHERE id=?',(row['id'],)).fetchone()
             configuration=c.configure(dict(values,weight_meaning=current['weight_meaning']))
             c.locked_configuration(db,exercise,current,values,confirmed_type_change=confirmed_type_change)
-            if db.execute('PRAGMA user_version').fetchone()[0]>=11:
+            if db.execute('PRAGMA user_version').fetchone()[0]>=13:
+                db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=?,capabilities=? WHERE id=?',(*configuration,values['weight_basis'],values['capabilities'],row['id']))
+            elif db.execute('PRAGMA user_version').fetchone()[0]>=11:
                 db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE id=?',(*configuration,values['weight_basis'],row['id']))
             else:
                 db.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE id=?',(*configuration,row['id']))
@@ -78,7 +82,7 @@ def editor(person_id, exercise_id):
                         raise w.RevisionConflict('Exercise name or settings changed; reload before saving.')
                     raw.setdefault('name',definition['name'])
                     values=settings(db,person_id,exercise_id,raw)
-                    type_change=values['measurement_type']!=item['measurement_type'] and db.execute('PRAGMA user_version').fetchone()[0]>=11
+                    type_change=(values['measurement_type']!=item['measurement_type'] or (values.get('capabilities') is not None and values.get('capabilities')!=dict(item).get('capabilities'))) and db.execute('PRAGMA user_version').fetchone()[0]>=11
                     if raw.get('action')=='apply' or (raw.get('action','defaults')=='defaults' and type_change):
                         counts=db.execute('SELECT count(DISTINCT routine_id),count(*) FROM routine_exercises WHERE person_id=? AND exercise_id=?',(person_id,exercise_id)).fetchone()
                         token=serializer.dumps(dict(person=person_id,exercise=exercise_id,values=values,revision=revision,scope=raw.get('action','defaults')))

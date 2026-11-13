@@ -7,6 +7,7 @@ workouts/restores. A crash is at-most-once, recorded as interrupted, not replaye
 """
 import hashlib
 import signal
+import os
 import threading
 from datetime import date,datetime,time,timedelta,timezone
 from zoneinfo import ZoneInfo,ZoneInfoNotFoundError
@@ -98,7 +99,11 @@ def run(value,interval=30):
     event(value,'INFO','Scheduler','Scheduler process started')
     try:
         while not stop.is_set():
-            try: tick(value)
+            try:
+                tick(value)
+                from .garmin import tick as garmin_tick
+                from .workouts import configured_timezone
+                garmin_tick(value,configured_timezone(os.environ.get('WORKOUT_TIMEZONE')))
             except Exception as error: event(value,'ERROR','Scheduler','Scheduler cycle failed; no unsafe replacement attempted',error)
             stop.wait(interval)
     finally: event(value,'INFO','Scheduler','Scheduler process stopped')

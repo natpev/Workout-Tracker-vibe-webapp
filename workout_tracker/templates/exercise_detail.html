@@ -1,0 +1,6 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Global Library summary is read-only; no configuration form or mutation route. #}
+{% extends 'base.html' %}{% block content %}<h1>{{ definition.name }}</h1>{% set pair=artwork %}{% include 'icon_pair.html' %}
+<section><h2>Exercise details</h2><p>Shared Exercise Library defaults. Existing routines retain their own settings.</p>
+<dl><dt>Measurements</dt><dd>{{ capability_label(item.capabilities) if item.capabilities is defined and item.capabilities is not none else item.measurement_type|replace('_',' + ')|title }}</dd><dt>Targets</dt><dd>{% set row=item %}{% include 'prescription.html' %}</dd>{% if has_capability(item,1) %}<dt>Weight unit</dt><dd>Pounds (lb)</dd><dt>Weight Basis</dt><dd>{{ basis_label(item.weight_basis) }} 🔒</dd>{% endif %}<dt>Notes</dt><dd>{{ item.notes or 'None' }}</dd></dl>
+<a class="pill" href="{{ url_for('manage.edit_defaults',person_id=person.id,exercise_id=definition.id) }}">Edit Exercise</a></section><a href="{{ url_for('manage.exercises',person_id=person.id) }}">Exercise Library</a>{% endblock %}

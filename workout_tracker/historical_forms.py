@@ -41,11 +41,16 @@ def occurrence_errors(values,zone):
 
 
 def measurement_errors(rows,values,modern=False):
-    """Collect all exercise errors, preserving blank/zero and one actual per exercise."""
+    """Collect exercise/set errors while preserving raw input, SQL NULL and explicit zero."""
     errors={};performed=False
     for index,row in enumerate(rows):
         fields=h.measurement_fields(row,values,index)
         try:
+            if row.get('capabilities') is not None:
+                from .measurements import parse
+                parsed=parse(row,fields,complete=True)
+                performed|=any(r['status']=='completed' for r in parsed['sets'])
+                continue
             weight,duration,flag=w.measurement(row,fields)
             performed|=weight is not None or duration is not None
             if modern and row['measurement_type']=='weight' and weight is not None:
@@ -55,7 +60,12 @@ def measurement_errors(rows,values,modern=False):
                     for set_index in range(row['target_sets']):errors[f'reps_{index}_{set_index}']=str(error)
         except c.ValidationError as error:
             if isinstance(error,w.MeasurementError):
-                errors.update({f'{key}_{index}':row['name']+': '+message for key,message in error.fields.items()})
+                for key,message in error.fields.items():
+                    if row.get('capabilities') is not None and key.startswith(('reps_','duration_')):
+                        kind,set_index=key.split('_')
+                        names=[f'reps_{index}_{set_index}'] if kind=='reps' else [f'minutes_{index}_{set_index}',f'seconds_{index}_{set_index}']
+                    else:names=[f'{key}_{index}']
+                    errors.update({name:row['name']+': '+message for name in names})
                 continue
             if row['measurement_type']=='weight':keys=[f'weight_{index}']
             else:keys=[f'minutes_{index}',f'seconds_{index}']
@@ -78,6 +88,15 @@ def values_for_rows(parent,rows,correction,display_clock,fold='',*,blank_reps=Fa
                            f'seconds_{index}':'' if duration is None else str(duration%60),
                            f'increase_{index}':'1' if row['increase_next_time']==1 else ''})
     for index,row in enumerate(rows):
+        if row.get('capabilities') is not None:
+            for set_index in range(row['target_sets']):
+                result=row['sets'][set_index] if correction else dict(status='incomplete',actual_reps=None,actual_duration_seconds=None)
+                values[f'status_{index}_{set_index}']=result['status']
+                reps=result['actual_reps'];duration=result['actual_duration_seconds']
+                values[f'reps_{index}_{set_index}']='' if reps is None else str(reps)
+                values[f'minutes_{index}_{set_index}']='' if duration is None else str(duration//60)
+                values[f'seconds_{index}_{set_index}']='' if duration is None else str(duration%60)
+            continue
         if row['measurement_type']=='weight':
             actual=row.get('actual_reps')
             for set_index in range(row['target_sets']):

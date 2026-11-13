@@ -1,0 +1,5 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Optional local data only. Acknowledgment is durable per session; blanks create no weigh-in. #}
+{% extends 'base.html' %}{% from 'macros.html' import security with context %}{% block content %}<h1>Today’s Body Weight</h1><p>{{ person.name }} · Optional before {{ workout.routine_name }}</p>
+<p>Garmin: {{ 'Connected' if status.connected else 'Not connected' }} · Last successful sync: {{ status.last_success|timestamp or 'Never' }}</p>{% if status.error %}<p>{{ status.error }}</p>{% endif %}{% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
+<form method="post">{{ security() }}<label>Weight (lb)<input name="weight" type="text" inputmode="decimal" maxlength="100" value="{{ weight }}"></label><p class="input-hint">Optional. Blank or Skip creates no measurement. No remote sync delays your workout.</p><div class="actions"><button name="action" value="continue">Continue</button><button class="secondary" name="action" value="skip">Skip</button></div></form>{% endblock %}

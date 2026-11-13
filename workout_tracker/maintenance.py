@@ -70,6 +70,7 @@ def logical_check_connection(db,version):
             values={k:str(row[k]) for k in ('target_sets','target_reps','measurement_type','weight_meaning','notes')}
             duration=row['target_duration_seconds']
             if duration is not None: values.update(minutes=str(duration//60),seconds=str(duration%60))
+            if row.get('capabilities') is not None:values['capabilities']=row['capabilities']
             configured=c.configure(values)
             if configured!=tuple(row[k] for k in ('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes')):
                 raise StorageError('Prepared target configuration failed.')
@@ -82,6 +83,8 @@ def logical_check_connection(db,version):
             actual=db.execute('SELECT * FROM historical_entries WHERE session_id=? ORDER BY position',(saved['id'],)).fetchall()
             if len(actual)!=len(snapshots) or any(tuple(a[k] for k in fields)!=tuple(dict(b,position=index)[k] for k in fields) for index,(a,b) in enumerate(zip(actual,snapshots))):
                 raise StorageError('Historical prescriptions differ from their preparation.')
+            if version>=13 and any(a['capabilities']!=b.get('capabilities') for a,b in zip(actual,snapshots)):
+                raise StorageError('Historical capabilities differ from their preparation.')
     expected={(r['id'],r['person_id'],r['id'],None) for r in db.execute("SELECT id,person_id FROM workout_sessions WHERE status='completed'")}
     expected|={(r['id'],r['person_id'],None,r['id']) for r in db.execute('SELECT id,person_id FROM historical_workouts')}
     actual={tuple(r) for r in db.execute('SELECT id,person_id,live_session_id,historical_session_id FROM workout_registry')}
@@ -102,6 +105,9 @@ def logical_check_connection(db,version):
     if version>=11:
         from .interface_schema import validate_interface
         validate_interface(db)
+    if version>=13:
+        from .measurements import validate_storage
+        validate_storage(db)
 
 
 def validate(root,path,selection):
@@ -202,7 +208,7 @@ def current_for_restore(root):
         selection=json.loads(active.read_text(),object_pairs_hook=_unique_object)
         if not isinstance(selection,dict) or set(selection)!= {'database','storage_id'}: raise original_error
         storage_id=selection['storage_id'];o.identity(storage_id)
-        match=re.fullmatch(rf'schema-([23456789]|10|11|12)-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
+        match=re.fullmatch(rf'schema-([23456789]|10|11|12|13)-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
         if not match: raise original_error
         path=root/'data'/selection['database'];_regular_file(path)
         for suffix in ('-journal','-wal','-shm'):

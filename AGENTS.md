@@ -1,300 +1,103 @@
-AGENTS.md — Workout Tracker
-
-> **SHAMELESSLY VIBE-CODED 🤖**
->
-> This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. This project is developed primarily with AI-generated code under human direction. Do not assume the code is audited, secure, or correct. Keep this disclosure prominent in the README, all project notes, and headers of every project-owned source file where comments are supported. By explicit Phase 6 instruction, do not render the repeated visible banner in application pages; HTML/Jinja source headers retain it.
-
-
-Patch 0.15.1 / application 0.15.1 / schema 12 is the current authorized release.
-Verified: 768 passed (620 backend/script, 124 Chromium, 24 Docker), zero failed
-or skipped; see PATCH_0_15_1_REVIEW.md for migration, SVG boundaries and limits.
-The user explicitly approved schema 12 after review found the schema-11 icon CHECK
-constraint. Only that constraint changes on a separate migration candidate.
-See PATCH_0_15_1_REVIEW.md and docs/SCHEMA_12.md. Previous release:
-Phase 15 verification: 740 distinct passing tests (600 backend/script, 118 Chromium,
-22 Docker); see PHASE_15_REVIEW.md for full results and resolved failures.
-Verified Phase 14 baseline: 659 distinct passing tests (530 backend/script, 109 Chromium,
-20 Docker); detailed run/fix evidence is in PHASE_14_REVIEW.md.
-Earlier phase contracts below are historical where superseded by this section.
-No PR, production access, deployment or unrelated identity investigation.
-
-Retained Phase 14 foundation (Phase 15 changes below take precedence):
-- New weighted IDs require explicit total/per_side selection; existing bases are
-  locked in UI, services and database guards. Library defaults win classified
-  current-configuration conflicts during migration, per explicit user direction.
-  Original historical bases and conversion audits remain unchanged.
-- Both save scopes remain; personal routine overwrite needs signed confirmation
-  and one atomic transaction. Neither scope edits completed history or basis.
-- No new historical conversions: remove transition writers, counters, old forms
-  and editable Weight Meaning. Retain read-only audit validation and old migrations.
-- Schema 10 adds nullable ordered actual reps JSON per exercise occurrence. One
-  weight per exercise; new reps start blank and partial drafts autosave (schema 11).
-  Zero valid, blank incomplete, skips NULL; duration modes have no reps fields.
-- Legacy completed reps remain unknown; estimates use original sets × target reps.
-  Corrections append revisions and may introduce reps; old JSON remains valid.
-- Use one exact calculation/formatting engine for lifetime and workout estimates,
-  same-routine preceding-30-day comparisons, pounds and imperial short tons.
-- Explicit candidate migration only; reject unclassified weighted data with Update
-  1 guidance, preserve originals/audits/NULLs/drafts and verify integrity/restore.
-- Mandatory README, human release notes and full backend/Chromium/Docker/updater
-  checks precede authorized direct main merge/push/remote verification/branch cleanup.
-See PHASE_14_REVIEW.md and docs/SCHEMA_10.md for the archived baseline; see PHASE_15_REVIEW.md for current implementation.
-
-Read this first
-
-• PROJECT_SPEC.md is the authoritative description of the user’s requested behavior; read it completely before planning or changing code.
-• Archived baseline: Phase 13 Update 1 / application 0.13.0 / schema 9 was verified: 590 passed (471 backend/script, 100 Chromium, 19 Docker; zero failed/skipped). See PHASE_13_REVIEW.md for candidate migration, exact append-only conversions, personal scope and upgrade instructions. Phase 14 supersedes its transition behavior. Previous release: Patch 0.12.2 / unchanged schema 8 improves workout readability, focused weight typing and History display/filters. All 535 tests passed (425 backend/script, 93 Chromium, 17 Docker; zero failed/skipped); see WORKOUT_HISTORY_UI_REVIEW.md. Previous patch 0.12.1 / unchanged schema 8 adds the Exercise Library action menu and CSS-only name truncation; 519 tests passed (423 backend/script, 79 Chromium, 17 Docker; zero failed/skipped); see LIBRARY_MENU_REVIEW.md for release verification. Phases 1–12 are implemented. Phase 12 application 0.12.0 / unchanged schema 8 passed all 509 tests (423 backend/script, 69 Chromium, 17 Docker; zero failed/skipped). See PHASE_12_REVIEW.md and the permanent release rules below. Previous release: Phase 11 application 0.11.0 / schema 8 implements combined Weight + Duration, verified with 476 passed, zero failed/skipped (402 backend/script, 57 Chromium, 17 Docker). See the final contract below and PHASE_11_REVIEW.md. Previous release application 0.10.4 / unchanged schema 7 adds Next-only navigation progress, exercise setting-scope notes and selected-exercise wide CSV export (PROGRESS_CSV_REVIEW.md). Final full suite: 439 passed, zero failed/skipped (375 backend/script, 51 Chromium, 13 Docker). Prior 0.10.3 header/date verification remains in HEADER_ROUTINE_DATES_REVIEW.md. Previous patch includes routine-card sorting (PATCH_0_10_1_REVIEW.md) and a CSS-only viewport-safe hamburger fix (MENU_POSITION_REVIEW.md), verified with 406 passed and zero failed/skipped. Phases 1–10 are implemented. Phase 10 (application 0.10.0 / unchanged schema 7) adds inline historical validation, a structured 24-hour picker, URL-based Progress ranges and SVG tooltips, a synchronous independent update tab and a separate bounded sanitized host console. Final suite: 384 passed, zero failed/skipped (339 backend/script, 32 Chromium, 13 Docker). See PHASE_10_REVIEW.md for evidence. The user authorizes verified direct fast-forward merge/push/cleanup, with NO PR creation or PR API attempt. No server deployment, real data or unrelated development. Phase 14 authorization above supersedes earlier phase boundaries. The explicitly excluded duplicate/orphaned exercise issue must not be investigated, diagnosed, repaired, migrated or targeted with cleanup; do not alter identity matching. Preserve disclosures without a visible application banner.
-• Final corrections: initialize and persist recovery inputs before attempting shutdown, reverify quiesced storage before refreshing its hash, and probe a retained image as the configured writer UID/GID. Recovery must verify storage/config/selection/bytes and actual app/scheduler health; never restore backups or restart an incompatible image. Carry explicit person_id throughout Settings maintenance/log links/forms/redirects, and show restore outcomes through read-only GET so refresh cannot replay maintenance.
-• Phases 1–4 remain intact. Phase 5 keeps schema 4 unchanged; operations settings/backup history/restore audit use private external atomic JSON and logs use private daily JSONL. The scheduler is a separate process, disabled until Settings explicitly enables it. All backup/restore/config writes coordinate with the existing storage-root lock. Log writes use a separate logs lock and must not prevent workout commits.
-• Phases 1–3 remain intact. Phase 4 adds schema 4 only through explicit separate-candidate migration. Original schema-3 files, completed rows and Phase 3 protection triggers remain unchanged. Corrections append audit revisions and use an effective-value read layer; never update completed records directly. Follow MEASUREMENT_DESIGN.md and PHASE_4_REVIEW.md. No startup migration/initialization/repair/replacement is allowed.
-• The user is learning the codebase. Optimize for readability, simplicity, and safe maintenance, not cleverness.
-• When a detail is unresolved, flag it clearly. Do not quietly turn an illustrative mockup or your own suggestion into an agreed requirement.
-
-Required architecture
-
-• Python + Flask, SQLite, responsive HTML/CSS, minimal JavaScript, charts for history; Docker Compose for self-hosting.
-• Code lives in a GitHub repository, initially private. Persistent databases, settings, schema archives, backups, and logs live outside the repository and replaceable containers via explicit host bind mounts.
-• LAN-only for v1, without passwords; still validate input and secure the application. No public exposure, cloud dependence, analytics, telemetry, or unexpected third-party network services. Architect for possible future remote access and authentication, not enabled by default.
-• Keep the app straightforward to install, update, troubleshoot, and roll back. Document paths and commands in plain English.
-
-Mandatory disclosure and comments
-
-• Start each project-owned source file that permits comments (Python, HTML, JS, CSS, shell, YAML, etc.) with a comment prominently saying SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting. Use valid comment syntax for its language. For formats that do not permit comments (such as JSON), place the disclosure in adjacent documentation rather than creating invalid files.
-• All README files, project notes, diagrams, and architecture/implementation documents must prominently disclose that this is shamelessly vibe-coded.
-• Source-file header: explain what this file does, who calls/imports it, what data it reads/writes, and important dependencies.
-• For functions and meaningful blocks, explain inputs, outputs, side effects, and data flow in beginner-friendly language. Clearly label database reads/writes, browser → Flask → SQLite flow, background jobs, and cross-file calls.
-• Explain non-obvious why, error handling, and safety checks. Avoid noise from line-by-line comments describing self-evident syntax.
-• Maintain an approachable README with architecture, setup, updates, persistent storage, backups/restores, logging, and troubleshooting.
-
-Functional contract
-
-People, routines, exercises
-
-• Phase 6 replaces the original expanded People layout with person-selection cards and separate accessible action menus. Open app → People → routine selection → Start workout; editing is secondary. Do not automatically select a previous person or add account-style tabs. No login for initial LAN-only use. Each person has independent routines, active drafts, weights, flags, history, and charts.
-• Routines can be created, renamed, edited, reordered, duplicated, and deleted. Exercises in routines can be added, edited, removed, and reordered, including sets and target reps (Weight) or target duration per set (Time), selected with a segmented Weight/Time control.
-• A routine may be copied from a different user or duplicated within the same user. On schema 5 the new routine/settings are independent; its permanent global exercise IDs are deliberately shared. Retained schemas 2–4 keep their earlier local-identity behavior. Do not copy weight/history/increase state.
-• Historical workouts must retain exercise name, order, measurement type, prescribed sets/reps or duration, and results even after routine editing or deletion.
-
-Workout entry
-
-• Open site → select person → choose their routine → start a session with automatically recorded local date/time.
-• One exercise is shown at a time, with sets × target reps or duration, previous matching measurement and previous increase next time flag for that person.
-• Enter one weight and/or duration per exercise. Weight exercises also record ordered actual repetitions per configured set, initialized blank; partial drafts retain unentered sets. Today’s measurement starts blank; previous performance is display-only. Use type-specific increase labels. Store duration as integer seconds, independent of set count.
-• Offer an optional increase-next-time toggle, Back/Next, jump-to-exercise controls, a routine overview, and a navigation progress bar raised only by acknowledged Next destinations, independent of actual measurements (supersedes the former non-NULL count).
-• Active workout pages omit unrestricted person switching. More contains Exit Workout (validated save then retain draft), jump/overview/details and confirmed Discard. A per-tab workflow marker handles navigation/Back without blocking other browser sessions; server revisions and acknowledged saves remain authoritative. Native unload warnings explain unacknowledged-input risk.
-• A skipped exercise must be included in the saved session with true SQL NULL for the applicable measurement; both actual weight and duration are NULL when skipped. Never replace a blank weight with 0, an old weight, or a missing row. Charts must not interpret skipped entries as zero; label weight in pounds and duration as time, and separate the two types.
-• Finish & Save atomically saves the whole workout, including NULL entries, then completes the session. Avoid accidental double submission.
-• Persist unfinished drafts promptly on the server with visible save/error status so they can be resumed after an interruption without losing entered measurements.
-• Discard Workout requires an explicit “Are you sure?” dialog, acknowledgment checkbox, Cancel, and OK disabled until acknowledgment. Cancel keeps the draft; confirmed discard affects only that unsaved/in-progress session, never saved history.
-• Phase 4 historical entry copies a chosen routine into a separate review snapshot, preserves unknown time as NULL, distinguishes occurrence from entry time, and atomically completes via an idempotent submission token without touching an active draft.
-• Phase 3 implemented measurement rules: pounds by default, at most one decimal place, extra digits truncated never rounded (40.99 → 40.9; 42.56 → 42.5; 40 → 40.0). SQLite stores integer tenths (40.9 lb = 409). Explicit zero is valid; empty weight is SQL NULL. Actual durations are integer seconds, minimum 1 second; zero is invalid and empty is SQL NULL. One actual duration per exercise regardless of sets. Every skipped exercise retains an entry with NULL actual measurements, never previous values or zero; tracking types and measurements belong in historical snapshots. Do not backport workout-entry behavior or schema changes into retained Phase 2 databases.
-• Approved decisions: pounds by default with one decimal place and truncation; explicit zero is valid and distinct from NULL; one active draft per user; all-skipped completion requires confirmation; show previous-session weight/increase plus last performed weight after a skip; permanent exercise identities and optional exercise notes; corrections to saved workouts require confirmation and validation. Archive users with history. Safe restore UI is required for v1; automatic backups stay disabled until configured. Implement these in their approved phases, not all in Phase 2.
-
-Interface and reporting
-
-• Simple uncluttered phone-first UI; rounded cards, round/oval pill buttons, large tap targets. Support Dark, Light, and Auto (device theme, default), with a per-browser/device override.
-• Appearance controls live only in Settings; Auto/Light/Dark is browser-local. Each person has an allowlisted server-side accent in private config/person-preferences.json, written atomically under the root lock, with blue default and no SQLite schema change or startup initialization. Preferences are independent of SQLite backups/restores and require whole-tree protection.
-• Screens: Home/user selection, Routine selection, single-exercise Workout entry + overview, Routine editor/copy, History/charts + historical entry, Settings.
-• Per-person history supports date/routine/exercise filters and saved detail. Charts group permanent exercise ID, type, unit and weight meaning separately; local SVG and accessible data lists exclude NULL numeric points but retain zero. Progress maxima remain highest logged weight/longest logged duration in the selected range; Phase 14 adds separate lifting-volume estimates. History, charts and previous-performance references must all use effective corrected occurrence/measurements. Show skipped entries as skipped/blank, never as zero performance.
-
-Database protection — highest priority
-
-• Application version is different from database schema version. Startup and ordinary code/container replacement never implicitly copy, migrate, delete or initialize storage. The explicitly confirmed Phase 8 Install Update/v4 workflow deliberately includes a separate verified backup, even for a code-only update; this is user-authorized maintenance, not startup behavior.
-• On first install only, initialize a new DB if no active DB exists. Never treat an incompatible, missing, or unreadable existing DB as permission to create an empty replacement.
-• When a real schema upgrade is required: block writers, verify the original, create a consistent separate copy using SQLite’s backup API or a carefully controlled export/import, migrate the new database only, validate (PRAGMA integrity_check, PRAGMA foreign_key_check, schema, record counts, logical checks), then switch the active pointer safely/atomically.
-• Do not modify the original version during migration; preserve prior DB versions indefinitely unless the user explicitly removes them. If anything fails, retain the original active selection and show/log the error. Reconcile connections/SQLite WAL sidecars when changing DBs; never implement active-file switching as an unsafe raw overwrite.
-• Schema archives are not the same as manual/automatic backups. Rolling back application code to an old DB cannot silently merge new workouts written after an upgrade; make this limitation explicit.
-• Use transactions for saving workouts, foreign keys, parameterized queries/ORM, input validation, and tests before data-affecting changes.
-
-Manual and automatic backups
-
-• Settings must provide Backup Now; use SQLite’s consistent backup mechanism to save a unique, timestamped file in a server-side backup directory. Do not download it to the browser. Verify the backup before reporting success and never overwrite a previous backup.
-• Show last successful backup date/time and backup history. Leave historical backups until the user deliberately deletes them; no silent rotation/expiration.
-• Settings must also provide an automatic-backup enabled switch, frequency as a positive integer number of days, and time of day (hour and minute); show previous and next scheduled runs. Schedule must run server-side without an open browser and persist across restarts.
-• Ensure a missed scheduled run is handled at most once and that multiple workers/restarts cannot generate accidental duplicate runs. Treat local timezone/DST explicitly rather than guessing.
-• If database integrity verification fails, surface an error and do not label a corrupted backup as good; preserve earlier verified backups.
-• Safe restore: require deliberate confirmation, validate a selected backup, preserve the current DB as a distinct version before switching, quiesce writes, then atomically activate the restored DB. Never restore silently on startup.
-• Proxmox VM backups/clones address full machine failure; these on-server backups address corruption and accidental data changes. Do not claim local backups protect against physical server loss.
-
-Settings, diagnostics, security
-
-• Settings includes a read-only log viewer: text search, severity and category/date filters, refresh, expandable error details, configurable retention (suggested default 30 days). Log meaningful app, workout-save, backup, integrity, migration, scheduler, and exception events, without noisy sensitive data dumps.
-• Keep logs and backup schedules/settings persistent, separate from replaceable containers. Never expose paths that allow arbitrary file reads or writes.
-• Restore accepts only server-listed verified backups of the same storage identity and exact current schema (2–7); no silent downgrade. Preserve a present damaged active file only on explicit recovery with a valid manifest; refuse missing files/identity or readable newer/foreign storage. Never replay interrupted maintenance tokens. Forms are bound to the selected dataset and checked again inside the write lock.
-• No public-facing bind by default. LAN-only without passwords means LAN users can see and alter shared household data; document this. If remote access is added later, revisit authentication, HTTPS, rate limiting, and access controls before enabling it.
-• Standard web safeguards still apply: server-side ownership checks (even though selector has no auth), CSRF protection on mutating forms, escaping, input validation, least-privilege file access, and safe backup/restore path handling.
-
-Tests, review, and working style
-
-• Use test fixtures, never a real workout DB, for development tests, destructive commands, migrations, or restore rehearsals.
-• Cover: user/routine isolation and independent copies; exercise ordering; one weight or duration per exercise; both types and type changes; integer seconds and strict malformed-input rejection and Phase 9 partial-duration normalization; exact weight truncation; autosave acknowledgment/network failure; concurrent tabs and restart recovery; skipped exercise produces a present row with true SQL NULL; progress bar semantics; previous-value display after skip; save idempotency; drafts/resume/discard confirmation; historical snapshots; migration success/failure with unchanged original; backup/restore integrity; scheduler missed-run and duplicate-run protection; theme persistence; core responsive accessibility.
-• Before changes to schema, data storage, backup, restore, or session completion, explain the risk, data path, validation, and rollback approach.
-• Make changes in small reviewable phases/branches/PRs. Record test results and limitations; never silently deploy to the live home server.
-• Update PROJECT_SPEC.md when the user approves new requirements. Keep undecided implementation details in its “Open decisions” section rather than deciding unasked.
-
-
-Phase 7 shared-library contract
-
-• Schema 5 uses global exercises with immutable IDs. exercises.person_id is retained registration provenance only, never an ownership filter. Preserve every old ID, name, archive flag and provenance; matching names from old schemas remain distinct. New registrations/renames reject casefolded duplicate names, including archived definitions; display IDs to distinguish legacy duplicates.
-• All active people can select/rename library definitions. Archive checks active routine references across the entire household, including archived people. Historical names/configuration remain immutable. Routine ownership and workout/history/chart ownership remain person-specific.
-• Named copies get new routine/item IDs but reuse global exercise IDs. Never copy measurements/drafts/flags. Previous performance matches person + exercise + type + unit + weight meaning across routines, with effective corrections and chronology.
-• Candidate schema 5 changes only three exercise reference constraints. Rebuild only candidate tables with exact cell copying and reinstall identical immutable triggers before validation/activation; no application connections can see this intermediate state. Preserve source bytes and old manifests; verify all original tables, NULLs, logical snapshots/audits, exact DDL/integrity/FKs. Explicit --target-version 5 only; startup never upgrades.
-• App version 0.7.0 follows semantic versioning; database version increments only for persistent schema changes. Footer and Settings obtain the active schema dynamically and application version from APP_VERSION, never duplicated template constants. No visible repeated AI banner.
-• Existing schema-4 operators must explicitly upgrade once; an updater recognizing only 4 must be revised to require confirmed candidate migration to 5. See PHASE_7_REVIEW.md; do not assume access to /root/WorkoutTracker or its update script.
-
-• Updaters read release targets using python -m workout_tracker release-info (JSON app_version and target_schema_version), without app startup or any storage mount. This metadata never migrates storage; compare with verified installed schema, request explicit confirmation, then call candidate migration separately.
-
-
-Revised Phase 8 contract (supersedes older archive-only behavior on schema 6)
-
-• Network isolation is the trust boundary: http://10.0.69.9:8000 remains passwordless, without TLS, accounts or roles. Keep CSRF, trusted hosts, bounded inputs, typed deletion and explicit update/schema confirmation. Local Unix socket peer UID/file permissions restrict host command access; these are not user login/authentication.
-• Schema 6 is required to detach routine snapshots and add controlled deletion guards. Only a verified new migration candidate receives DDL. Default application connections deny snapshot mutation; exact-validated schema-6 connections register deletion_in_progress() as 0. Only the dedicated atomic deletion transaction enables it temporarily, then restores 0. Do not use this capability for ordinary correction or logging. No startup migration/initialization.
-• Routine hard deletion removes definition/configs, blocks active drafts, retains global exercises and completed snapshots. Exercise hard deletion removes its global identity/configs/entries across all people, blocks active drafts, preserves other measurements, normalizes ordering/counts, projects correction arrays to surviving entry IDs and appends a value-preserving revision barrier against stale forms. Empty completed/discarded workouts and their registry/audits are removed; affected unfinished historical preparation forms are invalidated. Backups/old database versions remain untouched and may resurrect deletion on deliberate compatible restore.
-• Never make Remove From Routine trigger global deletion. Show impact counts and exact exercise identity; check typed DELETE/name, acknowledgment, CSRF and a fresh impact fingerprint in the same locked transaction. Keep person ownership constraints and logical validation.
-• Approved updater source is fetched main of the fixed repository (merge governance defines approval), pinned to a full commit SHA. Parse source metadata without executing it, then compare built release-info. No browser URLs/commands/branches/images. Host worker independently validates paths, source and consent. No Docker socket in web/scheduler. Read-only status uses configured private interface (default 10.0.69.9:8001), never 0.0.0.0 or a host command API.
-• v4 and browser updates share one engine; file lock prevents overlap. Verify source/disk/storage/backup, preserve old commit/image/database, invoke the existing candidate migration command, verify versions/scheduler, and privately recopy authoritative parent .env to app/.env as explicitly required in Phase 8. No blind database/image rollback after schema activation. Keep persistent safe status and private host diagnostics outside containers. Install/upgrade systemd only on an explicit operator command.
-• Interrupted earlier Phase 8 work is preserved on a separate local branch, never merged wholesale. Only reviewed database/deletion/updater pieces without user-auth/TLS infrastructure were selectively reused. Do not delete unique interrupted work.
-
-
-Phase 9 contract (supersedes older UI and duration descriptions)
-
-• Keep authentication entirely absent. administration.administrative_access is the one currently allow-all policy called by all application maintenance/Updates endpoints. Personal appearance is separate; CSRF and storage/generation checks still apply. Future authentication requires a new explicit review, including the independent read-only host status interface; do not add unused account infrastructure.
-• Schema 7 adds only exercise_defaults, with one validated row per global exercise and cascade on explicit global erasure. Candidate initialization uses neutral Weight/3 sets/12 reps/lb/empty notes for old identities, without guessing from one person's routine. Compare every old table/cell and source bytes; validate DDL/FKs/integrity/counts before selection. Existing routines/drafts/history/corrections do not change. New library selections copy defaults once; independent routine editing and copying must retain the routine's own settings, not recopy current defaults. Pounds remains the supported weight unit.
-• parse_duration accepts either nonnegative whole part, seconds above 59, and normalizes total seconds; two blanks mean NULL only for actual entry, targets require a positive value. Actual total retains signed-64-bit bound; targets retain 359999-second bound and strings retain the 100-character limit. No two-character seconds field or required-both-parts client rule.
-• Workout clock fields use explicit HH:mm text entry/display, retaining internal precision and IANA zones. A measurement-only correction with an unchanged displayed minute must not erase original seconds/microseconds or change a DST fold. Duration MM:SS is separate. Diagnostic timestamp seconds remain 24-hour UTC and labeled; no AM/PM or fixed timezone offsets.
-• Administration/backup/detail/result/log filters/pagination preserve explicit person context. The sticky header and tab-scoped active workout save/exit guard remain. Global hamburger destinations are Routines, Exercise Library, History & Progress, Settings; without a selected person scoped destinations lead to People. Only history-area pages show History/Progress tabs. Exercise deletion/cancel returns Library; routine deletion returns Routines. Report success only after committed deletion.
-• Existing blue/teal/green/purple/orange/red keys are unchanged soft selections; vibrant-* adds six more. Persist independently per person. Original SVG/favicon raster exports are local assets with disclosures in SVG/adjacent README.
-
-Phase 10 contract (supersedes historical form and Progress controls only)
-
-• Historical initial/review/correction expected validation failures render the same form with raw submitted strings, linked field errors and an assertive summary immediately above Save. Roll back before rendering; keep CSRF, owned immutable snapshots and stale-revision 409 protection. Never replace an invalid/blank measurement with stored/default data. Unexpected storage failures retain existing safe error handling.
-• Historical time remains optional explicit HH:mm with hour/minute selectors (00–23 / 00–59) and four-digit normalization on blur/submit, never during typing. Retain IANA/DST/fold and hidden timestamp precision rules. Durations are separate Minutes/Seconds fields.
-• Progress defaults to 30 inclusive local calendar days; offer 60/90 days, 6/12 calendar months, All Time and Custom Range. Months start one day after the clamped prior-month anniversary. Carry exercise/range in URLs through History/Progress. Invalid custom ranges retain raw values and previous valid graph bounds where supplied. Keep chart_series calculations, person isolation and permanent identities unchanged. Local SVG tooltips use escaped metadata/textContent and support hover/focus/tap; NULL remains unplotted and zero remains valid.
-• Confirmed Install opens one trusted configured independent status tab synchronously; keep the app tab, retain explicit migration/CSRF consent and offer a popup-blocked fallback. Ordinary Check opens no tab. Disable duplicate attempts until status is reviewed/reloaded; opening a status page cannot install anything.
-• Host commands stream both pipes with fixed argv/no shell, original deadlines and bounded in-memory tails. Raw private logs never become browser responses. Only recognized structural messages enter a separate atomic safe ring (500 lines × 500 characters, newest 20 operations). Do not publish argv, Compose config, environment values, arbitrary output/paths or commands. Read-only retained-ID polling stays on the independent host service. Safe-console write failures cannot undo database operations.
-• Existing Phase 9 installations need an explicit one-time --upgrade-service to copy the changed independent runtime and local status assets. Updating Flask containers alone cannot do that. V4, candidate migration, recovery and backup protections remain unchanged; schema 7 needs no Phase 10 migration. No automatic host-service install, startup database work or public authentication/TLS infrastructure.
-
-
-Patch 0.10.1 routine-selection contract
-
-• Routine cards use the latest effective actual workout date per person + routine ID, newest first; live completion timestamps or historical occurrence timestamps resolve date ties. Deliberately corrected live occurrences supersede original completion stamps. Never use historical entry/audit timestamps. Equal/unknown times sort by casefolded name, exact name and permanent ID. Never-completed routines are last alphabetically; copies inherit no completion history. Ignore active/discarded/unsaved preparations; exclude deleted/archived definitions.
-• Keep card markup/actions, saved manual positions and exercise order unchanged. Listing is read-only under the existing connection lock and uses validated effective history on schemas 4–7; schema 3 reads completed live sessions, schema 2 has no history. No migration, initialization, identity change or history rewrite. Preserve existing updater protections; schema 7 and Phase 10 host runtime remain compatible. Direct verified main fast-forward/push/cleanup is authorized, with no PR, deployment, real data or next phase.
-
-
-Patch 0.10.2 navigation-position contract
-
-• The global #main-menu is contained by the full sticky header, not the narrow .menu-wrap button. Scope position:static to .app-header .menu-wrap so People/card action menus are unchanged. With selected-person context, align left; without it, keep right alignment. Cap width against header bounds, reserve CSS safe-area insets and retain menu z-index/scrolling. Do not move the button, change links, rewrite navigation JavaScript or alter theme/accent/person context.
-• Regression-check full menu/link bounds, frontmost clickable targets, no page overflow, sticky scrolling, long/no selected names, tap/outside/keyboard/aria behavior and open-menu portrait/landscape reflow at 320/390/768/844/1280 widths in Light/Dark. Use synthetic safe-area values as a geometry rehearsal, not a claim of physical Safari testing. Keep schema 7, updater protocol and all 0.10.1 routine sorting. Direct verified main merge/push/cleanup is authorized, with no PR, deployment or unrelated phase.
-
-
-Patch 0.10.3 header and date contract (supersedes prior button placement)
-
-• Keep the hamburger at the header's far right on every global-navigation page. Keep one sticky row, reserve safe-area padding, prevent branding/button shrinking and let the selected name truncate in the remaining space. Preserve the accent and full-name title/accessibility text. Right-align the existing bounded dropdown below the header. Do not alter navigation JavaScript, links or active-workout focus restrictions.
-• selectable_routines returns display-only last_completed_date/last_completed_label from the exact maximum occurrence already used for sorting. No second history lookup or database field. Format English Month D, YYYY deterministically; None means Never completed. Keep effective corrections, live/manual semantics, ownership, IDs, copy independence, skipped completions and deleted-definition filtering unchanged. Place one muted full-width activity row beneath existing card controls, preserving Start/Edit and bounding added card height in browser tests.
-• Application 0.10.3 keeps schema 7; no migration or new host updater is needed. Verify all existing tests plus header geometry and card dates; direct main merge/push/cleanup is authorized without a PR. No live data, deployment or unrelated phase.
-
-
-Patch 0.10.4 — navigation progress, scope notes and CSV
-
-• Reuse workout_sessions.current_position as the furthest Next destination. Ordinary autosave, flags, Back and Jump must not raise it; max prevents revisits counting twice. The displayed view remains in the URL, with view_position retaining Save draft's current page. Resume opens the checkpoint. Explicit next/back actions validate the adjacent destination from the saved entry; measurement and checkpoint commit atomically under revision/ownership checks. Keep count_performed for all-skipped confirmation and performed summaries, not the bar. Existing checkpoints remain; do not initialize/migrate storage.
-• Every configuration macro shows the exact routine-only or library-default explanation near the top. This describes existing copy-on-add behavior; never propagate defaults or change snapshots.
-• Progress CSV is GET-only, person-owned and date-filtered through existing effective history. One workout per row: Date, Time, Routine, Workout ID, then adjacent actual/target pairs per selected ID/type/unit/meaning. Weight uses exact tenths (0 retained); duration uses total m:ss; historical prescriptions stay snapshots. Skip actuals blank; absent exercises have both blanks. Duplicate names get IDs; repeated entries get occurrence columns. Do not investigate/reconcile orphan identities. UTF-8 BOM/standard quoting and apostrophe-escaped formula-like text; no decorative rows, cloud, PDF or workbook export. Validation stays inline with choices retained.
-• Schema stays 7, release 0.10.4; browser/v4 update protections are unchanged. Complete backend/Chromium/Docker verification, direct main fast-forward/push/cleanup without a PR, and stop without deployment or real data.
-
-
-Phase 11 combined measurements (supersedes two-mode-only rules)
-
-• Application 0.11.0 targets schema 8. Add weight_duration with sets, positive target duration, lb, optional meaning/notes, no target weight or reps. Library defaults copy once; routines and snapshots remain independent. Old schemas remain readable; reject combined configuration before writes unless explicitly migrated to 8.
-• Each combined result is one weight/duration pair per exercise. Require both nonnegative weight (zero valid) and positive integer seconds, or both SQL NULL with NULL flag. Never commit a partial pair. Reuse truncating integer tenths and normalized minute/second parsing. Return field errors with raw input retained; no previous-value prefilling. Manual Increase weight next time only; no automatic target gating. Keep Next-only progress and stale revision safeguards.
-• History and append-only corrections retain both original/effective values; immutable triggers are never bypassed for corrections. Previous matching performance includes both actuals and weight flag, with skip/last-performed fallback. Person, permanent ID, mode and weight meaning stay separate; do not investigate unrelated orphan/duplicate identities.
-• Candidate schema 8 rebuilds only routine_exercises, workout_entries, historical_entries and exercise_defaults to extend constraints. All columns, cells, IDs, NULLs, JSON preparations/audits and exact protection triggers remain. Verify source bytes, exact DDL, integrity/FKs, all rows and logical chains before atomic selection. Failed activation rolls back selection. No startup migration or source overwrite. Restore requires exact schema; retained schema-7 backups never silently downgrade 8.
-• Combined Progress shows adjacent Weight and Time series under one exercise heading. Different units never share an axis. Only a common historical target gets one duration reference; varying targets remain per-point/data-row. CSV adds adjacent Weight (lb), Duration, Sets × Target Duration columns, retaining all existing filters, effective values, NULL/zero and spreadsheet protections.
-• Existing browser/v4 release metadata and explicit candidate CLI support target 8 without a new script/host upgrade. Test synthetic 7→8 upgrades and failure recovery, backup/restore, backend, Chromium/mobile/themes/download and Docker. After all checks pass, direct history-preserving main merge/push/verification/feature cleanup is authorized without a PR. No deployment, real data or next phase.
-
-
-Phase 12 — UI and documentation (supersedes older display/range rules)
-
-• Application 0.12.0 keeps schema 8 and all storage/correction/updater safeguards. Library listing shows exercise names and Edit Defaults, without visible IDs or separate rename forms. The detail screen retains Library ID and edits global name/defaults atomically with duplicate/stale validation; snapshots and routine settings remain unchanged. Legacy schema detail pages may rename without preset storage. Ordinary selectors submit IDs but show names, with deterministic numbered options for matching names. Do not investigate, merge or repair unrelated duplicate/orphan identities.
-• Progress defaults to 3m and offers 3/6/12/24 calendar Months, All Time and Custom. Use configured IANA local date and the existing inclusive day-after-clamped-anniversary convention. Old 30/60/90 links retain exact dates as Custom; never rewrite workout dates. Preserve exercise/range/CSV/history state and combined charts.
-• Notes wrap ordinary text but scroll long unbroken content internally. Console uses monospace, preserved line breaks, no soft wrapping, internal two-axis scrolling, safe text rendering and original live polling. App/status pages must have no horizontal overflow in portrait/landscape/themes. Independent host assets need an explicit service upgrade; never install them at app startup.
-• Approved-SHA releases/VERSION.json supplies validated plain-English notes before installation, independently persisted on the host. No Git-log summaries. New 0.12.0+ releases require notes; older missing files get neutral fallback. Escape all note text, match the version, preserve source/commit pinning and consent. Older hosts retain update compatibility; app hides their legacy notes and documents --upgrade-service.
-• The user's new disclosure supersedes ALL prior wording: documentation uses the full SHAMELESSLY VIBE-CODED 🤖 paragraph; source headers use SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting. Use valid language comments, no comments in JSON, no repeated application banner. Historical findings/audit values/Git history must not be rewritten.
-
-PERMANENT REQUIREMENTS — EVERY FUTURE RELEASE
-
-Before merging any major, minor or patch release, bug fix, UI, database or deployment change, Codex MUST:
-1. Open and review current README.md against the actual application features.
-2. Verify installation commands, configuration and update instructions against the real repository; update them when anything changes.
-3. Confirm current version information, links and referenced filenames are accurate.
-4. Preserve the friendly application description, near-top Installation — Start Here guide and exact SHAMELESSLY VIBE-CODED disclosure.
-5. Include accurate, concise, human-readable release notes in releases/VERSION.json in the approved source commit. Verify the exact version and user-facing changes before merge; no raw commit logs, hashes, schema jargon or invented claims.
-6. Record README/release-note review in the release report/checklist. If no README edit was needed, explicitly report that it was reviewed and remains accurate.
-
-These release and README checks are mandatory, never optional. Use PHASE_12_REVIEW.md for current evidence. Direct verified main merge/push/feature cleanup is authorized with NO PR attempt, force push, deployment, production data or next phase.
-
-
-Patch 0.12.1 — Exercise Library action disclosure
-
-• Each Library row shows a CSS-ellipsized full-name heading left and a fixed 44px ⋯ trigger right. Full text remains in title/accessibility/editor; never shorten stored names or expose IDs. Reuse data-menu-button navigation behavior and a full-row bounded panel with Edit Defaults and distinct Delete Exercise links. Preserve original ID-based editor/deletion confirmations; older schemas retain archive behavior. Only one panel open; outside click/focus, Escape/focus return and keyboard navigation stay intact. No schema or history changes and no unrelated identity investigation.
-• Review README/current release notes for this patch as permanently required. Application 0.12.1/schema 8 needs no migration or additional host upgrade after Phase 12 setup. Verify all backend/Chromium/Docker tests before authorized direct main fast-forward/push/cleanup, with no PR, deployment, real data or next phase. See LIBRARY_MENU_REVIEW.md.
-
-
-Patch 0.12.2 — workout and history presentation
-
-• Keep focused weight text, selection and input node untouched by autosave, for Weight and combined modes. Cache only matching-sequence successful server acknowledgments keyed to raw text; invalidate on input. Blur may apply that exact validated result, otherwise flush through existing serialized revision/validation logic. Never parse/round weight separately in JavaScript or normalize invalid text. Next still validates/persists before advancing; NULL/zero, conflicts and acknowledgment protections remain.
-• Emphasize existing prescriptions/previous results with compact, theme-aware text styles. Hide IANA names in ordinary history/review/correction displays; retain stored zones, DST/fold validation and explicit saved-workout Timing diagnostics. Scope wrapping calendar fields to history-date-filters; never change all duration pairs. Application 0.12.2/schema 8, no migration or additional Phase 12 host refresh. Review README/notes, run the full suite, then authorized direct main merge/push/cleanup with no PR, deployment, real data or unrelated work. See WORKOUT_HISTORY_UI_REVIEW.md.
-
-
-Historical Phase 13 Update 1 — superseded; see PHASE_13_REVIEW.md
-
-The archived release review records the old classification/conversion controls.
-They are removed from the current application. Retain released migration DDL,
-original metadata and read-only audit verification; do not restore runtime writers.
-
-## Phase 15 current contract (0.15.0 / schema 11)
-
-This section supersedes earlier current-interface descriptions; archived release
-reviews describe their original versions. See [schema 11](docs/SCHEMA_11.md),
-[SVG rules](docs/EXERCISE_ICONS.md) and [Phase 15 review](PHASE_15_REVIEW.md).
-
-New weight workouts initialize actual reps blank and retain partial/null draft
-sets. Performed sets must all be explicitly entered before forward navigation or
-completion. Zero remains valid; skips remain SQL NULL. Legacy completed workouts
-retain prescribed-target assumptions. Initial measurement focus and recorded-set
-indicators must preserve focused typing and autosave sequence protection.
-
-Library/Progress sort by selected-person all-time effective non-NULL progress, then
-case-insensitive name and permanent ID. Empty date ranges retain exercise choices.
-Add Exercise uses a collapsed native disclosure, reopening with raw input on errors.
-Exactly two default SVGs and independent shared custom slots render sanitized inline
-artwork with inherited personal accent. Never render raw uploaded SVG.
-
-Measurement-type corrections require explicit signed confirmation. Defaults Only
-changes the Library; Apply additionally changes only the selected person’s routines.
-Already started drafts and historical snapshots/audits remain unchanged. An assigned
-canonical basis stays immutable through every type change, including dormant Duration.
-First weighted conversion of an unassigned exercise requires an explicit choice.
-Schema 11 permits household configurations to retain different types and enforces
-canonical assigned bases. Migration remains explicit, candidate-only and lossless.
-
-## Patch 0.15.1 — custom illustration size
-
-Start and End SVGs each independently allow 300 KiB (307,200 bytes). Keep bounded
-MAX_BYTES+1 upload reads, raw UTF-8 and canonical byte validation, passive SVG
-allowlists, accent rendering and every existing complexity/security bound.
-The 1,024-element error must remain distinct from a file-size error. Invalid,
-oversized or expanded canonical output must leave the prior icon unchanged.
-
-The user approved minimal schema 12 because schema 11 has a 65,536-character
-SQLite constraint. Never edit released schema-11 DDL or change it in place.
-Rebuild only exercise_icons on the copied candidate, preserving every original
-cell/icon and exact other DDL; enforce at most 307,200 stored UTF-8 bytes.
-Validate integrity/FKs, old values/audits and atomic activation/rollback through
-the existing migrator. Startup never migrates. Backup/restore retains the
-exact-schema rule; browser/v4 use approved target 12 and explicit consent.
-No new updater script, artwork redesign or unrelated behavior change.
-
-Review README/commands and human-readable versioned notes, run complete backend,
-Chromium and Docker suites with boundary/security/restore regressions, then the
-user authorizes direct main merge/push/verification/feature cleanup without a PR,
-force push, deployment or real data. Retain the SHAMELESSLY VIBE-CODED disclosure.
+# Working on Workout Tracker
+
+**SHAMELESSLY VIBE-CODED 🤖**
+
+This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
+
+## Current release and scope
+
+Version 1.0.0 targets schema 13. The user authorizes implementation, verification
+and direct main merging for this release, without a pull request or PR API attempt.
+Never deploy, access production workout data, force-push, bypass protections,
+discard unrelated work or investigate the excluded duplicate/orphaned-history issue.
+Read PROJECT_SPEC.md, README.md and maintained docs before changing application code.
+Historical migration definitions and audit compatibility are required operating code.
+
+## Architecture and documentation
+
+Use Flask, SQLite, responsive HTML/CSS and small local JavaScript modules. Keep
+business validation in shared Python services, not duplicated across seven capability
+combinations. Every new workout uses one exercise-level weight and independent
+set rows for enabled reps/duration/status. Frozen legacy snapshots retain their
+original type/meaning and compatibility readers. See docs/MEASUREMENTS.md.
+
+Comment every source file using valid language syntax. Header disclosure:
+SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+Explain purpose, callers, data reads/writes and significant functions/data flows
+in beginner-friendly comments. Explain nonobvious safety/error handling; avoid
+line-by-line noise. Do not put comments in JSON. Preserve the full humorous
+disclosure in documentation; never add a repeated visible application banner.
+
+Keep components understandable: catalog/routines, measurements/workouts, history,
+statistics, body weight, Garmin, reports, storage/maintenance, updater and frontend.
+Avoid speculative rewrites and unnecessary abstraction. Preserve accessible
+mobile navigation, one exercise per screen, themes, accent colors and local assets.
+
+## Permanent data guarantees
+
+- No initialization, migration, restoration, replacement or repair at ordinary
+  startup. Missing/damaged/incompatible storage must fail safely.
+- Migration uses a separate copied candidate and explicit consent. Verify exact
+  DDL, every old cell/NULL, integrity, foreign keys and logical audit consistency
+  before atomic selection. Preserve originals and failed candidates for recovery.
+- Completed snapshots and original set rows are immutable. Corrections append
+  confirmed before/after revisions; all readers use validated effective values.
+- Preserve prior Weight Basis conversions/classification audits exactly once.
+  Never restore old conversion writers. Assigned exercise basis remains permanent,
+  including when weight tracking is disabled. No name-based identity merging.
+- SQL NULL is unknown/unrecorded/skipped, never implicit zero. Explicit set status
+  distinguishes incomplete/completed/skipped. Zero weight/reps are valid; duration
+  is positive. Never fabricate old set durations/status or actual repetitions.
+- Each person's routines/drafts/results/body weights/Garmin remain independent.
+  Exercise definitions/IDs/defaults are shared. Copy only settings, never history.
+- Defaults Only never changes routines/history. Confirmed Apply changes only the
+  selected person's configurations, atomically; started drafts remain snapshots.
+- All writes use existing root/database locks, owner checks, transactions, CSRF,
+  revision checks and signed previews where required. Protect stale requests.
+- Workout progress follows acknowledged Next navigation, never populated fields.
+  Autosave must not replace focused inputs, alter their text or steal focus.
+- Backups and restores preserve exact schema/identity and candidate validation.
+  Never silently downgrade, restore after an update, or restart an incompatible
+  old image after a new schema has been activated.
+- Database downloads use SQLite backup, verify the snapshot and remove temporary
+  paths. They exclude Garmin secrets and are not whole-tree backups.
+- Secrets stay in private external files, mode 0600, never SQL, exports, diagnostics
+  or response payloads. Garmin uses verified official endpoints, bounded HTTPS,
+  no redirects, per-person credentials, idempotent source identities and safe retry.
+  Keep remote requests outside workout/storage transactions.
+- Passwordless trusted-LAN operation stays explicit. Do not introduce accounts,
+  passwords or HTTPS requirements. LAN users can access/manage household data.
+
+## Testing and release workflow
+
+Use disposable synthetic storage for all tests, including failure/destructive
+scenarios. Never real workout data or actual Garmin credentials. Use official API
+response mocks. Run backend, Chromium/mobile, migration/backup/updater and available
+Docker suites. Do not weaken/remove tests to make a release pass. Fix defects and
+add regression coverage. Document actual limits; do not claim physical Safari,
+hardware installation or real Garmin-account testing without performing it.
+
+Review full diff, fetch latest main, reconcile safely and rerun affected tests.
+Only merge when blocking tests pass. Push feature branch, fast-forward main where
+possible, push/fetch and verify remote ancestry/SHA, then delete only the fully
+merged feature branch. No PR or PR API request is permitted in this task.
+
+## PERMANENT mandatory checks — every future release
+
+Before merging any major, minor or patch release, bug fix, UI, database or deployment
+change, Codex MUST:
+
+1. Open and review README.md against actual features.
+2. Verify installation commands, settings and upgrade/recovery instructions against
+   the real repository; update anything that changed.
+3. Check versions, links and referenced filenames.
+4. Preserve the friendly opening, near-top Installation — Start Here guide and full
+   SHAMELESSLY VIBE-CODED disclosure.
+5. Include accurate concise human-readable release notes in releases/VERSION.json
+   in the approved source. Match the version; no raw commit logs, hashes, internal
+   filenames, schema jargon or invented features.
+6. Verify release notes and record README/command/link review in the release report.
+   If no README edit is needed, explicitly report that review confirmed accuracy.
+
+These requirements are mandatory, not optional. Keep maintained docs current
+rather than adding a new obsolete phase checklist for every small patch.

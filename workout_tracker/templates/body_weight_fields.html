@@ -1,0 +1,4 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting. #}
+<label>Weight (lb)<input name="weight" type="text" inputmode="decimal" maxlength="100" required value="{{ values.get('weight','') }}"></label>
+<label>Date<input name="date" type="date" required value="{{ values.get('date','') }}"></label><label>Time<input name="time" type="time" required value="{{ values.get('time','') }}"></label>
+<label>Repeated hour (only if clocks go back)<select name="fold"><option value="">Not applicable</option><option value="0" {% if values.get('fold')=='0' %}selected{% endif %}>Earlier occurrence</option><option value="1" {% if values.get('fold')=='1' %}selected{% endif %}>Later occurrence</option></select></label>

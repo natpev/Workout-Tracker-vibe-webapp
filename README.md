@@ -15,12 +15,12 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **0.15.1**. Database schema: **12**. Existing schema-11
+Current application: **1.0.0**. Database schema: **13**. Existing schema-12
 installations need an explicitly confirmed migration to a **separate database
 candidate**. The original is preserved. Your Phase 12 host updater needs no
 additional refresh. See [updating](#updating-the-application); never initialize
-an existing installation again. Older installations must complete the archived
-Phase 13 classification prerequisites before upgrading through Phase 14.
+an existing installation again. Older unclassified installations must first complete the
+[Weight Basis prerequisite](docs/UPGRADING.md#older-unclassified-installations).
 
 ### 1. Choose a server
 
@@ -36,7 +36,7 @@ and change their data; person selection is not a login.
 
 Tests use Linux x86-64, disposable Docker containers and Chromium. We have not
 tested a clean physical server installation, ARM/Raspberry Pi, server reboot,
-your firewall, or a physical iPhone/Safari. See [verification limits](INSTALLATION_REVIEW.md).
+your firewall, or a physical iPhone/Safari. See [actual release testing and limits](RELEASE_1_0_0_TEST_REPORT.md).
 
 ### 2. Connect to the server and install the required software
 
@@ -130,6 +130,7 @@ WORKOUT_GID=10001
 WORKOUT_TIMEZONE=America/Indiana/Indianapolis
 WORKOUT_TRUSTED_HOSTS=localhost,127.0.0.1,[::1],192.168.1.100
 WORKOUT_BUILD_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+WORKOUT_SCHEDULER_NETWORK_MODE=none
 CONFIG
 )
 ```
@@ -168,15 +169,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 12
+  --confirm-upgrade --target-version 13
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-12 database, preserving the original. The final
-command should report **Storage verified; schema version 12.** Stop at any error;
+and verifies a separate schema-13 database, preserving the original. The final
+command should report **Storage verified; schema version 13.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -188,13 +189,13 @@ docker compose --env-file ../.env ps
 ```
 
 Two services should run: **web** serves the application; **scheduler** handles
-configured backups and log retention without an open browser. Web should become
+configured backups, log retention and optional Garmin synchronization without an open browser. Web should become
 **healthy** after a health check. Scheduler has no separate HTTP health endpoint.
 Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.15.1",schema_version=12)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.0",schema_version=13)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -207,7 +208,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **0.15.1 / database 12**. Check all three themes in Settings.
+should report **1.0.0 / database 13**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -231,284 +232,291 @@ include external settings or signing keys. Same-server backups do not protect
 against losing the server/disk. Rehearse Restore only with disposable data,
 never over real workouts just to test it.
 
+## Features
+
+- Separate routines and histories for everyone in the household, without accounts.
+- Shared exercises, custom illustrations and flexible weight/reps/duration tracking.
+- Independent set results, explicit skips, autosaved drafts and historical corrections.
+- Progress charts, lifting estimates, training consistency and PDF/CSV reports.
+- Local body-weight history with optional per-person Garmin synchronization.
+- Verified backups, safe updates and consistent database downloads.
+
 ## Using Workout Tracker
 
-Open the app, choose a person, choose a routine, and press **Start workout**.
-Record one exercise per screen. Weight and duration start blank; each repetition
-field starts blank; enter the actual result for every set before Next. Previous results are shown prominently for reference alongside the exercise targets. Weight text stays
-unchanged while you type, even during autosave. A valid weight normalizes to one
-decimal place when you leave the field or use Next; extra digits truncate. Invalid
-text stays visible with an error. **Next** advances navigation progress, including skipped
-exercises. Typing and autosaving do not advance it. **Back**, revisits, refresh
-and Resume retain the furthest Next checkpoint without double-counting.
+Choose a person, choose a routine, and press **Start workout**. If there is no
+body-weight measurement for today, an optional weigh-in screen appears. Continue
+with a weight or Skip; skipping saves no body-weight record and does not ask again
+for that workout. Garmin availability never blocks starting a workout.
 
-Wait for **Saved** before leaving. **Finish & Save** completes the workout.
-**Exit Workout** saves a resumable draft; only one draft is allowed per person.
-**Discard** requires confirmation and affects only the unfinished workout.
-Closing a browser before acknowledgment cannot guarantee unsaved input survives.
+Record one exercise per screen. There is **one weight for the whole exercise**.
+Each set has its own repetitions, duration and status, depending on its enabled
+measurements. Targets are references, never prefilled actual results.
+
+- **Incomplete**: not yet recorded; partial inputs remain resumable.
+- **Completed**: explicitly valid values for every enabled measurement.
+- **Skipped**: explicitly chosen; that set's measurements remain NULL, not zero.
+
+An entirely skipped exercise has NULL exercise weight. Zero weight and zero reps
+are valid; duration must be positive. Extra exercise-weight decimals truncate to
+one place: 40.99 becomes 40.9. Typing stays untouched during autosave; valid weight
+formatting occurs on blur or Next. Seconds above 59 normalize into minutes.
+**Next** advances the navigation bar; typing, autosave and Back do not.
+Unresolved sets block Next/completion. An all-skipped workout needs confirmation.
+
+Wait for **Saved** before leaving. **Exit Workout** saves a resumable draft; one
+active draft is allowed per person. **Discard** requires confirmation and affects
+only the unfinished workout. Refresh/Resume restores saved values. Closing before
+acknowledgment cannot guarantee unsaved input survives.
 
 ## Managing people
 
-People are household profiles, not accounts. Select another person through the
-People screen; each has independent routines, drafts, history and recommendations.
-Rename or archive people through their menus. Archived people retain their records.
-Settings has Auto/Light/Dark themes and a separate accent color per person.
+People are household profiles, not accounts. Switch through the People screen.
+Each person has independent routines, drafts, recommendations, workout history,
+body weights and Garmin connection. Menus rename/archive people; archived profiles
+retain their history. Settings offers Auto/Light/Dark and personal accent colors.
 
-## Creating routines
+## Creating exercises and routines
 
-Create a routine, add exercises from the shared Library, and adjust its sets and
-targets. Copy or duplicate routines to get independent settings with shared exercise
-identities. Copied routines inherit no workout results or increase recommendations.
-Removing an exercise from a routine does not remove its Library definition/history.
-Deleting a routine preserves completed history; active drafts block deletion.
+The shared **Exercise Library** has a read-only summary when you tap an exercise
+name. **Edit Exercise** or **⋯ → Edit Defaults** opens editing and renaming.
+Names truncate visually only; permanent IDs remain unchanged and are available
+on deliberate detail/edit screens. Renaming changes current displays globally;
+saved workouts keep their original names.
 
-## Exercise Library
+Select any nonempty combination of **Weight, Repetitions, Duration**. All seven
+combinations work, including weight only and repetitions only. Configure sets and
+applicable target repetitions/duration. Weight requires a permanent **Total
+Weight (×1)** or **Per Hand / Side (×2)** basis; the app never guesses from equipment
+or names. Disabling Weight cannot unlock an assigned basis.
 
-Open the **⋯** menu beside an exercise, then choose **Edit Defaults** to edit its
-name and defaults. Long names shorten visually to keep the menu accessible; the
-complete name stays in the editor and its tooltip. Its Library
-ID is shown only on that detail screen, for troubleshooting. Ordinary selectors
-show names; matching names get numbered options without changing their identities.
+- **Save Defaults Only** changes shared defaults for future additions.
+- **Save Defaults & Update My Routines** previews and confirms overwriting the
+  selected person's existing routine configurations atomically.
 
-Renaming updates the shared name and current routine displays for everyone.
-Historical workouts keep their original names. Defaults apply only when an exercise
-is newly added to a routine; changing them does not change existing routine settings.
-**Delete Exercise** in the menu opens a separate permanent-deletion review: it deliberately erases that identity
-and its history across all people after an impact preview and confirmation. Older
-backups can resurrect deleted records on deliberate compatible restore.
+Other people's routines, active draft snapshots and completed history stay
+independent. Routine copying shares exercise IDs but copies configuration only,
+never measurements or completion history. Deleting a routine preserves history.
+**Delete Exercise** is different: its confirmed impact review permanently erases
+that exercise identity/history across all people. Read the preview carefully.
 
+Start and End illustrations each allow **300 KiB (307,200 bytes)** of passive SVG.
+Unsafe/oversized/over-complex uploads preserve the previous image. Removing a
+custom illustration restores the default. See [SVG rules](docs/EXERCISE_ICONS.md).
 
-### Permanent Weight Basis
+## Workout history and progress
 
-When creating a Weight or Weight + Duration exercise, explicitly choose **Total
-Weight (×1)** or **Per Hand / Side (×2)**. Neither is selected for you. The choice
-is permanent for that exercise ID and displayed read-only with a lock thereafter.
-The app never infers it from names/equipment. Duration-only exercises need no basis.
-Measurement-type corrections require confirmation and preserve historical snapshots;
-assigned Weight Basis remains immutable even while dormant in Duration.
+History uses the date the workout occurred, newest first. Date/routine/exercise
+filters are person-specific. Enter older workouts using **Enter historical
+workout**; this does not interfere with an active draft. Unknown historical time
+remains unknown. Corrections require confirmation and append an audit; original
+records/configuration snapshots remain unchanged.
 
-- **Save Defaults Only** updates shared defaults for future routine additions.
-- **Save Defaults & Update My Routines** previews and confirms overwriting all
-  compatible settings in the selected person's existing routines, atomically.
+Progress offers **3, 6, 12, 24 Months, All Time, Custom Range**, defaulting to
+three calendar months in the configured time zone. Selections survive refresh and
+exercise changes. Weight, actual reps and actual set duration use separate charts
+with dates/units/tooltips and accessible data. Incompatible configurations remain
+separate. Skips stay visible in history but are never plotted as zero.
 
-Other people's existing routines remain independent. Neither operation changes
-Weight Basis or completed history. Temporary classification and divide/multiply
-controls have been removed. Earlier conversions and their audits remain readable.
+Old workouts retain their original representation. A historical exercise-level
+duration is never divided across sets. Unknown legacy set status stays unknown.
+Legacy actual reps remain actual; missing historical reps use original targets
+only for clearly labeled estimates, not invented actual results.
 
-### Actual repetitions and estimated weight lifted
+## Training consistency and estimated weight lifted
 
-Weight exercises record **one weight** and **actual repetitions for each configured
-set**. Each set starts blank. Enter the actual repetitions for each set;
-autosave, Back/Next and Resume preserve edits. Zero reps is valid; an empty field
-is incomplete. Leave weight blank to skip; skipped measurements remain SQL NULL.
-Weight + Duration continues to record one weight and one duration, without reps.
+Routine selection shows 12 Monday-based calendar weeks and 12 calendar months,
+including periods with zero workouts, in the selected person's accent color.
+Only completed live/manual historical workouts count.
 
-Routine selection shows **Estimated Total Weight Lifted** across the selected
-person's completed live and historical workouts, including retained history from
-deleted routines. Saved workouts show their total, the previous 30-day average
-comparison for the same routine ID, and the lifetime total. No previous positive
-average displays **Not enough data**. A negative comparison is simply a comparison.
+Pounds and tons appear together. Weighted repetitions use one exercise weight ×
+actual completed repetitions × Weight Basis multiplier. Weighted exercises without
+reps count one lift per completed set, never elapsed seconds. Exercises without
+weight and skipped sets contribute zero. Legacy estimates preserve their original
+conventions. Corrections and earlier basis conversions are counted once.
 
-Estimates use effective corrected weight × actual total reps × the captured basis
-multiplier. Older completed workouts have no recorded actual reps: estimates use
-their **original sets × target reps**, clearly labeled as an assumption. Corrections
-may supply actual reps without rewriting original records. Combined exercises count
-one lift per set, without multiplying by duration; time-only and skips contribute zero.
-Totals are derived from history, never independently accumulated.
+Imperial short tons equal **2,000 lb**; all ton scales have at most one decimal,
+with automatic kiloton/megaton/larger scaling. These are estimates of logged
+lifting volume, not physiological measurements.
 
-Pounds are primary. Secondary values use **imperial short tons (2,000 lb per ton)**,
-then kilotons, megatons, gigatons, teratons and larger prefixes. These are estimates
-of logged lifting volume, not physiological measurements.
+## Body-weight tracking
 
-## Weight, Duration, and Weight + Duration exercises
+Open **☰ → Weight** for the selected person's weigh-ins. Add a date/time and
+positive weight; manual readings support up to three decimal places. Multiple
+readings on one day remain separate. Manual records can be edited or removed
+with confirmation and stale-edit protection. Garmin readings remain source-labeled
+and read-only here.
 
-| Type | Configure | Record once per exercise |
-| --- | --- | --- |
-| Weight | Sets, target reps, pounds, permanent Weight Basis | One weight and actual reps per set |
-| Time (Duration) | Sets and target duration per set | One actual duration |
-| Weight + Duration | Sets, target duration, pounds and permanent Weight Basis | One weight **and** duration |
+The chart shows actual readings plus 7-day and 30-day moving averages. Averages
+first average readings within each local calendar day, then equally average the
+observed days in each trailing window. Days without readings are omitted, not
+zero. Filtering/averaging never deletes individual measurements.
 
-Weights use pounds, keep one decimal place, and truncate extra digits rather than
-rounding: 40.99 becomes 40.9. Zero weight is valid. Durations accept minutes,
-seconds, or both; 90 seconds becomes 1:30. Actual duration must be positive.
-Duration is never multiplied by set count. Lifting estimates count repetitions or one lift per combined set.
+## Connecting Garmin
 
-Blank means skipped, stored as SQL NULL rather than zero or a previous result.
-For combined exercises, leave **both** measurements blank to skip; otherwise both
-are required. Partial pairs stay unsaved until corrected. Use the manual
-**Increase weight next time** checkbox for Weight/combined exercises, or
-**Increase duration next time** for Time. Nothing increases automatically.
+Each person opens **Settings → Garmin** and enters their own official Garmin
+Personal API key, then **Connect and verify**. Saved keys never appear again.
+Use **Sync Now** or explicitly enable an automatic interval (six hours by default).
+Synchronization imports the latest 30 local calendar days. Repeated syncs do not
+create duplicates. Local history stays available when Garmin is offline.
 
-## Workout history
+For automatic sync only, change `WORKOUT_SCHEDULER_NETWORK_MODE=none` to `bridge`
+in `/root/WorkoutTracker/.env`, then during a planned maintenance window run:
 
-History lists completed workouts by when they happened. Ordinary dates/times omit
-time-zone names; the stored zone and DST handling stay unchanged. Open Timing
-diagnostics on a saved workout when troubleshooting. History date filters stack
-on narrow phones and sit side by side when there is room. Open a saved workout to
-view its
-original exercise order, prescriptions, actual measurements and skips. Enter older
-workouts through **Enter historical workout**, choosing a routine, date and optional
-time. Unknown time stays unknown. Saved-workout corrections require confirmation;
-originals and the correction audit remain retained. Editing routines does not
-rewrite saved snapshots or active drafts.
+```sh
+cd /root/WorkoutTracker/app
+docker compose --env-file ../.env up -d --no-build scheduler
+```
 
-## Progress charts
+Manual sync already uses the web container's network. No scheduler port is
+published. Never put Garmin keys in `.env` or chat. Keys/tokens are stored separately
+in private `storage/config/garmin-private.json`, **not in SQLite downloads or
+database backups**. Protect the whole storage tree separately for private-key
+recovery. Anyone on the trusted LAN can replace/disconnect integrations; there is
+no per-person security boundary against LAN users. See [Garmin details](docs/GARMIN.md).
 
-Progress defaults to **3 Months** and offers **6 Months, 12 Months, 24 Months,
-All Time, Custom Range**. Month ranges use the configured local calendar, not
-fixed numbers of days. Select an exercise; refresh and History/Progress navigation
-retain the range. Older day-based links still work and show their original bounds
-as Custom Range.
+## CSV exports and workout reports
 
-Weight and duration have separate axes. Combined exercises show both charts
-together. Tap, hover or focus a point for its date/result. Historical duration
-targets remain per workout; a single target line appears only when targets agree.
-Skipped measurements stay in the underlying data list, never as zero points.
+**Progress CSV** remains a wide paper-log-style sheet: Date, Time, Routine,
+Workout ID, then selected exercises across columns. Existing legacy weight/time
+formats remain compatible. New capability-based exercises include exercise-level
+weight where enabled, per-set actual reps/durations, historical targets and set
+statuses. Per-set lists use semicolons in set order. Skipped actuals are blank,
+zero stays 0, absent exercises stay blank. Durations use total minutes:seconds.
 
-## CSV exports
+**History → Workout Reports** creates a locally generated PDF or detailed CSV for
+a selected date range. Reports include lifting estimates, set results, training
+frequency, compatible records, weight progress and the preceding equal-length
+period comparison. Historical assumptions/unknown set detail are labeled.
+Detailed CSV is a separate stable format, one new set per row, with workout and
+exercise IDs, status, actual values, targets and origin labels. Legacy durations
+remain exercise-level. Both exports use effective corrections, person isolation,
+UTF-8 quoting and spreadsheet-formula protection. Generated reports are not stored.
 
-On Progress, choose a range, open **CSV export — choose exercises**, select one or
-more exercises, then **Export CSV**. Select All/Clear help with larger lists.
-Each completed workout gets its own row, oldest first: Date, Time, Routine,
-Workout ID, then adjacent columns per exercise:
+## Backups, database downloads and restoring data
 
-- Weight: Weight (lb), Sets × Reps, Actual Repetitions by Set. Legacy actual reps stay blank.
-- Duration: Duration, Sets × Target Duration.
-- Combined: Weight (lb), Duration, Sets × Target Duration.
+**Settings → Administration → Backup Now** creates a verified database backup.
+Automatic backups start disabled. Configure their schedule explicitly and check
+successful results. Keep off-machine protection of the whole storage tree too.
 
-Prescriptions come from historical snapshots, actuals from the latest corrections.
-Skipped actuals are blank; absent exercises have blank cells; valid zero stays 0.
-Time uses total minutes:seconds (for example 61:05). UTF-8 CSV uses standard quoting
-and protects formula-like text. No cloud service or Excel installation is needed.
+**Download Database** creates a consistent current SQLite snapshot, even while the
+application is running. It contains household workouts/body weights/icons/audits
+and the schema, **not Garmin secrets or external settings/signing keys**. It is
+not a complete application backup and is private household data.
 
-## Backup and restore
-
-Backup Now and configured schedules produce verified, separate copies. Restore
-requires inspecting a listed backup, acknowledging the warning and typing RESTORE.
-It preserves the previous database and activates a verified separate candidate.
-Restore accepts the same storage identity and exact schema; it does not merge
-later workouts, migrate older backups or silently downgrade the database.
-
-Do not restore casually to repair an update. Keep originals and failed candidates
-for diagnosis. See [detailed recovery instructions](deployment/README.md#emergency-ssh-checks-and-failure-recovery).
+Restore requires a listed verified backup, warning acknowledgment and typing
+RESTORE. A verified separate candidate is selected; originals are retained.
+Restore requires matching storage identity and exact schema. It does not merge
+later workouts, migrate old backups or silently downgrade. Never restore casually
+to repair an update. See [storage and recovery](docs/STORAGE.md).
 
 ## Updating the application
 
+**Existing installations: Never initialize an existing database again.** Make a
+verified backup and protect the complete storage tree before updating.
+
 ### Normal browser update
 
-Once the host updater is installed: **Settings → Administration → Application
-Updates → Check for Updates**. Read the plain-English notes, confirm installation
-(and migration only if required), then **Install Update**. An independent progress
-tab remains available while the app restarts. Notes and logs scroll within their
-boxes. Reopen the app and verify Settings/footer and `/health/ready` versions.
+Open **Settings → Application Updates → Check for Updates**. Read the release
+notes, confirm installation and the required schema migration, then Install.
+The independent status tab stays available while the app restarts. After success,
+verify Settings/footer and `/health/ready`: **1.0.0 / schema 13 / ready**. Make a new
+verified backup. Existing schema-12 installations require candidate migration.
 
-For **0.15.1**, existing schema-11 installations need an explicitly confirmed
-upgrade to schema **12** to store larger illustrations. Only the icon-size
-constraint changes, on a separate verified database candidate. The original and
-all workout data remain preserved. No additional host-service upgrade is needed
-after Phase 12 setup. Make a new verified schema-12 backup after success; older
-backups remain retained but cannot silently restore into schema 12. See the
-[patch upgrade instructions](PATCH_0_15_1_REVIEW.md#existing-installation-upgrade).
-Older installations retain the Phase 14 classification prerequisites and earlier
-candidate migration steps; no classifications or conversions are guessed.
+Your already upgraded Phase 12 independent updater supports this release; a new
+updater script is not required. Changing Flask containers alone never upgrades
+the independent host service.
 
-### One-time browser updater installation
+### One-time independent updater installation
 
-SSH administrator access is required for this separate host service. On the server,
-with no update job running, install the matching Python venv package (for example
-`apt-get install --yes python3-venv`; Python 3.12 may need `python3.12-venv`). Then:
+If not installed, connect over SSH as your server administrator:
 
 ```sh
-bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh \
-  --install-service --lan-address 192.168.1.100 \
-  --app-url http://192.168.1.100:8000 --status-port 8001
+apt-get update
+apt-get install --yes python3 python3-venv
+cd /root/WorkoutTracker/app
+bash deployment/update_workout_tracker_v4.sh --install-service   --lan-address 192.168.1.100 --app-url http://192.168.1.100:8000 --status-port 8001
 ```
 
-Replace the address with the one in your `.env`. This installs the independent
-service; it does not initialize/migrate workout storage or replace app containers.
-Root's Git credentials must allow noninteractive repository fetch. Keep port 8001
-restricted to trusted LAN devices too.
+Replace both addresses. Restrict status port 8001 to your trusted LAN too. This
+installs the host service, not workout storage or application containers. For an
+older installed host use the documented [explicit host upgrade](deployment/README.md#phase-12-host-service-upgrade).
 
-### Existing host service: Phase 12 one-time upgrade
-
-Container updates cannot replace the separately installed host code/assets.
-To enable versioned notes and the new console scrolling, follow
-[the exact Phase 12 service upgrade](deployment/README.md#phase-12-host-service-upgrade).
-Older hosts can still install approved updates safely, but the app hides their
-raw Git-log notes and explains the required host upgrade. V4 remains supported;
-there is no new updater script.
-
-### Emergency updating or recovery
-
-Over SSH, use the repository's existing v4 entry point:
+### Emergency update over SSH
 
 ```sh
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-Read and confirm the release. If v4 is not installed or source is older, use the
-[detailed deployment guide](deployment/README.md), including clean-main checks,
-service setup and failure recovery. Do not assume an external root-level wrapper
-has the same behavior. Never force-reset local Git work, delete data, initialize
-replacement storage, or automatically restore an old backup after a failed update.
+Read and explicitly confirm the release and migration. V4 uses the same protected
+host engine. [Upgrade and recovery instructions](docs/UPGRADING.md) cover older
+unclassified installations, manual maintenance and failed updates. Do not reset
+Git, overwrite `.env`, initialize replacement storage or silently restore a backup.
+
+## Starting, stopping and storage locations
+
+Run these commands on the server, from the application folder:
+
+```sh
+cd /root/WorkoutTracker/app
+docker compose --env-file ../.env ps
+docker compose --env-file ../.env stop
+docker compose --env-file ../.env up -d --no-build
+```
+
+`stop` pauses both services; `up` starts them. Data stays in the host storage tree.
+`app/` is replaceable source; `data/storage/` contains databases, selection,
+archives, backups, logs, settings and private credentials. `.env` is private host
+configuration; `updater/` is the independent service/runtime/recovery state.
+Never delete these to fix startup. Use local POSIX storage, not a network/cloud
+sync folder. More configuration details: [deployment guide](deployment/README.md).
+
+### Environment variables
+
+| Setting | Purpose |
+| --- | --- |
+| `WORKOUT_DATA_ROOT` | Absolute existing host storage path; Compose mounts it inside containers. |
+| `WORKOUT_BIND_ADDRESS`, `WORKOUT_PORT` | Private server address and browser port. |
+| `WORKOUT_TRUSTED_HOSTS` | Allowed hostnames/IPs, no scheme/port; retain health-check localhost entries. |
+| `WORKOUT_UID`, `WORKOUT_GID` | Numeric storage writer; default 10001/10001. |
+| `WORKOUT_TIMEZONE` | IANA local time zone, default Etc/UTC; used for calendar dates/DST. |
+| `WORKOUT_BUILD_CA_BUNDLE` | Host CA bundle for verified package downloads. |
+| `WORKOUT_SCHEDULER_NETWORK_MODE` | `none` by default; `bridge` only for optional automatic Garmin. |
+| `WORKOUT_SECRET_KEY` | Normally unset; use the persistent provisioned signing file. |
 
 ## Common troubleshooting
 
 | Problem | What to check |
 | --- | --- |
-| Phone cannot connect | Same trusted Wi-Fi, correct server IP/port, `.env` bind/hosts, LAN firewall and VM firewall. Do not expose the app publicly. |
-| Missing/corrupt storage | Stop writers and investigate the actual disk/mount. Never initialize an empty replacement. |
-| Web not healthy | From `/root/WorkoutTracker/app`, run `docker compose --env-file ../.env ps` and `docker compose --env-file ../.env logs --tail 100 web scheduler`. |
-| No automatic backups | They start disabled. Check enabled/time/zone, next run, scheduler status and its persistent Logs entries. |
-| Save failed | Stay on the exercise, correct inputs and retry. A combined exercise needs both measurements. Stale pages must reload before saving. |
-| Readable notes/scrolling missing | Upgrade the independent host service once; container replacement alone does not update it. |
-| Docker build certificate error | Check trusted CA/proxy settings. Never disable HTTPS verification. |
-| Updater venv/ensurepip error | Install your distribution's matching Python venv package, then rerun the explicit service installer. |
+| Phone cannot connect | Same trusted Wi-Fi, correct IP/port, bind/hosts/firewall. Never publish publicly. |
+| No visible update | Check actual `/health/ready` version; fetching code alone does not rebuild containers. |
+| Storage missing/damaged | Stop writers and investigate mounts/disk. Never initialize a replacement. |
+| Unhealthy service | Run `docker compose --env-file ../.env logs --tail 100 web scheduler` in the app directory. |
+| Incomplete workout | Record every enabled set value or explicitly choose Skipped; zero reps/weight are valid. |
+| No scheduled Garmin sync | Enable a schedule and optional scheduler bridge network; inspect safe status. Local history still works. |
+| No backups | They start disabled; inspect configured schedule/time zone/scheduler logs. |
+| ensurepip error | Install the matching distribution Python venv package, then repeat the explicit host installer. |
+| Certificate error | Fix CA/proxy settings; never disable TLS verification. |
 
 ## Security and limitations
 
-This is passwordless, HTTP-only household software. It has not had a professional
-security audit. Trusted hosts/CSRF and safe database handling do not make it safe
-for the public internet. No accounts, HTTPS requirement, telemetry or external
-chart service is introduced. Backups on the same disk are not disaster recovery.
-Use local POSIX storage, not NFS/SMB/cloud-sync folders. Rootless Docker and ARM
-installation are not validated by this guide. No offline saving or guarantee for
-input closed before Saved. Do not casually remove schema archives or old backups.
+Passwordless trusted-LAN software is not safe for public exposure. Anyone who can
+reach it can select people, read household data, change integrations and confirm
+deletion. CSRF/host checks and safe storage do not provide authentication. No
+professional security audit or warranty is claimed. Ordinary workouts work without
+internet; only optional Garmin/updates/dependency installation need it.
+
+Backups on the same disk are not disaster recovery. Preserve private external
+configuration separately. No physical iPhone/Safari, ARM hardware, server firewall
+or reboot claims are made; see [actual verification](RELEASE_1_0_0_TEST_REPORT.md).
 
 ## Technical/developer information
 
-See [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
-[measurement design](MEASUREMENT_DESIGN.md), [release-note format](releases/README.md),
-[deployment/recovery](deployment/README.md), [developer reference](docs/DEVELOPER_REFERENCE.md),
-[Phase 12 verification](PHASE_12_REVIEW.md), and
-[Library menu verification](LIBRARY_MENU_REVIEW.md) and
-[workout/history verification](WORKOUT_HISTORY_UI_REVIEW.md) and
-[Phase 13 archive](PHASE_13_REVIEW.md) and [Phase 14 verification](PHASE_14_REVIEW.md), [Phase 15 verification](PHASE_15_REVIEW.md) and [current patch verification](PATCH_0_15_1_REVIEW.md). Older phase reviews retain their
-historical results and limitations. Current release verification is recorded in
-PATCH_0_15_1_REVIEW.md; no physical-server or live-data testing is implied.
+Read [AGENTS.md](AGENTS.md), [PROJECT_SPEC.md](PROJECT_SPEC.md),
+[measurement model](docs/MEASUREMENTS.md), [storage](docs/STORAGE.md),
+[upgrade paths](docs/UPGRADING.md), [Garmin](docs/GARMIN.md),
+[testing](docs/TESTING.md), [release-note format](releases/README.md), and
+[release test report](RELEASE_1_0_0_TEST_REPORT.md).
 
-Before **every** release—including patches—review this README against actual
-features, installation/update commands, versions, links and filenames. Keep this
-beginner-friendly opening and disclosure. Verify accurate human-readable release
-notes in the approved release source. These are permanent release requirements.
-
-### Exercise illustrations and measurement corrections (v0.15.0)
-
-Library and Progress group each person’s all-time recorded exercises first, then
-alphabetize both groups. Zero measurements count; skipped entries do not. Add
-Exercise is a collapsed disclosure and retains input after validation errors.
-
-New workouts start with blank actual repetitions. Enter every set (including an
-explicit zero when appropriate) before advancing past a performed weight exercise.
-Partial drafts autosave and resume unchanged. Legacy completed workouts retain
-their original target-repetition assumptions.
-
-Edit Defaults manages independent shared Start/End SVG illustrations. Removing
-a custom image restores the dumbbells/barbell default. Each Start and End image
-independently accepts up to **300 KiB (307,200 bytes)** of SVG, with the same
-passive-vector security rules. The separate 1,024-element complexity limit remains;
-size and complexity errors leave the previous image unchanged. See the
-[SVG allowlist](docs/EXERCISE_ICONS.md).
-Measurement-type changes require confirmation and leave captured drafts, completed
-history and audits untouched. Once assigned, Weight Basis remains permanent,
-including while dormant on a Duration configuration. Both save scopes remain available.
+Before every release, review README features, commands, configuration, versions,
+links and upgrade instructions. Keep this beginner-first opening and disclosure.
+Accurate plain-English versioned release notes are mandatory for every release.

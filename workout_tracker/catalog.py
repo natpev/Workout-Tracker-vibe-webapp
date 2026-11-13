@@ -13,6 +13,8 @@ from uuid import uuid4
 def basis_configuration(connection, values, kind):
     """Validate structured metadata only on explicit schema 9; old schemas remain readable."""
     from . import basis
+    if kind=='flex' and not int(values.get('capabilities',0))&1:
+        return values.get('_assigned_basis') or 'not_configured'
     if connection.execute('PRAGMA user_version').fetchone()[0]>=10 and kind!='time' and values.get('weight_basis') not in ('total','per_side'):
         raise ValidationError('Select Total Weight or Per Hand / Side before creating this exercise.')
     value=(values.get("weight_basis","not_configured") if connection.execute("PRAGMA user_version").fetchone()[0]>=11 and kind=="time" else basis.parse(values,kind))
@@ -130,6 +132,8 @@ def create_definition(connection, person_id, name, values=None):
     cannot leave an identity missing its required default row.
     """
     person(connection, person_id)
+    from .measurements import adapt
+    values=adapt(connection,values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
     if connection.execute('PRAGMA user_version').fetchone()[0]>=10:
         values=dict(values or {},weight_meaning='')
     configuration=(configure(values or dict(measurement_type='weight',target_sets='3',target_reps='12'))
@@ -142,8 +146,10 @@ def create_definition(connection, person_id, name, values=None):
     if configuration is not None:
         if connection.execute('PRAGMA user_version').fetchone()[0]>=11:
             from .measurement_rules import ensure
-            ensure(connection,identity,configuration[0],selected)
-        if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+            ensure(connection,identity,'time' if configuration[0]=='flex' and not values['capabilities']&1 else configuration[0],selected)
+        if connection.execute('PRAGMA user_version').fetchone()[0]>=13:
+            connection.execute('INSERT INTO exercise_defaults(exercise_id,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,weight_basis,capabilities) VALUES (?,?,?,?,?,?,?,?,?,?)',(identity,*configuration,selected,values['capabilities']))
+        elif connection.execute('PRAGMA user_version').fetchone()[0]>=9:
             connection.execute('INSERT INTO exercise_defaults(exercise_id,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes,weight_basis) VALUES (?,?,?,?,?,?,?,?,?)',(identity,*configuration,selected))
         else:connection.execute('INSERT INTO exercise_defaults VALUES (?,?,?,?,?,?,?,?)',(identity,*configuration))
     return identity
@@ -180,6 +186,8 @@ def locked_configuration(connection, identity, current, values, *, confirmed_typ
 def update_defaults(connection,person_id,identity,values,*,confirmed_type_change=False):
     """Validate and change only global defaults; existing routines stay independent."""
     current=exercise_defaults(connection,person_id,identity)
+    from .measurements import adapt
+    values=adapt(connection,values)
     if "weight_meaning" not in values:values=dict(values,weight_meaning=current["weight_meaning"])
     if 'weight_basis' in current.keys() and 'weight_basis' not in values:
         values=dict(values,weight_basis=current['weight_basis'])
@@ -189,8 +197,10 @@ def update_defaults(connection,person_id,identity,values,*,confirmed_type_change
     selected=basis_configuration(connection,values,configuration[0])
     if connection.execute('PRAGMA user_version').fetchone()[0]>=11:
         from .measurement_rules import ensure
-        ensure(connection,identity,configuration[0],selected)
-    if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
+        ensure(connection,identity,'time' if configuration[0]=='flex' and not values['capabilities']&1 else configuration[0],selected)
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=13:
+        connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=?,capabilities=? WHERE exercise_id=?',(*configuration,selected,values['capabilities'],identity))
+    elif connection.execute('PRAGMA user_version').fetchone()[0]>=9:
         connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE exercise_id=?',(*configuration,selected,identity))
     else:connection.execute('UPDATE exercise_defaults SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=? WHERE exercise_id=?',(*configuration,identity))
 
@@ -237,6 +247,9 @@ def configure(values):
     a single integer second target, never multiplied by sets. A target must be
     positive; limits bound mistakes without choosing future actual-result rules.
     """
+    if values.get("measurement_type")=="flex":
+        from .measurements import configuration
+        return configuration(values)
     kind = values.get("measurement_type", "")
     sets = integer(values.get("target_sets", ""), "Sets", 1, 1000)
     notes = str(values.get("notes", "")).strip()
@@ -262,6 +275,8 @@ def configure(values):
 
 def require_configuration_schema(connection, configuration):
     """Refuse the new mode on retained schemas without implicitly migrating them."""
+    if configuration[0]=='flex' and connection.execute('PRAGMA user_version').fetchone()[0]<13:
+        raise ValidationError('Flexible capabilities require explicit schema-13 migration.')
     if configuration[0] == 'weight_duration' and connection.execute('PRAGMA user_version').fetchone()[0] < 8:
         raise ValidationError('Weight + Duration requires explicit schema-8 migration.')
 
@@ -269,9 +284,11 @@ def require_configuration_schema(connection, configuration):
 def add_entry(connection, person_id, routine_id, values):
     """Add a configuration linked to an existing or newly created permanent exercise."""
     routine(connection, person_id, routine_id)
+    from .measurements import adapt
     exercise_id = values.get("exercise_id")
     if exercise_id and values.get("use_library_defaults")=="yes":
         values=default_values(exercise_defaults(connection,person_id,exercise_id))
+    values=adapt(connection,values)
     if exercise_id and connection.execute('PRAGMA user_version').fetchone()[0]>=10:
         current=exercise_defaults(connection,person_id,exercise_id)
         values=locked_configuration(connection,exercise_id,current,values,confirmed_type_change=True)
@@ -286,7 +303,7 @@ def add_entry(connection, person_id, routine_id, values):
         exercise_id = create_definition(connection, person_id, values.get("name"), values)
     if connection.execute('PRAGMA user_version').fetchone()[0]>=11:
         from .measurement_rules import ensure
-        ensure(connection,exercise_id,configuration[0],basis_configuration(connection,values,configuration[0]))
+        ensure(connection,exercise_id,'time' if configuration[0]=='flex' and not values['capabilities']&1 else configuration[0],basis_configuration(connection,values,configuration[0]))
     identity = uuid4().hex
     position = connection.execute(
         "SELECT coalesce(max(position),-1)+1 FROM routine_exercises WHERE routine_id=?", (routine_id,)
@@ -296,6 +313,8 @@ def add_entry(connection, person_id, routine_id, values):
     if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
         columns+=",weight_basis"
         stored+=(basis_configuration(connection,values,configuration[0]),)
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=13:
+        columns+=',capabilities';stored+=(values['capabilities'],)
     connection.execute(f"INSERT INTO routine_exercises({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
     return identity
 
@@ -315,6 +334,8 @@ def entry(connection, person_id, routine_id, entry_id):
 def update_entry(connection, person_id, routine_id, entry_id, values,*,confirmed_type_change=False):
     """Edit only routine configuration; permanent exercise identity stays unchanged."""
     current=entry(connection, person_id, routine_id, entry_id)
+    from .measurements import adapt
+    values=adapt(connection,values)
     if "weight_meaning" not in values:values=dict(values,weight_meaning=current["weight_meaning"])
     if 'weight_basis' in current.keys() and 'weight_basis' not in values:
         values=dict(values,weight_basis=current['weight_basis'])
@@ -324,7 +345,10 @@ def update_entry(connection, person_id, routine_id, entry_id, values,*,confirmed
     selected=basis_configuration(connection,values,configuration[0])
     if connection.execute('PRAGMA user_version').fetchone()[0]>=11:
         from .measurement_rules import ensure
-        ensure(connection,current['exercise_id'],configuration[0],selected)
+        ensure(connection,current['exercise_id'],'time' if configuration[0]=='flex' and not values['capabilities']&1 else configuration[0],selected)
+    if connection.execute('PRAGMA user_version').fetchone()[0]>=13:
+        connection.execute('UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=?,capabilities=? WHERE id=? AND person_id=? AND routine_id=?',(*configuration,selected,values['capabilities'],entry_id,person_id,routine_id))
+        return
     if connection.execute('PRAGMA user_version').fetchone()[0]>=9:
         connection.execute("UPDATE routine_exercises SET measurement_type=?,target_sets=?,target_reps=?,target_duration_seconds=?,unit=?,weight_meaning=?,notes=?,weight_basis=? WHERE id=? AND person_id=? AND routine_id=?",(*configuration,selected,entry_id,person_id,routine_id))
         return
@@ -385,7 +409,8 @@ def copy_routine(connection, source_person, source_id, destination_person, name)
                 else create_definition(connection, destination_person, row["name"]))
         duration = row["target_duration_seconds"] or 0
         copied_entry=add_entry(connection, destination_person, new_routine, {
-            "exercise_id": definitions[row["exercise_id"]], "measurement_type": row["measurement_type"],
+            "exercise_id": definitions[row["exercise_id"]], "capabilities": row["capabilities"] if "capabilities" in row.keys() else None,
+            "measurement_type": row["measurement_type"],
             "target_sets": row["target_sets"], "target_reps": row["target_reps"],
             "minutes": duration // 60, "seconds": duration % 60,
             "weight_meaning": row["weight_meaning"], "notes": row["notes"],

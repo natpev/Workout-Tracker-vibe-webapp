@@ -1,5 +1,5 @@
 # SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
-"""Workout rules called by routes with a locked schema-3 transaction.
+"""Workout rules called by routes inside an owned, locked SQLite transaction.
 
 Browser -> Flask -> these services -> SQLite. Starts copy complete snapshots;
 updates require the last revision; finish saves pending input and status in the
@@ -90,7 +90,7 @@ class MeasurementError(catalog.ValidationError):
 
 
 def measurement(entry, values):
-    """Validate typed actuals atomically; combined entries need both or neither.
+    """Validate retained legacy actuals; new capability results use measurements.py.
 
     A half-entered pair remains visible in the browser but cannot be committed
     as performed or skipped. No historical/default measurement is substituted.
@@ -142,7 +142,8 @@ def entries(db, person_id, session_id):
         for row in result:
             if row['measurement_type']=='weight' and row.get('actual_reps') is None:
                 row['actual_reps']=[None]*row['target_sets']
-    return result
+    from .measurements import read
+    return [read(db,row) for row in result]
 
 
 def start(db, person_id, routine_id, zone):
@@ -168,6 +169,12 @@ def start(db, person_id, routine_id, zone):
                 stamp.isoformat(), stamp.isoformat(), len(rows)))
     modern=db.execute('PRAGMA user_version').fetchone()[0]>=9
     for position, row in enumerate(rows):
+        unified=db.execute('PRAGMA user_version').fetchone()[0]>=13
+        if unified:
+            from .measurements import mask,configuration
+            row=dict(row);row['capabilities']=mask(row)
+            configured=configuration(catalog.default_values(row))
+            row.update(zip(('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes'),configured))
         columns="id,session_id,person_id,exercise_id,name,position,measurement_type,target_sets,target_reps,target_duration_seconds,unit,weight_meaning,notes"
         values=(uuid4().hex,identity,person_id,row['exercise_id'],row['name'],position,row['measurement_type'],row['target_sets'],row['target_reps'],row['target_duration_seconds'],row['unit'],row['weight_meaning'],row['notes'])
         if modern:columns+=",weight_basis";values+= ('not_configured' if row['measurement_type']=='time' else row['weight_basis'],)
@@ -177,7 +184,12 @@ def start(db, person_id, routine_id, zone):
             columns+=',actual_reps_json';values+=(encode(actual),)
         if db.execute('PRAGMA user_version').fetchone()[0]>=11:
             columns+=',reps_required';values+=(int(row['measurement_type']=='weight'),)
+        if unified:
+            columns+=',capabilities';values+=(row['capabilities'],)
         db.execute(f"INSERT INTO workout_entries({columns}) VALUES ({','.join('?' for _ in values)})",values)
+        if unified:
+            from .measurements import insert_sets
+            insert_sets(db,values[0],[dict(status='incomplete',actual_reps=None,actual_duration_seconds=None) for _ in range(row['target_sets'])])
     return identity, True
 
 
@@ -209,6 +221,18 @@ def update(db, person_id, session_id, values, *, completing=False):
     # This existing column is the furthest acknowledged Next destination, not
     # a measurement count. Repeated/revisited Next requests cannot count twice.
     checkpoint = max(parent['current_position'], position) if action == 'next' else parent['current_position']
+    if current.get('capabilities') is not None:
+        from .measurements import parse
+        require=completing or (action in ('next','jump') and position>current['position'])
+        result=parse(current,values,complete=require)
+        db.execute('UPDATE workout_entries SET actual_weight_tenths_lb=?,actual_duration_seconds=NULL,increase_next_time=? WHERE id=?',
+                   (result['actual_weight_tenths_lb'],result['increase_next_time'],entry_id))
+        for index,row in enumerate(result['sets']):
+            db.execute('UPDATE workout_sets SET status=?,actual_reps=?,actual_duration_seconds=? WHERE entry_id=? AND set_index=?',
+                       (row['status'],row['actual_reps'],row['actual_duration_seconds'],entry_id,index))
+        db.execute('UPDATE workout_sessions SET revision=revision+1,current_position=?,updated_at=? WHERE id=? AND person_id=?',
+                   (checkpoint,now().isoformat(),session_id,person_id))
+        return session(db,person_id,session_id)
     weight, duration, increase = measurement(current, values)
     db.execute("UPDATE workout_entries SET actual_weight_tenths_lb=?,actual_duration_seconds=?,increase_next_time=? "
                "WHERE id=? AND session_id=? AND person_id=?", (weight, duration, increase, entry_id, session_id, person_id))
@@ -228,7 +252,14 @@ def update(db, person_id, session_id, values, *, completing=False):
 
 def count_performed(rows):
     """Count non-NULL actual values; explicit zero weight counts, navigation does not."""
-    return sum((row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None) and not (isinstance(dict(row).get('actual_reps'),list) and None in row['actual_reps']) for row in rows)
+    total=0
+    for original in rows:
+        row=dict(original)
+        if row.get('capabilities') is not None:
+            total+=any(r['status']=='completed' for r in row['sets'])
+        else:
+            total+=(row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None) and not (isinstance(row.get('actual_reps'),list) and None in row['actual_reps'])
+    return total
 
 
 def finish(db, person_id, session_id, values):
@@ -242,11 +273,19 @@ def finish(db, person_id, session_id, values):
         return parent
     parent = update(db, person_id, session_id, values,completing=True)
     rows = entries(db, person_id, session_id)
+    for row in rows:
+        if row.get('capabilities') is not None:
+            from .measurements import validate
+            validate(row,row['actual_weight_tenths_lb'],row['sets'],complete=True)
     if count_performed(rows) == 0 and values.get('confirm_all_skipped') != 'yes':
         raise AllSkipped("Confirm that you want to save an entirely skipped workout.")
     if db.execute('PRAGMA user_version').fetchone()[0]>=10:
         from .repetitions import encode
         for row in rows:
+            if row.get('capabilities') is not None:
+                from .measurements import validate
+                validate(row,row['actual_weight_tenths_lb'],row['sets'],complete=True)
+                continue
             actual=row.get('actual_reps')
             if row['measurement_type']=='weight' and row['actual_weight_tenths_lb'] is not None:
                 if db.execute('PRAGMA user_version').fetchone()[0]>=11:
@@ -300,6 +339,20 @@ def display_measurement(entry):
     """Format exact stored integers for the browser, including zero and skips."""
     if entry is None:
         return 'No previous performance'
+    if ('capabilities' in entry.keys() and entry['capabilities'] is not None) or 'sets' in entry.keys():
+        parts=[]
+        if entry['actual_weight_tenths_lb'] is not None:
+            weight=entry['actual_weight_tenths_lb'];parts.append(f'{weight//10}.{weight%10} lb')
+        for index,row in enumerate(entry['sets']):
+            value='Skipped' if row['status']=='skipped' else 'Not recorded' if row['status']=='incomplete' else 'Completed'
+            if row['status']=='completed':
+                readings=[]
+                if row['actual_reps'] is not None:readings.append(str(row['actual_reps'])+' reps')
+                if row['actual_duration_seconds'] is not None:
+                    duration=row['actual_duration_seconds'];readings.append(f'{duration//60}:{duration%60:02d}')
+                value=' · '.join(readings) or 'Completed'
+            parts.append(f'Set {index+1}: {value}')
+        return '; '.join(parts)
     weight, duration = entry['actual_weight_tenths_lb'], entry['actual_duration_seconds']
     if weight is not None and duration is not None:
         meaning = entry['weight_meaning'] if 'weight_meaning' in entry.keys() else ''

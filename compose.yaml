@@ -41,7 +41,8 @@ services:
       context: .
       secrets: [pip_ca]
     command: [python, -m, workout_tracker, scheduler]
-    network_mode: none
+    # Preserve offline scheduling by default; bridge is an explicit Garmin opt-in.
+    network_mode: "${WORKOUT_SCHEDULER_NETWORK_MODE:-none}"
     user: "${WORKOUT_UID:-10001}:${WORKOUT_GID:-10001}"
     environment:
       WORKOUT_DATA_ROOT: /var/lib/workout-tracker

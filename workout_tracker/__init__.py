@@ -1,11 +1,11 @@
 # SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
 """Flask application factory called by tests, Flask, and Gunicorn.
 
-Configuration selects external storage. Browser GET requests read readiness and
-render Jinja templates. Management and workout blueprints use CSRF-protected
-forms. Explicit schema 3 enables workout recording; schema 4 enables history,
-local charts, manual completion and append-only corrections. Phase 5 adds
-explicit recovery controls, external operations state and private diagnostics.
+Configuration selects existing external storage. CSRF-protected blueprints call
+shared services for routines, unified per-set workout recording, effective history,
+body weights, optional Garmin synchronization, reports and administration. Startup
+validates storage; only explicit operator commands initialize/migrate/restore it.
+Retained schema readers preserve old immutable snapshots and correction audits.
 """
 
 import os
@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "0.15.1"
+APP_VERSION = "1.0.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 12
+TARGET_SCHEMA_VERSION = 13
 
 
 def create_app(test_config=None):
@@ -65,6 +65,12 @@ def create_app(test_config=None):
     from .settings_views import bp as settings_bp
     from .diagnostics import emit
     app.register_blueprint(settings_bp)
+    from .body_weight_views import bp as body_weight_bp
+    app.register_blueprint(body_weight_bp)
+    from .garmin_views import bp as garmin_bp
+    app.register_blueprint(garmin_bp)
+    from .report_views import bp as report_bp
+    app.register_blueprint(report_bp)
     emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker started")
     import atexit
     def shutdown_event():

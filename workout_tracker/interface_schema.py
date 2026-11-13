@@ -86,7 +86,7 @@ def validate_interface(db):
     try:
         for table in ('exercise_defaults','routine_exercises'):
             for row in db.execute(f'SELECT c.*,b.basis FROM {table} c LEFT JOIN exercise_weight_basis b ON b.exercise_id=c.exercise_id'):
-                if row['measurement_type']!='time' and row['weight_basis']!=row['basis']:
+                if row['measurement_type']!='time' and (dict(row).get('capabilities') is None or row['capabilities']&1) and row['weight_basis']!=row['basis']:
                     raise ValueError('Missing permanent basis')
                 if row['weight_basis']!='not_configured' and row['weight_basis']!=row['basis']:
                     raise ValueError('Changed permanent basis')

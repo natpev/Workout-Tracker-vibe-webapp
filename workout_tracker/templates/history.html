@@ -2,7 +2,7 @@
    Flask supplies only this person's effective completed sessions and snapshots.
    GET filters never mutate storage; all names/parameters are Jinja-escaped. #}
 {% extends 'base.html' %}
-{% block content %}
+{% block content %}{% if active_schema_version>=13 %}<p><a class="pill secondary" href="{{ url_for('reports.index',person_id=person.id) }}">Workout Summary Reports</a></p>{% endif %}
 <h1>Workout history</h1>
 <p><a class="pill" href="{{ url_for('history.historical',person_id=person.id,**progress_context) }}">Enter historical workout</a> <a class="pill" href="{{ url_for('history.progress',person_id=person.id,range=progress_context.get('progress_range'),**{'from':progress_context.get('progress_from'),'to':progress_context.get('progress_to'),'exercise':progress_context.get('progress_exercise')}) }}">Exercise progress</a></p>
 <form method="get">{% for key in ('progress_range','progress_from','progress_to','progress_exercise') %}{% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args[key] }}">{% endif %}{% endfor %}<div class="history-date-filters"><label>From date <input name="from" type="date" value="{{ filters.get('from','') }}"></label><label>To date <input name="to" type="date" value="{{ filters.get('to','') }}"></label></div>

@@ -83,7 +83,11 @@ def fixture(tmp_path,schema=5):
         basis=dict(weight_basis='total') if schema>=9 else {}
         c.add_entry(db,a,r,dict(name='Zero',measurement_type='weight',target_sets='3',target_reps='12',**basis))
         c.add_entry(db,a,r,dict(name='Skip',measurement_type='weight',target_sets='3',target_reps='12',**basis))
-        form=h.prepare(db,a,r,dict(workout_date='2020-01-01',workout_time=''),'UTC');h.complete_historical(db,a,form,{'weight_0':'0','reps_0_0':'12','reps_0_1':'12','reps_0_2':'12'})
+        form=h.prepare(db,a,r,dict(workout_date='2020-01-01',workout_time=''),'UTC')
+        fields={'weight_0':'0','reps_0_0':'12','reps_0_1':'12','reps_0_2':'12'}
+        if schema>=13:
+            fields.update({f'status_{exercise}_{index}':'completed' if exercise==0 else 'skipped' for exercise in range(2) for index in range(3)})
+        h.complete_historical(db,a,form,fields)
     state=root/'updater';(state/'runtime').mkdir(parents=True);(state/'venv/bin').mkdir(parents=True)
     (state/'venv/bin/python').symlink_to(sys.executable)
     (state/'runtime/workout_updater').symlink_to(REPO/'workout_updater',target_is_directory=True)

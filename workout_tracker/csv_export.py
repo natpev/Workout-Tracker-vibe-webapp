@@ -28,6 +28,40 @@ def weight(value):
     return str(value // 10) if value % 10 == 0 else f'{value // 10}.{value % 10}'
 
 
+def kind_for(row):
+    """Keep every old export format; new captured capabilities get explicit columns."""
+    row=dict(row)
+    return 'flex:'+str(row['capabilities']) if row.get('capabilities') is not None else row['measurement_type']
+
+
+def column_labels(kind,modern):
+    """Stable wide-column labels separate exercise weight from independent set results."""
+    if kind.startswith('flex:'):
+        caps=int(kind[5:]);labels=[]
+        if caps&1:labels.append('Weight (lb)')
+        labels.append('Historical Prescription')
+        if caps&2:labels.append('Actual Repetitions by Set')
+        if caps&4:labels.append('Actual Durations by Set')
+        labels.append('Set Statuses')
+        return tuple(labels)
+    labels=(('Weight (lb)','Duration','Sets × Target Duration') if kind=='weight_duration' else ('Weight (lb)','Sets × Reps') if kind=='weight' else ('Duration','Sets × Target Duration'))
+    return labels+('Actual Repetitions by Set',) if modern and kind=='weight' else labels
+
+
+def flex_cells(row):
+    """Blank actual cells remain blank for skipped sets; statuses retain the distinction."""
+    caps=row['capabilities'];cells=[]
+    if caps&1:cells.append('' if row['actual_weight_tenths_lb'] is None else weight(row['actual_weight_tenths_lb']))
+    target=str(row['target_sets'])+' sets'
+    if caps&2:target+=' × '+str(row['target_reps'])+' reps'
+    if caps&4:target+=' · '+duration(row['target_duration_seconds'])+' per set'
+    cells.append(target)
+    if caps&2:cells.append('; '.join('' if s['actual_reps'] is None else str(s['actual_reps']) for s in row['sets']))
+    if caps&4:cells.append('; '.join('' if s['actual_duration_seconds'] is None else duration(s['actual_duration_seconds']) for s in row['sets']))
+    cells.append('; '.join(s['status'] for s in row['sets']))
+    return tuple(cells)
+
+
 def wide_csv(db, person_id, filters, selected):
     """Return UTF-8 CSV text for selected IDs, with one row per completed workout.
 
@@ -57,10 +91,12 @@ def wide_csv(db, person_id, filters, selected):
         for row in rows:
             if row['exercise_id'] not in selected:
                 continue
-            group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
+            group = (row['exercise_id'], kind_for(row), row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
             repeats[group] += 1
             key = (*group, repeats[group])
-            kind = row['measurement_type']
+            kind = kind_for(row)
+            if kind.startswith('flex:'):
+                cells[key]=flex_cells(row);keys.add(key);continue
             actual_weight, actual_duration = row['actual_weight_tenths_lb'], row['actual_duration_seconds']
             weight_cell = '' if actual_weight is None else weight(actual_weight)
             duration_cell = '' if actual_duration is None else duration(actual_duration)
@@ -87,13 +123,13 @@ def wide_csv(db, person_id, filters, selected):
             for row in rows:
                 if row['exercise_id'] not in absent:
                     continue
-                group = (row['exercise_id'], row['measurement_type'], row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
+                group = (row['exercise_id'], kind_for(row), row['unit'], row['weight_meaning'], row.get('weight_basis','not_configured'))
                 repeats[group] += 1
                 keys.add((*group, repeats[group]))
     if db.execute('PRAGMA user_version').fetchone()[0]>=11:
         for identity in set(selected)-{key[0] for key in keys}:
             preset=db.execute('SELECT * FROM exercise_defaults WHERE exercise_id=?',(identity,)).fetchone()
-            if preset:keys.add((identity,preset['measurement_type'],preset['unit'],preset['weight_meaning'],preset['weight_basis'],1))
+            if preset:keys.add((identity,kind_for(preset),preset['unit'],preset['weight_meaning'],preset['weight_basis'],1))
     # Names label columns only; full IDs disambiguate matching names without
     # merging or repairing any definitions. Measurements use captured groups.
     duplicates = Counter(names[identity].casefold() for identity in selected)
@@ -109,17 +145,18 @@ def wide_csv(db, person_id, filters, selected):
         if basis!='not_configured':
             from .basis import label as basis_label
             label += ' ('+basis_label(basis)+')'
+        if kind.startswith('flex:'):
+            from .measurements import label as capability_label
+            label+=' ('+capability_label(int(kind[5:]))+'; per-set)'
         if slot > 1:
             label += f' [occurrence {slot}]'
-        labels = (('Weight (lb)', 'Duration', 'Sets × Target Duration') if kind == 'weight_duration'
-                  else ('Weight (lb)', 'Sets × Reps') if kind == 'weight' else ('Duration', 'Sets × Target Duration'))
-        if modern and kind=='weight':labels+=('Actual Repetitions by Set',)
+        labels=column_labels(kind,modern)
         header.extend(label + ' — ' + part for part in labels)
     buffer = StringIO(newline=''); writer = csv.writer(buffer, lineterminator='\r\n')
     writer.writerow([spreadsheet_text(cell) for cell in header])
     for parent, cells in records:
         row = [parent['workout_date'], (parent['workout_time'] or '')[:5], parent['routine_name'], parent['id']]
         for key in ordered:
-            row.extend(cells.get(key, ('',) * (3 if key[1]=='weight_duration' or (modern and key[1]=='weight') else 2)))
+            row.extend(cells.get(key, ('',) * len(column_labels(key[1],modern))))
         writer.writerow([spreadsheet_text(cell) for cell in row])
     return buffer.getvalue()

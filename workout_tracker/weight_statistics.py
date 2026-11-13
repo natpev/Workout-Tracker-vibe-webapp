@@ -12,6 +12,13 @@ from fractions import Fraction
 
 def entry_total(row):
     """Return estimated pounds as an exact Fraction using captured prescriptions."""
+    if row.get('capabilities') is not None:
+        caps=row['capabilities'];weight=row['actual_weight_tenths_lb']
+        if not caps&1 or weight is None:return Fraction(0)
+        if row['weight_basis'] not in ('total','per_side'):raise ValueError('Missing permanent Weight Basis.')
+        completed=[r for r in row['sets'] if r['status']=='completed']
+        count=sum(r['actual_reps'] for r in completed) if caps&2 else len(completed)
+        return Fraction(weight*count*(2 if row['weight_basis']=='per_side' else 1),10)
     weight = row['actual_weight_tenths_lb']
     kind = row['measurement_type']
     if kind == 'time' or weight is None:
@@ -60,7 +67,8 @@ def tons(value):
         amount /= 1000
         index += 1
     unit = units[index]
-    return number(amount, 2 if index else None) + ' ' + unit + ('' if not index and amount == 1 else 's')
+    displayed=number(amount,1).rstrip('0').rstrip('.')
+    return displayed+' '+unit+('' if displayed=='1' else 's')
 
 
 def comparison(current, workouts):

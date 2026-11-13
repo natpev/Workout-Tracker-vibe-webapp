@@ -43,11 +43,11 @@ def test_pounds(value, expected):
 @pytest.mark.parametrize('value,expected', [
     (0, '0 tons'), (2000, '1 ton'), (1000, '0.5 tons'),
     (50000, '25 tons'), (1998000, '999 tons'),
-    (1999999, '999.9995 tons'), (2000000, '1.00 kilotons'),
-    (51000000, '25.50 kilotons'), (2000000000, '1.00 megatons'),
-    (2000000000000, '1.00 gigatons'), (2000000000000000, '1.00 teratons'),
-    (2000000000000000000, '1.00 petatons'),
-    (2000000000000000000000, '1.00 exatons'),
+    (1999999, '1,000 tons'), (2000000, '1 kiloton'),
+    (51000000, '25.5 kilotons'), (2000000000, '1 megaton'),
+    (2000000000000, '1 gigaton'), (2000000000000000, '1 teraton'),
+    (2000000000000000000, '1 petaton'),
+    (2000000000000000000000, '1 exaton'),
 ])
 def test_imperial_short_tons(value, expected):
     assert stats.tons(value) == expected
@@ -96,10 +96,10 @@ def test_unknown_basis_refuses_to_guess():
 
 @pytest.mark.parametrize('power,unit',[(7,'zettatons'),(8,'yottatons'),(9,'ronnatons'),(10,'quettatons')])
 def test_larger_standard_prefixes(power,unit):
-    assert stats.tons(2000*1000**power)=='1.00 '+unit
+    assert stats.tons(2000*1000**power)=='1 '+unit[:-1]
 
 
 def test_no_rounding_driven_prefix_transition_and_no_negative_zero():
-    assert stats.tons(2000*999999)=='1,000.00 kilotons'
+    assert stats.tons(2000*999999)=='1,000 kilotons'
     current=workout('current','2026-10-31',999999)
     assert stats.comparison(current,[workout('previous','2026-10-30',1000000)])=='0.0%'

@@ -16,18 +16,23 @@ def assigned(db,exercise):
 def configuration(db,exercise,current,values,confirmed=False):
     """Validate type correction consent and reject any assigned-basis workaround."""
     kind=values.get('measurement_type');basis=assigned(db,exercise)
-    if kind!=current['measurement_type'] and not confirmed:
+    weighted=bool(int(values.get('capabilities',0))&1) if kind=='flex' else kind!='time'
+    changed=kind!=current['measurement_type'] or (kind=='flex' and int(values.get('capabilities',0))!=dict(current).get('capabilities'))
+    if changed and not confirmed:
         raise ValidationError('Confirm this measurement-type correction before saving.')
     selected=values.get('weight_basis')
     if basis:
-        if selected not in (None,'',basis) and not (kind=='time' and selected=='not_configured'):
+        if selected not in (None,'',basis) and not (not weighted and selected=='not_configured'):
             raise ValidationError('Weight Basis is permanent, including after a duration-only correction.')
+        # Old nonweighted routines may still carry Not Configured after the
+        # shared identity first gains Weight. Normalize only that dormant value
+        # to the permanent assignment; never allow a different assigned basis.
         selected=basis
-    elif kind!='time':
+    elif weighted:
         if selected not in ('total','per_side'):
             raise ValidationError('Choose the initial permanent Weight Basis for this weight-based exercise.')
     else:selected='not_configured'
-    return dict(values,weight_basis=selected,weight_meaning=current['weight_meaning'])
+    return dict(values,weight_basis=selected,weight_meaning=current['weight_meaning'],_assigned_basis=basis)
 
 
 def ensure(db,exercise,kind,basis):

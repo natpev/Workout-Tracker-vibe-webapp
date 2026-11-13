@@ -1,0 +1,13 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
+   Shared new-model inputs: exactly one exercise weight and independent SQL-backed sets.
+   Historical prefix keeps stable exercise/set field identities on correction forms. #}
+{% macro inputs(row,values,prefix='',live=false,errors={}) %}
+{% if row.capabilities % 2 %}<label class="measurement-label">Weight (lb)<input id="weight{{ prefix }}" class="measurement-input" name="weight{{ prefix }}" type="text" inputmode="decimal" autocomplete="off" maxlength="100" value="{{ values.get('weight'~prefix,'') }}" aria-describedby="weight{{ prefix }}-hint"></label><p class="input-hint" id="weight{{ prefix }}-hint">One weight applies to every completed set. Zero is valid. Skip sets explicitly.</p>{% endif %}
+<fieldset class="set-results" id="sets{{ prefix }}"><legend>Sets</legend>{% for index in range(row.target_sets) %}{% set suffix=prefix~'_'~index %}<div class="set-result" data-set-row><h3>Set {{ index+1 }}</h3>
+{% if row.capabilities in [2,3,6,7] %}<label>Repetitions<input type="text" inputmode="numeric" autocomplete="off" maxlength="5" id="reps{{ suffix }}" name="reps{{ suffix }}" data-set-input value="{{ values.get('reps'~suffix,'') }}"></label>{% endif %}
+{% if row.capabilities in [4,5,6,7] %}<div class="duration"><label>Minutes<input type="text" inputmode="numeric" autocomplete="off" maxlength="100" id="minutes{{ suffix }}" name="minutes{{ suffix }}" data-set-input value="{{ values.get('minutes'~suffix,'') }}"></label><label>Seconds<input type="text" inputmode="numeric" autocomplete="off" maxlength="100" id="seconds{{ suffix }}" name="seconds{{ suffix }}" data-set-input value="{{ values.get('seconds'~suffix,'') }}"></label></div>{% endif %}
+<label>Status<select name="status{{ suffix }}" data-set-input data-set-status>{% for state,label in [('incomplete','Not recorded / incomplete'),('completed','Completed'),('skipped','Skipped')] %}<option value="{{ state }}" {% if values.get('status'~suffix,'incomplete')==state %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+{% if live %}{% for key in ['reps_'~index,'duration_'~index] %}<p class="field-error" data-field-error="{{ key }}" role="alert" hidden></p>{% endfor %}{% endif %}</div>{% endfor %}</fieldset>
+{% if live %}<p class="field-error" data-field-error="sets" role="alert" hidden></p>{% endif %}
+{% if errors %}{% for key,message in errors.items() %}{% if key=='weight'~prefix or key=='sets'~prefix or key.startswith('reps'~prefix~'_') or key.startswith('minutes'~prefix~'_') or key.startswith('seconds'~prefix~'_') %}<p class="field-error">{{ message }}</p>{% endif %}{% endfor %}{% endif %}
+{% endmacro %}

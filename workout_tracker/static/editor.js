@@ -3,6 +3,21 @@
 // and disables irrelevant inputs; Flask independently validates every POST.
 "use strict";
 document.querySelectorAll("[data-configuration]").forEach((form) => {
+  if(form.querySelector('[name=capabilities_form]')) {
+    const update=()=>{
+      const selected=[...form.querySelectorAll('[data-capability]:checked')].map(input=>input.dataset.capability);
+      form.querySelectorAll('[data-capability-fields]').forEach(group=>{
+        const enabled=selected.includes(group.dataset.capabilityFields);
+        group.hidden=!enabled;
+        group.querySelectorAll('input,select').forEach(input=>{
+          input.disabled=!enabled;
+          input.required=enabled&&['target_reps','weight_basis'].includes(input.name);
+        });
+      });
+    };
+    form.querySelectorAll('[data-capability]').forEach(input=>input.addEventListener('change',update));
+    update();return;
+  }
   // Apply only the chosen mode's constraints; radio inputs retain native arrow
   // key behavior and checked state for assistive technology.
   const update = () => {

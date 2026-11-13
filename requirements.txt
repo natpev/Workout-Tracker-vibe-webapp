@@ -10,3 +10,8 @@ Jinja2==3.1.6
 MarkupSafe==3.0.4
 packaging==26.3
 Werkzeug==3.1.9
+
+# Local PDF generation; transitive dependencies are pinned for repeatable images.
+reportlab==4.4.5
+pillow==13.0.0
+charset-normalizer==3.5.2

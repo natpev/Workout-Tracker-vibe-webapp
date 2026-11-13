@@ -92,6 +92,8 @@ def original(db, person_id, identity):
             raise StorageError('Historical snapshot consistency failed.')
     from .repetitions import decode
     rows=[decode(row) for row in rows]
+    from .measurements import read
+    rows=[read(db,row,parent['source']) for row in rows]
     parent['routine_deleted'] = db.execute('SELECT 1 FROM routines WHERE id=? AND person_id=?',(parent['routine_id'],person_id)).fetchone() is None
     return parent,rows
 
@@ -100,7 +102,7 @@ def value_state(parent, rows):
     """Capture only correctable occurrence/measurement fields, not snapshot metadata."""
     return dict(workout_date=parent['workout_date'],workout_time=parent['workout_time'],occurred_at=parent['occurred_at'],
                 entries=[{**{key:row[key] for key in ('id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time')},
-                          **({'actual_reps':row['actual_reps']} if row.get('actual_reps') is not None else {})} for row in rows])
+                          **({'sets':row['sets']} if row.get('capabilities') is not None else {'actual_reps':row['actual_reps']} if row.get('actual_reps') is not None else {})} for row in rows])
 
 
 def validate_state(parent, rows, values):
@@ -122,6 +124,16 @@ def validate_state(parent, rows, values):
         if local.date().isoformat()!=values['workout_date'] or local.strftime('%H:%M:%S')!=clock:
             raise ValueError('Correction date/time mismatch')
     for row,value in zip(rows,values['entries']):
+        if row.get('capabilities') is not None:
+            from .measurements import validate
+            expected={'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time','sets'}
+            if set(value)!=expected or value['actual_duration_seconds'] is not None:raise ValueError('Invalid unified correction shape')
+            validate(row,value['actual_weight_tenths_lb'],value['sets'],complete=True)
+            performed=any(r['status']=='completed' for r in value['sets'])
+            flag=value['increase_next_time']
+            if performed and (type(flag) is not int or flag not in (0,1)):raise ValueError('Invalid increase flag')
+            if not performed and (flag is not None or value['actual_weight_tenths_lb'] is not None):raise ValueError('Skipped exercise must retain NULLs')
+            continue
         if set(value) not in ({'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time'}, {'id','actual_weight_tenths_lb','actual_duration_seconds','increase_next_time','actual_reps'}):
             raise ValueError('Correction fields mismatch')
         from .repetitions import validate as validate_reps
@@ -233,6 +245,9 @@ def chart_series(db, person_id, values, *, completed=None):
         for row in rows:
             if values.get('exercise') and row['exercise_id']!=values['exercise']:
                 continue
+            if row.get('capabilities') is not None:
+                from .measurement_charts import append_series
+                append_series(groups,parent,row);continue
             # A combined snapshot contributes two independent numerical axes,
             # grouped together in the UI but never mixed with ordinary modes.
             combined = row['measurement_type']=='weight_duration'
@@ -263,7 +278,7 @@ def chart_series(db, person_id, values, *, completed=None):
             point['x']=130+(point['xday']-low)/(high-low or 1)*530
             point['y']=220-point['raw']/top*180
         series['line']=' '.join(f"{p['x']:.2f},{p['y']:.2f}" for p in points)
-        series['top_label']=w.display_measurement({
+        series['top_label']=str(top)+' reps' if series['kind']=='reps' else w.display_measurement({
             'actual_weight_tenths_lb':top if series['kind']=='weight' else None,
             'actual_duration_seconds':top if series['kind']=='time' else None})
     return list(groups.values())
@@ -282,6 +297,11 @@ def prepare(db, person_id, routine_id, values, zone):
     day,clock,stamp=occurrence(w.field(values,'workout_date'),w.field(values,'workout_time'),zone,w.field(values,'fold'))
     rows=[dict(row) for row in db.execute('SELECT re.*,e.name FROM routine_exercises re JOIN exercises e ON e.id=re.exercise_id WHERE re.routine_id=? ORDER BY re.position',(routine_id,))]
     if not rows: raise c.ValidationError('Choose a routine with at least one exercise.')
+    if db.execute('PRAGMA user_version').fetchone()[0]>=13:
+        from .measurements import mask,configuration
+        for row in rows:
+            row['capabilities']=mask(row)
+            row.update(zip(('measurement_type','target_sets','target_reps','target_duration_seconds','unit','weight_meaning','notes'),configuration(c.default_values(row))))
     for row in rows:
         if row['measurement_type']=='time' and 'weight_basis' in row:row['weight_basis']='not_configured'
     identity=uuid4().hex
@@ -302,7 +322,8 @@ def measurement_fields(row, values, index):
     """Map indexed historical form names to the live parser's per-set field names."""
     result={key:values.get(f'{key}_{index}','') for key in ('weight','minutes','seconds','increase')}
     for set_index in range(row['target_sets']):
-        result[f'reps_{set_index}']=values.get(f'reps_{index}_{set_index}','')
+        for field in ('reps','minutes','seconds','status'):
+            result[f'{field}_{set_index}']=values.get(f'{field}_{index}_{set_index}','')
     return result
 
 
@@ -311,6 +332,9 @@ def entered_measurements(rows, values, modern=False):
     results=[]
     for index,row in enumerate(rows):
         fields=measurement_fields(row,values,index)
+        if row.get('capabilities') is not None:
+            from .measurements import parse
+            result=parse(row,fields,complete=True);result['id']=row['id'];results.append(result);continue
         weight,duration,flag=w.measurement(row,fields)
         result=dict(id=row['id'],actual_weight_tenths_lb=weight,actual_duration_seconds=duration,increase_next_time=flag)
         if modern and row['measurement_type']=='weight' and weight is not None:
@@ -318,7 +342,7 @@ def entered_measurements(rows, values, modern=False):
             actual=inputs(row,fields,legacy='actual_reps_json' in row and row.get('actual_reps') is None and not row.get('reps_required',0))
             if actual is not None:result['actual_reps']=actual
         results.append(result)
-    if not any(row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None for row in results) and values.get('confirm_all_skipped')!='yes':
+    if not any(any(s['status']=='completed' for s in row['sets']) if 'sets' in row else row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None for row in results) and values.get('confirm_all_skipped')!='yes':
         raise w.AllSkipped('Confirm saving an entirely skipped workout.')
     return results
 
@@ -334,7 +358,7 @@ def complete_historical(db, person_id, form_id, values):
     if existing: return existing[0]
     from .basis import enabled
     modern=enabled(db)
-    if modern and any(row['measurement_type']!='time' and row.get('weight_basis','not_configured')=='not_configured' for row in rows):
+    if modern and any((row['capabilities']&1 if row.get('capabilities') is not None else row['measurement_type']!='time') and row.get('weight_basis','not_configured')=='not_configured' for row in rows):
         raise c.ValidationError('This old historical review lacks Weight Basis. Prepare a new review before saving.')
     measurements=entered_measurements(rows,values,db.execute('PRAGMA user_version').fetchone()[0]>=10)
     identity=uuid4().hex
@@ -349,7 +373,12 @@ def complete_historical(db, person_id, form_id, values):
             columns+=',actual_reps_json';stored+=(encode(result.get('actual_reps')),)
         if db.execute('PRAGMA user_version').fetchone()[0]>=11:
             columns+=',reps_required';stored+=(int(row['measurement_type']=='weight'),)
+        if row.get('capabilities') is not None:
+            columns+=',capabilities';stored+=(row['capabilities'],)
         db.execute(f"INSERT INTO historical_entries({columns}) VALUES ({','.join('?' for _ in stored)})",stored)
+        if row.get('capabilities') is not None:
+            from .measurements import insert_sets
+            insert_sets(db,stored[0],result['sets'],'historical')
     return identity
 
 
@@ -395,8 +424,12 @@ def previous_comparable(db, person_id, parent, entry):
         elif (workout['workout_date'],'')>=cutoff:
             continue
         for row in reversed(rows):
-            comparable=('exercise_id','measurement_type','unit')
             classified=row.get('weight_basis','not_configured')!='not_configured' and 'weight_basis' in entry.keys() and entry['weight_basis']!='not_configured'
-            if all(row[key]==entry[key] for key in comparable) and ((classified and row['weight_basis']==entry['weight_basis']) or (not classified and row['weight_meaning']==entry['weight_meaning'] and row.get('weight_basis','not_configured')==(entry['weight_basis'] if 'weight_basis' in entry.keys() else 'not_configured'))):
+            from .measurements import LEGACY
+            row_caps=row.get('capabilities') or LEGACY.get(row['measurement_type'])
+            entry_caps=(entry['capabilities'] if 'capabilities' in entry.keys() else None) or LEGACY.get(entry['measurement_type'])
+            # A dormant assigned basis has no meaning for reps/duration-only
+            # results. Keep their previous performance across independent copies.
+            if row_caps==entry_caps and all(row[key]==entry[key] for key in ('exercise_id','unit')) and (not row_caps&1 or (classified and row['weight_basis']==entry['weight_basis']) or (not classified and row['weight_meaning']==entry['weight_meaning'] and row.get('weight_basis','not_configured')==(entry['weight_basis'] if 'weight_basis' in entry.keys() else 'not_configured'))):
                 matches.append(dict(row,workout_date=workout['workout_date']))
     return (matches[0] if matches else None,next((row for row in matches if w.count_performed([row])),None))

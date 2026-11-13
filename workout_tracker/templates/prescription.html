@@ -1,0 +1,2 @@
+{# SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting. #}
+{{ row.target_sets }} sets{% if row.target_reps is not none %} × {{ row.target_reps }} target reps{% endif %}{% if row.target_duration_seconds is not none %} · {{ row.target_duration_seconds // 60 }}:{{ '%02d'|format(row.target_duration_seconds % 60) }} target per set{% endif %}

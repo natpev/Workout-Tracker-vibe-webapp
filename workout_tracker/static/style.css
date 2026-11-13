@@ -215,3 +215,16 @@ dialog::backdrop { background:#0008; }
 [data-rep-state=invalid] { border-color:#b42338; }
 .actual-repetitions input[aria-invalid=true] { outline:2px solid #b42338; }
 .add-exercise > summary { min-height:44px; display:list-item; cursor:pointer; padding:.6rem; }
+
+/* Unified set controls and read-only statistics remain compact on phones. */
+.lifetime-line { display:flex; flex-wrap:wrap; gap:.35rem; align-items:baseline; }
+.set-result { padding:.6rem 0; border-bottom:1px solid var(--border); min-width:0; }
+.set-result h3 { font-size:1rem; margin:.2rem 0; }
+.consistency-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; }
+.consistency-chart { width:100%; display:block; height:auto; color:var(--text); }
+.consistency-chart text { fill:currentColor; font-size:15px; }
+.training-consistency h3 { font-size:.95rem; }
+.table-scroll { overflow-x:auto; max-width:100%; }
+.table-scroll table { width:100%; border-collapse:collapse; }
+.table-scroll th,.table-scroll td { padding:.5rem; text-align:left; }
+@media(max-width:600px) { .consistency-grid { grid-template-columns:1fr; } }

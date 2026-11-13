@@ -58,8 +58,18 @@ def page_context(person_id, session_id, message=None):
         current = rows[position]
         from .exercise_icons import pairs
         artwork=pairs(db,[current['exercise_id']])[current['exercise_id']]
+        set_values={}
+        if current.get('capabilities') is not None:
+            weight=current['actual_weight_tenths_lb']
+            set_values['weight']='' if weight is None else f'{weight//10}.{weight%10}'
+            for index,row in enumerate(current['sets']):
+                set_values[f'status_{index}']=row['status']
+                set_values[f'reps_{index}']='' if row['actual_reps'] is None else str(row['actual_reps'])
+                duration=row['actual_duration_seconds']
+                set_values[f'minutes_{index}']='' if duration is None else str(duration//60)
+                set_values[f'seconds_{index}']='' if duration is None else str(duration%60)
         prior, performed = workouts.previous(db, person_id, parent, current)
-        return dict(artwork=artwork,statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
+        return dict(set_values=set_values,artwork=artwork,statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
                     previous=prior, last_performed=performed, completed=workouts.count_performed(rows), navigation_progress=len(rows) if parent['status']=='completed' else parent['current_position'],
                     display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))
@@ -87,6 +97,13 @@ def resume(person_id, session_id):
 def show(person_id, session_id):
     """Render one exercise, or an immutable completion/discard confirmation."""
     context = page_context(person_id, session_id)
+    if context['workout']['status']=='draft':
+        with connection() as db:
+            if db.execute('PRAGMA user_version').fetchone()[0]>=13:
+                from .body_weight import today_exists
+                acknowledged=db.execute('SELECT 1 FROM workout_weighin_prompts WHERE session_id=?',(session_id,)).fetchone()
+                if not acknowledged and not today_exists(db,person_id,current_app.config['WORKOUT_TIMEZONE']):
+                    return redirect(url_for('workout.weigh_in',person_id=person_id,session_id=session_id),code=303)
     template = 'workout.html' if context['workout']['status'] == 'draft' else 'workout_done.html'
     return render_template(template, **context)
 
@@ -148,3 +165,31 @@ def exit_workout(person_id,session_id):
     with connection(write=True) as db:
         workouts.update(db,person_id,session_id,request.form)
     return redirect(url_for('manage.dashboard',person_id=person_id,exited=session_id),code=303)
+
+
+@bp.route('/people/<person_id>/workouts/<session_id>/weigh-in',methods=['GET','POST'])
+def weigh_in(person_id,session_id):
+    """One optional local weigh-in per draft; retries never duplicate sessions/readings."""
+    from . import body_weight as body,garmin
+    zone=current_app.config['WORKOUT_TIMEZONE'];error=None
+    local=workouts.now().astimezone(ZoneInfo(zone))
+    with connection(write=request.method=='POST') as db:
+        parent=workouts.session(db,person_id,session_id);person=catalog.person(db,person_id)
+        if db.execute('PRAGMA user_version').fetchone()[0]<13 or parent['status']!='draft':
+            return redirect(url_for('workout.show',person_id=person_id,session_id=session_id),code=303)
+        acknowledged=db.execute('SELECT 1 FROM workout_weighin_prompts WHERE session_id=?',(session_id,)).fetchone()
+        if acknowledged or body.today_exists(db,person_id,zone):
+            return redirect(url_for('workout.show',person_id=person_id,session_id=session_id),code=303)
+        if request.method=='POST':
+            action=request.form.get('action')
+            if action not in ('continue','skip'):raise catalog.ValidationError('Choose Continue or Skip.')
+            try:
+                if action=='continue' and request.form.get('weight','').strip():
+                    body.manual(db,person_id,dict(weight=request.form['weight'],date=local.date().isoformat(),time=local.strftime('%H:%M'),fold=str(local.fold)),zone)
+                db.execute('INSERT INTO workout_weighin_prompts VALUES (?,?)',(session_id,workouts.now().isoformat()))
+            except catalog.ValidationError as exc:error=str(exc)
+    if request.method=='POST' and not error:
+        return redirect(url_for('workout.show',person_id=person_id,session_id=session_id),code=303)
+    try:status=garmin.public(current_app.config['WORKOUT_DATA_ROOT'],person_id)
+    except Exception:status=dict(connected=False,error='Connection status unavailable; you can continue your workout.')
+    return render_template('weigh_in.html',person=person,workout=parent,status=status,error=error,weight=request.form.get('weight','')),400 if error else 200

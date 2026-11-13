@@ -1,10 +1,10 @@
-# Workout Tracker installation, LAN updater v4 and recovery (Phase 14)
+# Workout Tracker installation, LAN updater v4 and recovery
 
 > **SHAMELESSLY VIBE-CODED 🤖**
 >
 > This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups. Not an independent audit. Commands below are for the operator, not deployment performed by Codex.
 
-Application **0.15.1**, full-feature schema **12**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-11 installations need an explicitly confirmed separate-candidate migration to 12. See PATCH_0_15_1_REVIEW.md for current steps; phase-specific instructions below retain their historical release targets. The application remains
+Application **1.0.0**, full-feature schema **13**. This release needs no new host-service refresh after Phase 12 setup; use normal browser installation. If the host service predates Phase 12, use the [one-time host upgrade](#phase-12-host-service-upgrade). Schema-12 installations need an explicitly confirmed separate-candidate migration to 13. See [upgrade prerequisites](../docs/UPGRADING.md) for older installations. The application remains
 **http://10.0.69.9:8000**. It is intentionally passwordless: every person who can
 reach it may confirm updates or permanent deletion. Network isolation is the trust
 boundary. No accounts, administrator passwords, login, HTTPS, certificates or
@@ -38,92 +38,35 @@ example with existing VM/offsite backups). SQLite backups omit external keys,
 settings, accents, schedules and host updater files. Stop external SQLite tools
 before maintenance. Do not initialize installed storage or delete retained files.
 
-## Archived Update 1 upgrade from schema 6
+## First host-service installation
 
-These archived commands describe the Phase 13 release, not current main. Use the Phase 14 review for current instructions. Schemas 4/5 could
-also upgrade explicitly to 9 through the same candidate machinery; verify the
-actual installed schema rather than assuming it. The initial step updates source
-only; the currently running image/database remain unchanged until v4 is confirmed.
-
-First inspect your checkout. If it lists local changes, stop and reconcile them;
-never reset or discard work:
+Follow the current [beginner installation](../README.md) first. With clean main
+and the existing storage/configuration preserved, install only the independent
+service over SSH as root:
 
 ```sh
 cd /root/WorkoutTracker/app
-git status --short --branch
+bash deployment/update_workout_tracker_v4.sh --install-service \
+  --lan-address 10.0.69.9 --app-url http://10.0.69.9:8000 --status-port 8001
 ```
 
-With a clean main checkout:
+Use your actual private address. The installer creates private host venv/runtime,
+Unix bridge and systemd unit. It neither creates/migrates a workout database nor
+replaces the running app. Keep ports 8000/8001 on your trusted LAN only. This worker
+has deliberate root-equivalent Docker capability; the Flask container does not.
 
-```sh
-(
-  set -eu
-  cd /root/WorkoutTracker/app
-  test "$(git branch --show-current)" = main
-  test -z "$(git status --porcelain)"
-  git fetch origin
-  git merge --ff-only origin/main
-  bash deployment/update_workout_tracker_v4.sh --install-service \
-    --lan-address 10.0.69.9 \
-    --app-url http://10.0.69.9:8000 \
-    --status-port 8001
-)
-```
-
-The explicit installer creates a private host venv/runtime and Unix bridge,
-installs/enables the independent systemd service, and binds only read-only
-progress to the supplied LAN address/port. It does **not** stop/rebuild/migrate the
-workout app, create a database or change its normal HTTP port. No privileged setup
-runs at Flask startup. Systemd hardening keeps writes under the installation tree;
-Docker client config/cache is private under updater/docker. Docker itself grants
-root-equivalent host capability to this deliberately separate fixed-command worker,
-not to the web container. Protect host access and merge rights accordingly.
-
-Now run the new manual entry point explicitly, not an old same-named v3 copy:
+For emergency updates, use the same protected host engine through v4:
 
 ```sh
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-It checks approved main, displays the release, asks to install with a verified
-backup, and prompts **MIGRATE 9** if the actual source schema needs upgrading.
-This is a safety confirmation, not authentication. The shared engine stops only
-web/scheduler, verifies a distinct backup, preserves the previous image/commit,
-builds, checks actual release-info, invokes confirmed candidate migration and
-validates schema/original bytes before restart. It then verifies actual app 0.13.0 /
-schema 9 and scheduler status. No unsupported older image is started after schema
-activation. The parent .env is copied atomically/private into app/.env with the
-same contents, as explicitly requested; paths, ports and values are not changed.
-
-For deliberately preapproved noninteractive operator maintenance only:
-
-```sh
-bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh \
-  --confirm --allow-migration
-```
-
-Those flags explicitly approve the update/schema change; routine browser use
-still reviews and confirms both. Legacy `--backup` is accepted for compatibility:
-all confirmed v4/browser updates already include a verified backup.
-
-After success:
-
-```sh
-docker compose --project-directory /root/WorkoutTracker/app \
-  --env-file /root/WorkoutTracker/.env \
-  -f /root/WorkoutTracker/app/compose.yaml ps
-
-docker compose --project-directory /root/WorkoutTracker/app \
-  --env-file /root/WorkoutTracker/.env \
-  -f /root/WorkoutTracker/app/compose.yaml exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="0.13.0",schema_version=9)'
-```
-
-Open **http://10.0.69.9:8000/settings/updates**. No login or certificate action
-is required. Keep port 8001 restricted to trusted LAN devices in the existing
-host/VM firewall policy; never forward either port from the public internet.
-No application port/bind setting is changed by the installer. The extra listener
-is read-only; update control is not exposed there.
+It displays approved 1.0.0 and prompts **MIGRATE 13** if necessary. Review explicitly.
+No-update checks perform no copy/migration. A confirmed update makes a verified
+backup, preserves original database/image/selection, builds, migrates a separate
+candidate and verifies health. Parent .env is privately copied with identical
+contents; values are never changed. Existing user-written root wrappers were not
+inspected or tested as part of this release.
 
 ## Routine browser updates
 
@@ -214,248 +157,6 @@ root host service and inspect its permissions; do not bypass the check. Config
 changes to Compose mounts/images/services must be reviewed separately, never applied
 silently by the updater. Backups, retained databases and old images are not pruned.
 
-## Verification limits
-
-Development uses synthetic data, loopback-only HTTP and unpublished Docker app
-ports. Script flow/failure tests use fake Git/Docker but real application backup/
-migration code. The real Docker rehearsal simulates Git release metadata and the
-cloud rootless-daemon disk-path probe (the test UID cannot traverse that user's
-private folder); build, backup, migration, container restart, peer UID checks and
-HTTP status are real. Actual systemd syntax is verified offline; no live systemd
-unit or production installation is changed. Your server's Git credentials,
-firewall, Python packages and permissions still need the one-time operator checks.
-
-
-## Phase 9 compatibility and already-installed host runtime
-
-V4 remains the supported wrapper; it reads approved release targets dynamically
-and invokes the new image's explicit migration CLI. Tests cover 0.9.0/schema 7,
-code-only schema-7 updates, actual schema-6→7 Docker upgrades and original-byte
-preservation. The host engine's safety and fixed operation protocol are unchanged.
-Only host status timestamp presentation was standardized to explicit 24-hour UTC.
-The separately installed Phase 8 host engine can already deliver this release.
-To copy the latest host presentation code too, explicitly rerun:
-
-```sh
-bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh   --upgrade-service --lan-address 10.0.69.9   --app-url http://10.0.69.9:8000 --status-port 8001
-```
-
-This refreshes only the independent host runtime; it does not initialize or
-migrate workout storage. A first installation still uses --install-service as
-above. Keep the existing .env timezone America/Indiana/Indianapolis; do not replace
-it with a UTC offset or change the normal HTTP port. Backup schedule timezone is
-configured independently in Administration and is not silently overwritten.
-
-Migration adds exercise_defaults on a separate candidate, initializes neutral
-Weight/3×12/pounds presets for old identities, and verifies old cells, source
-hashes, exact DDL, integrity/FKs and completeness before activation. Existing
-routine settings and historical snapshots are unchanged. Schema-6 backups stay
-retained but Restore accepts only the exact currently selected schema; do not
-silently downgrade a schema-7 installation. No application startup migration.
-
-## Phase 10 existing-installation upgrade
-
-**SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.**
-
-Release **0.10.4 / target schema 7** is code-only for an existing schema-7 database.
-V4 remains supported. Install Update opens one independent status tab with a
-popup-blocked fallback; Check opens none. The new live console requires changed
-host Python modules and local status.js/status.css, copied by the existing explicit
-installer. Flask/Docker replacement alone never updates that separate runtime.
-An older host can still install this release, with basic status only, until you
-perform the host upgrade. Its missing console_protocol capability produces an app
-warning. Never assume container restart upgrades the host service.
-
-Run the following **over SSH on your server**, from root, only after this release
-is on main. These commands were not executed on your server. They require your
-existing installed service, clean main checkout, fixed paths/private address, Docker
-and Python venv dependencies. Keep your actual existing address if different.
-First ensure no check/install job is running; the service installer also refuses
-an overlapping update lock. Stop at an error; do not reset/clean local work.
-
-```bash
-(
-  set -e
-  cd /root/WorkoutTracker/app
-  test "$(git branch --show-current)" = main
-  test -z "$(git status --porcelain)"
-  git fetch origin main
-  git merge --ff-only origin/main
-  bash deployment/update_workout_tracker_v4.sh \
-    --upgrade-service --lan-address 10.0.69.9 \
-    --app-url http://10.0.69.9:8000 --status-port 8001
-  bash deployment/update_workout_tracker_v4.sh
-)
-```
-
-Fetching/fast-forwarding source before the host upgrade does not change running
-containers or SQLite. The explicit upgrade copies the new runtime/assets, refreshes
-the independent service and bridge configuration, and leaves app containers/storage
-running. The final v4 command asks for update consent, verifies a backup and uses
-the existing safe build/health workflow. For schema 7 it does not migrate or switch
-the selected database. If your installation is older, review its detected schema
-and explicitly approve the existing candidate migration separately; never initialize
-or restore to force an upgrade. Keep parent .env and Compose settings unchanged.
-
-Afterward verify:
-
-```bash
-curl --fail http://10.0.69.9:8000/health/ready
-curl --fail http://10.0.69.9:8001/status.json
-systemctl status workout-tracker-updater.service --no-pager
-```
-
-Ready JSON should report app_version 0.10.4 / schema_version 7; host status JSON
-should include console_protocol 1. Open http://10.0.69.9:8001/status for retained
-console output and Administration → Application Updates for future browser updates.
-A missing ensurepip/venv error requires the matching distro Python venv package
-(e.g. apt install python3-venv, or python3.12-venv when Python is 3.12), then rerun
-the explicit service-upgrade command. No replacement update script is required.
-
-### Safe console and diagnostic boundaries
-
-A selector streams actual fixed-argv child stdout/stderr before exit, under the
-original deadlines. Both pipes drain; parse tails are bounded to 2 MiB each and
-unterminated line buffers are bounded. Private operation logs remain detailed
-SSH diagnostics, except resolved Compose configuration is withheld altogether.
-The browser gets only a separate default-deny classification of recognized
-structural output and actual stage/command-exit events. Numeric Git progress,
-BuildKit DONE/CACHED, dependency lifecycle, verified backup/schema and container
-lifecycle appear; arbitrary text, commands, URLs, environment values and exception
-bodies do not. This deliberately omits many detailed build/error lines; use SSH
-private logs for diagnosis rather than expanding the public allowlist casually.
-
-Safe rings are atomic private JSON files with 500 × 500-character lines and the
-newest 20 operations; only those safe files are pruned. Raw private logs, recovery
-records, images, backups and schema archives retain existing policy. GET-only
-console.json accepts an allowlisted current/retained 32-hex operation ID and bounded
-cursor, never a pathname, shell text or control command. Local CSP-bound scripts
-render via textContent. Polling every 1.5 seconds survives web container downtime;
-24-hour timestamps explicitly use UTC. Upward scroll stays fixed; Scroll to Latest
-resumes following, and refresh reconnects to retained output. Without JavaScript,
-high-level status/events remain available by manual refresh; live console needs JS.
-The status page remains passwordless and private-LAN-only, with no TLS/proxy added.
-
-
-## Patch 0.10.1 compatibility
-
-This patch changes only the server-side routine-card ordering and application
-version. Target schema remains 7. Use the existing browser Check for Updates →
-review → confirmed Install Update workflow, or v4. A schema-7 installation needs
-no migration or new host runtime beyond Phase 10. The existing verified backup,
-original selection/bytes, health, recovery and fixed-source protections remain.
-No updater script or server Compose/.env changes are required for this patch.
-
-
-## Patch 0.10.2 compatibility
-
-The hamburger fix changes only application CSS and release metadata. Existing
-browser/v4 updates detect 0.10.2 and target schema 7 through the unchanged release
-protocol. No schema migration, new host runtime, Compose/.env change or extra
-installation command is needed for an existing Phase 10 installation. Existing
-backup, source verification, recovery and health checks remain. Routine-ordering
-patch 0.10.1 is included; its changes are not overwritten or downgraded.
-
-
-## Patch 0.10.3 compatibility
-
-Header placement and routine activity labels are a code-only update to application
-0.10.3, with target schema 7 unchanged. Existing browser/v4 release detection,
-backup, consent, health and recovery protocols are unchanged. No database migration,
-new host runtime or server Compose/.env change is required for schema-7 Phase 10
-installations. Do not initialize or restore storage as part of this update.
-
-
-## Patch 0.10.4 compatibility
-
-Use the existing browser updater/v4 for application 0.10.4 / target schema 7. The
-existing cursor stores the Next checkpoint; no DDL or migration is introduced.
-CSV is an in-memory, person-scoped read-only download. No new host service, server
-Compose/.env changes, PDF/Excel dependencies or export storage are required. Keep
-the existing confirmation, verified backup, original storage and health safeguards.
-
-
-## Phase 11 schema 7 to 8 upgrade
-
-**SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.**
-This section records the Phase 11 release **0.11.0 / schema 8**. For current 0.13.0/schema-9 instructions see the Phase 13 section below. Earlier Phase 9/10 and patch instructions
-above document their historical release targets, not a schema-7 code-only update
-for this release. Existing schema 7 must explicitly migrate a separate candidate.
-
-For a working installed Phase 10 browser updater:
-
-1. Open Settings → Administration → Application Updates → Check for Updates.
-2. Review approved main, application 0.11.0 and target schema 8.
-3. Confirm installation and the schema migration, then press Install Update.
-4. Watch the independent http://10.0.69.9:8001/status tab through backup, build,
-   candidate migration and health verification. Do not close it or start another job.
-5. Reopen the app; Settings/footer and /health/ready must show 0.11.0 / schema 8.
-   Make a new verified schema-8 backup. Older schema-7 backups stay retained but
-   Restore cannot downgrade a schema-8 installation.
-
-The existing host engine/v4 supports dynamic target 8 and invokes the new image's
-CLI. No Phase-11 host runtime reinstall, new script, Compose/.env change, port or
-server timezone change is required. Older pre-Phase-10 services still need their
-previously documented one-time upgrade for live console output, separately.
-
-Emergency SSH alternative on your installed server (operator commands only):
-
-```bash
-cd /root/WorkoutTracker/app
-git status --short --branch
-# Stop here if there are local changes or a non-main checkout; reconcile safely.
-bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
-```
-
-Review the release; confirm installation and type **MIGRATE 8** when prompted.
-This is the existing repository v4, not an uninspected external root wrapper.
-It stops web/scheduler, verifies a unique backup, retains source/image/selection,
-builds, confirms release-info, runs candidate migration and verifies health. Never
-run init-storage or Restore as an upgrade shortcut. If v4 is not present locally,
-with a clean main checkout fetch and fast-forward first:
-
-```bash
-cd /root/WorkoutTracker/app
-git fetch origin main
-git merge --ff-only origin/main
-bash deployment/update_workout_tracker_v4.sh
-```
-
-If deliberate manual maintenance is required instead, stop both services and
-external SQLite tools, protect the whole tree/private .env and verify a backup
-before updating. With the new image built and writers stopped, its explicit
-migration command is:
-
-```bash
-docker compose --project-directory /root/WorkoutTracker/app \
-  --env-file /root/WorkoutTracker/.env \
-  -f /root/WorkoutTracker/app/compose.yaml run --rm --no-deps web \
-  python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --target-version 8 --confirm-upgrade
-
-docker compose --project-directory /root/WorkoutTracker/app \
-  --env-file /root/WorkoutTracker/.env \
-  -f /root/WorkoutTracker/app/compose.yaml run --rm --no-deps web \
-  python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
-```
-
-Continue only after verification succeeds, using the same existing Compose/.env:
-
-```bash
-docker compose --project-directory /root/WorkoutTracker/app \
-  --env-file /root/WorkoutTracker/.env \
-  -f /root/WorkoutTracker/app/compose.yaml up -d --no-build
-curl --fail http://10.0.69.9:8000/health/ready
-```
-
-Expected JSON: {"app_version":"0.11.0","schema_version":8,"status":"ready"}.
-Failure retains original schema-7 database and prior selection; failed candidates
-stay for diagnosis. A post-activation startup failure must not automatically run
-an incompatible old image or restore older data. Inspect retained versions and
-private recovery logs. Rollback cannot merge workouts entered after schema 8.
-No server command above has been executed by development tests.
-
-
 ## Phase 12 host service upgrade
 
 **SHAMELESSLY VIBE-CODED 🤖**
@@ -463,12 +164,11 @@ No server command above has been executed by development tests.
 This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
 
 This procedure is needed only once for hosts not yet refreshed for Phase 12.
-Phase 13 does not change that host runtime; do not repeat this procedure if already refreshed.
+Version 1.0.0 does not change that host protocol; do not repeat this procedure if already refreshed.
 
-Archived Phase 13 application: **0.13.0 / target schema 9**. Schema-8 installations needed a
-separately confirmed candidate migration through Install Update; service refresh
-itself never migrates storage. No Compose/.env, port, timezone or storage change is required. Browser
-updates/v4 still require explicit installation consent and a verified backup.
+Application **1.0.0 / target schema 13** uses the same host protocol. The
+service refresh itself never migrates storage or replaces running containers.
+No new refresh is needed when this capability is already installed.
 
 The new host reads releases/VERSION.json from approved pinned main before install
 and persists plain notes. Independent console CSS now scrolls long lines without
@@ -499,90 +199,104 @@ migrate or replace workout storage/containers. The installer refuses an active
 update lock. Root needs the distribution's matching Python venv package and Git
 credentials as previously documented.
 
-Then use browser Check → review What's New in v0.13.0 → confirm → Install, or:
+Then use browser Check → review What's New in v1.0.0 → confirm → Install, or:
 
 ```bash
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-Verify http://10.0.69.9:8000/health/ready reports app_version 0.13.0 and schema 9;
+Verify http://10.0.69.9:8000/health/ready reports app_version 1.0.0 and schema 13;
 verify the independent http://10.0.69.9:8001/status page has readable release notes
 and a non-wrapping, internally scrollable live console. Make a new verified backup.
 For a new installation, use --install-service instead of --upgrade-service after
 following the current README. Older schemas still need their separately confirmed
-candidate migration to 8. Never initialize or restore storage as an update shortcut.
+candidate migration to 13. Never initialize or restore storage as an update shortcut.
 No production host/service/database was changed by development verification.
 
 
-## Phase 13 schema 8 to 9 upgrade
+## Optional Garmin scheduler networking
 
-Archived release: **0.13.0 / schema 9**. Earlier phase-specific sections above
-retain their historical targets; use PHASE_13_REVIEW.md for the current complete
-procedure. No new host runtime/script, .env, Compose, port or timezone change is
-needed after the Phase 12 host refresh. Browser/v4 generic target detection accepts
-9; the new app image exposes it with storage-free release-info and supports
-explicit migrate-storage --target-version 9 --confirm-upgrade.
+Scheduler keeps `none` networking by default, resolving to the same Compose
+configuration as before. Only automatic Garmin synchronization needs this explicit
+setting in the private parent .env:
 
-Make/verify backups, Check/review 0.13.0, explicitly confirm migration and Install.
-The existing engine stops writers, verifies backup, builds approved pinned source,
-migrates a separate candidate, validates originals/integrity/audits, activates and
-checks actual health. Schema-8 source files remain unchanged; failures retain prior
-selection, and new-version backups/archives remain separate. Never initialize,
-overwrite or silently restore a database to update. Make a verified schema-9
-backup after success; schema-8 backups cannot silently downgrade the active store.
-
-Emergency SSH, with no existing update job:
-
-```bash
-bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
+```text
+WORKOUT_SCHEDULER_NETWORK_MODE=bridge
 ```
 
-Review/confirm, including **MIGRATE 9**. Verify:
+Recreate the scheduler during a planned maintenance window:
 
-```bash
-curl --fail http://10.0.69.9:8000/health/ready
+```sh
+cd /root/WorkoutTracker/app
+docker compose --env-file ../.env up -d --no-build scheduler
 ```
 
-Expected app_version 0.13.0, schema_version 9, status ready. Use the actual address
-if different. No live-server command was executed by development verification.
-The existing root-level external wrapper was not inspected; use the explicit
-repository v4 entry point. No automatic host-service or startup schema upgrade.
+It publishes no ports. Manual sync uses web networking. Never put Garmin keys in
+.env/Compose: private credentials live in storage/config/garmin-private.json with
+0600 permissions. SQLite backups/downloads exclude them; preserve a separate
+private whole-tree copy. See [Garmin contract and recovery](../docs/GARMIN.md).
 
-## Phase 14 schema 9 to 10 upgrade
+## Deliberate offline restore
 
-Archived Phase 14 instructions: [schema 9 to 10](../PHASE_14_REVIEW.md#existing-server-upgrade).
-Before updating, classify every weighted Library default, routine and person's
-history in Update 1. Finish unclassified drafts before classification. Current
-routine basis conflicts use Library defaults; completed snapshots never change.
-Browser/v4 reads target 10 dynamically; no new host service refresh is required
-for an already working Phase 12 host. Confirm migration, verify readiness reports
-0.14.0 / schema 10, and make a verified new backup. No startup migration, Restore
-shortcut, .env/Compose/port/timezone change or production deployment is performed.
+This is restoration, not an update shortcut. Later workouts are not merged. Use
+only a verified backup of the same storage identity and exact schema, with a
+compatible application image. Preserve the complete tree and inspect the failure
+before choosing this operation. Stop all writers first, including external tools.
+List server-controlled backup IDs without initializing or booting Flask:
 
-## v0.15.0 upgrade
-
-Schema 10 requires the explicit candidate migration to schema 11. Browser/host
-and emergency updaters obtain the target from release-info; no startup migration
-is performed. See [Phase 15](../PHASE_15_REVIEW.md#existing-server-upgrade).
-SVG artwork is database-backed and included in backups; there is no asset volume
-to configure. After success, create a fresh verified schema-11 backup.
-
-## v0.15.1 icon-size patch
-
-Schema 12 is required even though this is a focused patch: schema 11 itself
-limits icon storage. Use Settings → Administration → Application Updates,
-Check/review **0.15.1 / schema 12**, explicitly confirm migration and Install.
-The existing host engine/v4 verifies a backup and original, migrates only a
-separate candidate, checks all data/DDL and restarts/health-checks. No host-service
-upgrade is required after Phase 12 setup. Never initialize existing storage.
-
-For the installed address, verify:
-
-```bash
-curl --fail http://10.0.69.9:8000/health/ready
+```sh
+cd /root/WorkoutTracker/app
+docker compose --env-file ../.env stop
+docker compose --env-file ../.env run --rm --no-deps web \
+  python -m workout_tracker list-backups --data-root /var/lib/workout-tracker
 ```
 
-Expect app_version 0.15.1, schema_version 12 and status ready. Make a new verified
-schema-12 backup. Older schema-11 backups remain retained but cannot silently
-downgrade schema 12. Emergency SSH still uses deployment/update_workout_tracker_v4.sh
-and explicitly requests **MIGRATE 12**. See PATCH_0_15_1_REVIEW.md for test limits.
+Replace `COPY_BACKUP_ID` with a verified listed ID. Generate a new operation ID;
+reuse it only to inspect/retry that same attempt. Run the following only after
+explicitly deciding to discard the active selection in favor of that backup:
+
+```sh
+recovery_operation="$(python3 -c 'from uuid import uuid4; print(uuid4().hex)')"
+docker compose --env-file ../.env run --rm --no-deps web \
+  python -m workout_tracker restore-backup --data-root /var/lib/workout-tracker \
+  --backup-id COPY_BACKUP_ID --operation-id "$recovery_operation" --confirm-restore
+```
+
+The CLI preserves originals and activates only a validated separate candidate.
+Stop at any error; do not initialize replacement storage. Once successful, verify
+before restarting the compatible image:
+
+```sh
+docker compose --env-file ../.env run --rm --no-deps web \
+  python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
+docker compose --env-file ../.env up -d --no-build
+```
+
+Do not pair an older image with a newer selected database. Do not remove archives,
+old backups or failed candidates blindly. [Storage details](../docs/STORAGE.md)
+explain what SQLite backups omit and the audit-preservation rules.
+
+## Verify the installed release
+
+```sh
+cd /root/WorkoutTracker/app
+docker compose --env-file ../.env ps
+docker compose --env-file ../.env exec -T web python -c \
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.0",schema_version=13)'
+```
+
+Make a new verified schema-13 backup after success. Older-schema backups remain
+retained but cannot silently downgrade 13. Ordinary startup never migrates.
+
+## Verification limits
+
+[The release report](../RELEASE_1_0_0_TEST_REPORT.md) records actual synthetic
+Linux/Chromium/Docker results. Git/source and selected host-path probes use test
+adapters; separate tests exercise actual builds, SQLite candidates, service
+replacement and health. No production deployment, physical iPhone/Safari, ARM,
+real Garmin account or unknown external server-wrapper test is claimed.
+
+Legacy migration prerequisites and interpretation remain in
+[UPGRADING.md](../docs/UPGRADING.md), [MEASUREMENTS.md](../docs/MEASUREMENTS.md)
+and the retained historical schema guides. Frozen migrations, audit readers and
+versioned release metadata are not removed by documentation cleanup.

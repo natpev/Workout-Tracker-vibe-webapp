@@ -47,4 +47,4 @@ because the original table also capped stored text at 65,536 characters. Schema
 icon, identity, workout and audit stays unchanged. No startup migration occurs;
 existing schema-11 installations retain small-icon support and receive an upgrade
 message for larger uploads. See [schema 12](SCHEMA_12.md) and the
-[patch verification](../PATCH_0_15_1_REVIEW.md).
+[patch verification](UPGRADING.md).

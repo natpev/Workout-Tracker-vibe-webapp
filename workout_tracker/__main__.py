@@ -6,6 +6,7 @@ external tree; migrate-storage upgrades a separate candidate; check-storage
 uses storage.py's read-only validation. Explicit restore-backup performs confirmed candidate recovery; no command deploys.
 """
 
+import os
 import json
 
 import click
@@ -59,7 +60,7 @@ def check_storage(data_root):
 @main.command("migrate-storage")
 @click.option("--data-root", required=True, type=click.Path(path_type=str))
 @click.option("--confirm-upgrade", is_flag=True)
-@click.option("--target-version", type=click.Choice(["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]), default="3", show_default=True)
+@click.option("--target-version", type=click.Choice(["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"]), default="3", show_default=True)
 def migrate(data_root, confirm_upgrade, target_version):
     """Copy and upgrade a known schema to the requested target, never the original."""
     from .migrations import migrate_storage
@@ -113,7 +114,11 @@ def scheduler_command(data_root, once):
     """Run the dedicated scheduler; missing settings remain disabled without initialization."""
     from .scheduler import run, tick
     try:
-        if once: tick(data_root)
+        if once:
+            tick(data_root)
+            from .garmin import tick as garmin_tick
+            from .workouts import configured_timezone
+            garmin_tick(data_root,configured_timezone(os.environ.get('WORKOUT_TIMEZONE')))
         else: run(data_root)
     except StorageError as error:
         raise click.ClickException(str(error)) from error

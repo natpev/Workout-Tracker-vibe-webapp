@@ -12,7 +12,7 @@ def ordering(db,person,completed=None):
     version=db.execute('PRAGMA user_version').fetchone()[0]
     rows=[dict(row) for row in (db.execute('SELECT * FROM exercises') if version>=6 else c.definitions(db,person))]
     completed=h.all_completed(db,person) if completed is None and version>=4 else completed or []
-    recorded={row['exercise_id'] for _,entries in completed for row in entries if row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None}
+    recorded={row['exercise_id'] for _,entries in completed for row in entries if (any(s['status']=='completed' for s in row['sets']) if row.get('capabilities') is not None else row['actual_weight_tenths_lb'] is not None or row['actual_duration_seconds'] is not None)}
     names={row['id']:row['name'] for row in rows}
     for _,entries in completed:
         for row in entries:names.setdefault(row['exercise_id'],row['name'])
@@ -35,7 +35,8 @@ def chart_order(db,person,filters,completed,names):
     for identity in missing-captured:
         row=db.execute('SELECT * FROM exercise_defaults WHERE exercise_id=?',(identity,)).fetchone() if db.execute('PRAGMA user_version').fetchone()[0]>=7 else None
         kind=row['measurement_type'] if row else 'weight'
-        for axis in (('weight','time') if kind=='weight_duration' else (kind,)):
+        axes=tuple(name for bit,name in ((1,'weight'),(2,'reps'),(4,'time')) if row['capabilities']&bit) if row and 'capabilities' in row.keys() and row['capabilities'] is not None else ('weight','time') if kind=='weight_duration' else (kind,)
+        for axis in axes:
             series.append(dict(exercise_id=identity,name=names[identity],kind=axis,combined=kind=='weight_duration',meaning='',weight_basis=row['weight_basis'] if row and 'weight_basis' in row.keys() else 'not_configured',points=[],records=[],highest=None,targets=set()))
     rank={identity:index for index,identity in enumerate(names)}
     for chart in series:chart['name']=names.get(chart['exercise_id'],chart['name'])

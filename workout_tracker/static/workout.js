@@ -25,7 +25,7 @@
   const navigation = performance.getEntriesByType('navigation')[0];
   if (form.dataset.initialFocus === 'true' && (!navigation || navigation.type === 'navigate') &&
       (!document.activeElement || document.activeElement === document.body)) {
-    const first = form.querySelector('[name=weight],[name=minutes],[name=seconds]');
+    const first = form.querySelector('[name=weight],[name=minutes],[name=seconds],input[data-set-input]');
     if (first) first.focus({preventScroll: true});
   }
   const repState = (input) => {
@@ -42,7 +42,7 @@
   });
   // Native Tab order already follows weight then sets. Mobile Next/Enter uses
   // the same order without submitting a half-entered exercise.
-  const entryInputs = [...form.querySelectorAll('[name=weight],[name=minutes],[name=seconds],[data-actual-reps]')];
+  const entryInputs = [...form.querySelectorAll('[name=weight],[name=minutes],[name=seconds],[data-actual-reps],input[data-set-input]')];
   entryInputs.forEach((input,index) => input.addEventListener('keydown', event => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
@@ -52,6 +52,24 @@
       if (next) next.focus();
     }
   }));
+  // A set status is explicit. Skipping disables its inputs so browser POSTs
+  // cannot accidentally submit previous values; the server stores real NULLs.
+  form.querySelectorAll('[data-set-row]').forEach(row => {
+    const state=row.querySelector('[data-set-status]');
+    const fields=[...row.querySelectorAll('input[data-set-input]')];
+    const update=() => {fields.forEach(input => {input.disabled=state.value==='skipped';});};
+    state.addEventListener('input',() => {if(state.value==='skipped') fields.forEach(input=>{input.value='';});update();});
+    const refresh=()=>{
+      const rep=fields.find(f=>f.name.startsWith('reps'));
+      const durations=fields.filter(f=>f.name.startsWith('minutes')||f.name.startsWith('seconds'));
+      const weight=form.querySelector('[name=weight]');
+      if(state.value!=='skipped' && fields.length) state.value=(!weight||weight.value!=='')&&(!rep||rep.value!=='')&&(!durations.length||durations.some(f=>f.value!==''))?'completed':'incomplete';
+    };
+    fields.forEach(input=>input.addEventListener('input',refresh));
+    const sharedWeight=form.querySelector('[name=weight]');
+    if(sharedWeight) sharedWeight.addEventListener('input',refresh);
+    update();
+  });
   const status = document.getElementById("save-status");
   const revision = form.elements.namedItem("revision");
   const cursor = form.elements.namedItem("current_position");
@@ -113,7 +131,6 @@
             if (element.dataset.entryState === data.entry_id) element.textContent = data.measurement_display;
           });
           document.getElementById("workout-progress").value = data.navigation_progress;
-          document.getElementById("progress-text").textContent = `${data.navigation_progress} / ${data.total} advanced`;
           if (data.completed !== 0) document.getElementById("all-skipped-confirmation").hidden = true;
           document.getElementById("confirmed-at").textContent = data.updated_at;
           if (sequence === sentSequence) {
@@ -165,7 +182,7 @@
     else void flush();
   });
 
-  form.querySelectorAll("[name=weight],[name=minutes],[name=seconds],[name=increase],[data-actual-reps]").forEach((input) => {
+  form.querySelectorAll("[name=weight],[name=minutes],[name=seconds],[name=increase],[data-actual-reps],[data-set-input]").forEach((input) => {
     input.addEventListener("input", () => {
       // Mark unsaved immediately, not only once the debounce request begins.
       if (input === weight) acknowledgedWeight = null;

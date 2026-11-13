@@ -52,7 +52,14 @@ def protect_forms():
 def form_helpers():
     """Expose token generation and routine conflict checks to Jinja forms."""
     from .basis import label as basis_label
-    return {"basis_label":basis_label,"csrf_token": csrf_token,"labels_for_exercises":catalog.exercise_labels,"labels_for_choices":lambda choices:catalog.exercise_labels([dict(id=identity,name=name) for identity,name in choices.items()])}
+    from .measurements import mask,label
+    from .workouts import count_performed
+    def has_capability(item,bit):
+        """Render raw invalid settings faithfully without guessing a default selection."""
+        if not item:return False
+        try:return bool(mask(dict(item))&bit)
+        except catalog.ValidationError:return False
+    return {"count_performed":count_performed,"capability_label":label,"has_capability":has_capability,"basis_label":basis_label,"csrf_token": csrf_token,"labels_for_exercises":catalog.exercise_labels,"labels_for_choices":lambda choices:catalog.exercise_labels([dict(id=identity,name=name) for identity,name in choices.items()])}
 
 
 def connection(write=False):
@@ -125,7 +132,11 @@ def dashboard(person_id):
             from .workouts import active
             draft = active(db, person_id) if version >= 3 else None
             routines = selectable_routines(db, person_id)
-            statistics=None
+            statistics=None;consistency=None
+            if version>=13:
+                from .analytics import consistency as training_consistency
+                from .history import all_completed
+                consistency=training_consistency(all_completed(db,person_id),current_app.config['WORKOUT_TIMEZONE'])
             if version>=10:
                 from .history import all_completed
                 from .weight_statistics import summary
@@ -136,7 +147,7 @@ def dashboard(person_id):
         return redirect(url_for("manage.edit_routine", person_id=person_id, routine_id=identity), code=303)
     with connection() as db:
         archived_routines = db.execute('SELECT id,name FROM routines WHERE person_id=? AND archived=1 ORDER BY name',(person_id,)).fetchall() if version>=6 else []
-    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3, archived_routines=archived_routines,statistics=statistics)
+    return render_template("dashboard.html", person=selected, routines=routines, sources=sources, active_draft=draft, workout_enabled=version >= 3, archived_routines=archived_routines,statistics=statistics,consistency=consistency)
 
 
 @bp.route("/people/<person_id>/exercises", methods=["GET", "POST"])
@@ -236,13 +247,16 @@ def edit_entry(person_id, routine_id, entry_id):
                 if signed['revision']!=routine_token(db,person_id,routine_id):raise catalog.ValidationError('Routine changed. Review the correction again.')
                 catalog.update_entry(db,person_id,routine_id,entry_id,signed['values'],confirmed_type_change=True)
             elif action=='save':
-                changing=db.execute('PRAGMA user_version').fetchone()[0]>=11 and raw.get('measurement_type')!=item['measurement_type']
+                from .measurements import adapt
+                adapted=adapt(db,raw)
+                changing=db.execute('PRAGMA user_version').fetchone()[0]>=11 and (adapted.get('measurement_type')!=item['measurement_type'] or (adapted.get('capabilities') is not None and adapted.get('capabilities')!=dict(item).get('capabilities')))
                 if changing:
-                    checked=catalog.locked_configuration(db,item['exercise_id'],item,raw,confirmed_type_change=True)
+                    from .measurements import adapt
+                    checked=catalog.locked_configuration(db,item['exercise_id'],item,adapt(db,raw),confirmed_type_change=True)
                     catalog.configure(checked)
                     revision=routine_token(db,person_id,routine_id)
                     token=serializer.dumps(dict(person=person_id,routine=routine_id,entry=entry_id,values=checked,revision=revision))
-                    preview=dict(person=selected,routine=parent,item=item,new_kind=raw.get('measurement_type'),token=token,revision=revision)
+                    preview=dict(person=selected,routine=parent,item=item,new_kind=adapted.get('measurement_type'),new_capabilities=adapted.get('capabilities'),token=token,revision=revision)
                 else:catalog.update_entry(db,person_id,routine_id,entry_id,raw)
             elif action=='remove':
                 confirmation();db.execute('DELETE FROM routine_exercises WHERE id=? AND person_id=? AND routine_id=?',(entry_id,person_id,routine_id))
@@ -289,3 +303,15 @@ def edit_defaults(person_id,exercise_id):
     if request.method=='POST' and not error:return redirect(url_for('manage.exercises',person_id=person_id),code=303)
     return render_template('exercise_defaults.html',person=selected,item=item,definition=definition,revision=revision,
                            name=request.form.get('name',definition['name']),error=error),400 if error else 200
+
+
+@bp.get('/people/<person_id>/exercises/<exercise_id>')
+def exercise_detail(person_id,exercise_id):
+    """Read-only shared definition; editing is a separate deliberate action."""
+    with connection() as db:
+        selected=catalog.person(db,person_id)
+        definition=catalog.definition(db,person_id,exercise_id)
+        item=catalog.exercise_defaults(db,person_id,exercise_id)
+        from .exercise_icons import pairs
+        artwork=pairs(db,[exercise_id])[exercise_id]
+    return render_template('exercise_detail.html',person=selected,definition=definition,item=item,artwork=artwork)

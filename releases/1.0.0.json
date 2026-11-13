@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "notes": [
+    "Workout Tracker reaches its first stable release.",
+    "Track weight, repetitions and duration in flexible combinations.",
+    "Record repetitions and durations for each set, with one weight per exercise and explicit skipped sets.",
+    "Added body-weight history and moving-average charts.",
+    "Added separate Garmin connections and optional automatic weight synchronization for each household member.",
+    "Added an optional daily weigh-in before workouts.",
+    "Added weekly and monthly training consistency charts.",
+    "Download PDF workout summaries, detailed CSV reports and a consistent database copy.",
+    "Added read-only exercise details and clearer lifting totals.",
+    "Simplified the workout progress display and reorganized installation help.",
+    "Preserved older workout records and existing upgrade paths."
+  ]
+}
