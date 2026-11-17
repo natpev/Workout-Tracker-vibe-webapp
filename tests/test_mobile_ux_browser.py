@@ -74,7 +74,7 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     page.get_by_role('button',name='Start workout',exact=True).click()
     path=page.url
     expect(page.get_by_label('Weight (lb)')).to_have_value('')
-    expect(page.get_by_text('Previous session:',exact=False)).to_contain_text('42.5 lb')
+    expect(page.get_by_text('Last performed:',exact=False)).to_contain_text('42.5 lb')
     expect(page.get_by_text('Increase ↑',exact=True)).to_be_visible()
     expect(page.get_by_role('button',name='Open navigation')).to_have_count(0)
     page.get_by_label('Weight (lb)').fill('40.99')
@@ -82,7 +82,11 @@ def test_complete_person_routine_workout_exit_switch_resume_and_history(ux_brows
     page.get_by_label('Minutes').fill('0');page.get_by_label('Seconds').fill('55')
     page.get_by_role('link',name='Back',exact=True).click()
     expect(page.get_by_label('Weight (lb)')).to_have_value('40.9')
-    page.get_by_role('button',name='Save draft',exact=True).click();page.reload()
+    # Save first flushes asynchronously, then POSTs and redirects. Await that
+    # navigation before testing reload; otherwise the two navigations race.
+    with page.expect_navigation(wait_until='domcontentloaded'):
+        page.get_by_role('button',name='Save draft',exact=True).click()
+    page.reload()
     expect(page.get_by_label('Weight (lb)')).to_have_value('40.9')
     # Attempting browser Back to routine selection cannot offer person switching
     # while this tab remains in its active workout flow.

@@ -15,14 +15,17 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **1.0.2**. Database schema: **13**. This patch fixes Garmin
-weigh-in synchronization, weight conversion and recovery after failed attempts.
-Existing schema-13 installations need no migration; saved connections and weight
-history remain intact. Existing schema-12
-installations need an explicitly confirmed migration to a **separate database
-candidate**. The original is preserved. Your Phase 12 host updater needs no
-additional refresh. See [updating](#updating-the-application); never initialize
-an existing installation again. Older unclassified installations must first complete the
+Current application: **1.1.0**. Database schema: **14**. This release simplifies
+workout set entry, improves previous-performance reminders and adds independent
+**Ego Lifts**. Existing library and routine settings are protected during upgrades.
+Garmin weigh-ins now round once to the nearest 0.1 lb.
+
+Existing schema-13 installations require an explicitly confirmed migration to a
+**separate schema-14 database candidate**. The original remains untouched. The
+migration preserves workout snapshots and configurations, and adds audited Garmin
+precision corrections. Your Phase 12 host updater needs no additional refresh.
+See [updating](#updating-the-application); never initialize an existing installation.
+Older unclassified installations must first complete the
 [Weight Basis prerequisite](docs/UPGRADING.md#older-unclassified-installations).
 
 ### 1. Choose a server
@@ -172,15 +175,15 @@ docker run --rm --network=none --read-only --tmpfs /tmp \
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker \
-  --confirm-upgrade --target-version 13
+  --confirm-upgrade --target-version 14
 
 docker compose --env-file ../.env run --rm --no-deps web \
   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 
 Initialization starts with the foundation schema. The second command creates
-and verifies a separate schema-13 database, preserving the original. The final
-command should report **Storage verified; schema version 13.** Stop at any error;
+and verifies a separate schema-14 database, preserving the original. The final
+command should report **Storage verified; schema version 14.** Stop at any error;
 never delete storage or initialize again to make an error disappear.
 
 ### 6. Start Workout Tracker
@@ -198,7 +201,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.0.2",schema_version=13)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.1.0",schema_version=14)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -211,7 +214,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **1.0.2 / database 13**. Check all three themes in Settings.
+should report **1.1.0 / database 14**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -239,7 +242,8 @@ never over real workouts just to test it.
 
 - Separate routines and histories for everyone in the household, without accounts.
 - Shared exercises, custom illustrations and flexible weight/reps/duration tracking.
-- Independent set results, explicit skips, autosaved drafts and historical corrections.
+- Independent set results, automatic blank-set skips, autosaved drafts and historical corrections.
+- Ego Lifts for separate strength attempts and estimated personal records.
 - Progress charts, lifting estimates, training consistency and PDF/CSV reports.
 - Local body-weight history with optional per-person Garmin synchronization.
 - Verified backups, safe updates and consistent database downloads.
@@ -252,19 +256,26 @@ with a weight or Skip; skipping saves no body-weight record and does not ask aga
 for that workout. Garmin availability never blocks starting a workout.
 
 Record one exercise per screen. There is **one weight for the whole exercise**.
-Each set has its own repetitions, duration and status, depending on its enabled
-measurements. Targets are references, never prefilled actual results.
+Each set has its own repetitions and duration when enabled. Targets are references,
+never prefilled results. Empty measurement inputs show a dash as a placeholder.
 
-- **Incomplete**: not yet recorded; partial inputs remain resumable.
-- **Completed**: explicitly valid values for every enabled measurement.
-- **Skipped**: explicitly chosen; that set's measurements remain NULL, not zero.
+- Enter the applicable measurements to complete a set; no status dropdown is needed.
+- Leave every set measurement blank to skip that set when finishing.
+- For weight-only exercises, check **Done** for each set you performed.
+- Partially filled sets remain resumable but must be completed or cleared before
+  finishing. Back/Next can move past untouched blank sets.
 
-An entirely skipped exercise has NULL exercise weight. Zero weight and zero reps
-are valid; duration must be positive. Extra exercise-weight decimals truncate to
-one place: 40.99 becomes 40.9. Typing stays untouched during autosave; valid weight
-formatting occurs on blur or Next. Seconds above 59 normalize into minutes.
-**Next** advances the navigation bar; typing, autosave and Back do not.
-Unresolved sets block Next/completion. An all-skipped workout needs confirmation.
+Zero weight and zero reps are valid; duration must be positive. Blank never means
+zero. Extra exercise-weight decimals truncate to one place: 40.99 becomes 40.9.
+Typing stays untouched during autosave; weight formats on blur or Next. Seconds
+above 59 normalize into minutes. **Next** advances the navigation bar; typing,
+autosave and Back do not. Finishing turns untouched sets into saved NULL skips.
+An exercise with no completed sets has no recorded weight or lifting contribution,
+even if you typed a weight. An entirely skipped workout still needs confirmation.
+
+**Last session** shows Completed, Partially completed or Skipped. **Last performed**
+looks back past skipped sessions across your routines and shows the last actual
+measurements, date and Increase Next Time choice. Current inputs always start blank.
 
 Wait for **Saved** before leaving. **Exit Workout** saves a resumable draft; one
 active draft is allowed per person. **Discard** requires confirmation and affects
@@ -306,6 +317,24 @@ that exercise identity/history across all people. Read the preview carefully.
 Start and End illustrations each allow **300 KiB (307,200 bytes)** of passive SVG.
 Unsafe/oversized/over-complex uploads preserve the previous image. Removing a
 custom illustration restores the default. See [SVG rules](docs/EXERCISE_ICONS.md).
+
+## Ego Lifts
+
+Below your routine cards, tap **🏆 Ego Lifts**. Search the shared Exercise Library,
+choose an exercise and enter one weight plus a positive repetition count. **Save
+Lift** records the current date/time automatically. It does not start a workout or
+change the exercise, routines, lifting totals or normal increase recommendations.
+
+The page shows your last Ego Lift, history and compatible personal records. A
+single rep uses the actual weight for estimated 1RM; 2–10 reps use the Epley
+estimate. Higher repetitions do not produce a 1RM estimate. Weight Basis is shown
+and saved with each attempt. Exercises without an assigned basis use Total Weight
+only for that Ego record. Corrections and deletion require confirmation; prior
+values remain in an audit. Histories remain separate for each person.
+
+**Your existing exercise settings are protected.** Updates never replace your
+library defaults or personal routines with generic values. A configured 2 × 15
+stays 2 × 15. Deliberate edits and confirmed Update My Routines still work normally.
 
 ## Workout history and progress
 
@@ -362,6 +391,9 @@ Personal API key, then **Connect and verify**. Saved keys never appear again.
 Use **Sync Now** or explicitly enable an automatic interval (six hours by default).
 Synchronization imports the latest 30 local calendar days. Repeated syncs do not
 create duplicates. Local history stays available when Garmin is offline.
+Garmin weights round once to the nearest **0.1 lb**, with half-up rounding. The
+upgrade safely records precision corrections to older imports in their audits,
+without changing IDs or dates. Manual weigh-ins retain their existing precision.
 Incoming readings are checked before importing. Existing readings are never blindly
 reinterpreted after this fix: an older-format conflict stops the import for review.
 After updating, use **Sync Now**; an abandoned attempt can be retried after five
@@ -428,8 +460,8 @@ verified backup and protect the complete storage tree before updating.
 Open **Settings → Application Updates → Check for Updates**. Read the release
 notes, confirm installation and any required schema migration, then Install.
 The independent status tab stays available while the app restarts. After success,
-verify Settings/footer and `/health/ready`: **1.0.2 / schema 13 / ready**. Make a new
-verified backup. Existing schema-12 installations require candidate migration.
+verify Settings/footer and `/health/ready`: **1.1.0 / schema 14 / ready**. Make a new
+verified backup. Existing schema-12/13 installations require candidate migration to 14.
 
 Your already upgraded Phase 12 independent updater supports this release; a new
 updater script is not required. Changing Flask containers alone never upgrades
@@ -500,7 +532,7 @@ sync folder. More configuration details: [deployment guide](deployment/README.md
 | No visible update | Check actual `/health/ready` version; fetching code alone does not rebuild containers. |
 | Storage missing/damaged | Stop writers and investigate mounts/disk. Never initialize a replacement. |
 | Unhealthy service | Run `docker compose --env-file ../.env logs --tail 100 web scheduler` in the app directory. |
-| Incomplete workout | Record every enabled set value or explicitly choose Skipped; zero reps/weight are valid. |
+| Incomplete workout | Complete partially entered sets or clear them; untouched sets skip on Finish. Zero reps/weight are valid. |
 | No scheduled Garmin sync | Enable a schedule and optional scheduler bridge network; inspect safe status. Local history still works. |
 | No backups | They start disabled; inspect configured schedule/time zone/scheduler logs. |
 | ensurepip error | Install the matching distribution Python venv package, then repeat the explicit host installer. |

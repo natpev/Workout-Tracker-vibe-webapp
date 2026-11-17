@@ -51,7 +51,7 @@ wire values are kilograms. The numeric timestamp crash reported for 1.0.1 and th
 reported gram-valued responses expose a mismatch with that published DTO prose.
 No real Garmin account or private API payload was accessed in this repair.
 
-Version 1.0.2 explicitly interprets the `/all` individual-reading `weight` as **grams**
+The wire adapter introduced in version 1.0.2 explicitly interprets the `/all` individual-reading `weight` as **grams**
 and accepts `timestampGMT` as Unix epoch **milliseconds** or aware ISO 8601 text.
 Units never depend on timestamp representation or magnitude. It does not guess
 that a small invalid gram value must be kilograms. If Garmin changes this wire
@@ -63,10 +63,12 @@ supported timestamp representations with the reported gram-valued wire format.
 ## Local storage and idempotency
 
 SQLite stores each reading independently, including multiple readings per day.
-Weights use integer thousandths of a pound. Convert with exact decimal arithmetic:
-**1 lb = 453.59237 g**, rounding half-even only at the stored thousandth-pound
-boundary. Preserve the original numeric source value and explicit `g` unit as
-JSON text in the existing `source_value` column; no schema change is needed.
+SQLite retains integer thousandths of a pound. Version 1.1.0 converts with exact
+Decimal arithmetic using **1 lb = 453.59237 g**, then rounds **once to 0.1 lb with
+ROUND_HALF_UP**, storing multiples of 100 thousandths. Charts/averages read those
+rounded saved values. Manual precision is unchanged. Preserve the original numeric source value and explicit `g` unit as
+JSON text in the existing `source_value` column. Schema 14 adds precision guards
+and the explicit audited correction, not a new source-value representation.
 
 All rows must validate before importing. Accept finite numeric weights within
 **1–700 kg (1,000–700,000 grams)**, never booleans, numeric strings, zero/negative
@@ -86,11 +88,16 @@ instant refuse the batch instead of guessing. Updated gram-tagged source reading
 retain the existing record ID and append before/after audits. Manual readings
 never participate in Garmin reconciliation.
 
-**Earlier imports are not automatically repaired or reinterpreted.** Untagged
-source values from older releases keep their original rows and audits. If a new
+**Earlier units are not automatically repaired or reinterpreted.** Schema 14
+explicitly corrects only precision, appending an audit while preserving IDs, dates,
+source identities, original metadata and every earlier audit. Verified consistent
+gram source values are rounded directly; untagged legacy values retain their
+existing unit interpretation and are rounded at their saved pound value. A valid
+gram tag that disagrees with the stored reading refuses migration for review. Untagged
+source values from older releases keep their original metadata and audit records;
+the authorized precision revision is the only effective-value change. If a new
 reading matches the stored weight, leave it unchanged. If it conflicts, refuse the
-entire import with an older-format review message. This patch supplies no automatic
-repair tool; investigate any suspect old imported values deliberately, from a
+entire import with an older-format review message. No automatic unit-repair tool is provided; investigate any suspect old imported values deliberately, from a
 verified backup, rather than deleting history or editing SQLite to unblock sync.
 A person represents one Garmin account; this is not an account-merging feature.
 

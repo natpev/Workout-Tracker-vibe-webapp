@@ -119,7 +119,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
         filename = manifest["database"]
         if not isinstance(filename, str) or not (
             filename == f"schema-1-{storage_id}.sqlite3" or
-            re.fullmatch(rf"schema-(?:[23456789]|10|11|12|13)-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
+            re.fullmatch(rf"schema-(?:[23456789]|10|11|12|13|14)-{storage_id}-[0-9a-f]{{32}}\.sqlite3", filename)
         ):
             raise StorageError("The active database selection is invalid or unsupported.")
         database = database_override if database_override is not None else root / "data" / filename
@@ -144,7 +144,7 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
             if connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID:
                 raise StorageError("The database belongs to another application.")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
+            if version not in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
                 raise StorageError("Unsupported schema version; automatic migration is disabled.")
             if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise StorageError("Database integrity verification failed.")
@@ -177,6 +177,9 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                 expected = TABLES | ICON_SIZE_OBJECTS
             if version == 13:
                 expected = TABLES | UNIFIED_OBJECTS
+            if version == 14:
+                from .ego_schema import EGO_OBJECTS
+                expected = TABLES | EGO_OBJECTS
             if not filename.startswith(f"schema-{version}-"):
                 raise StorageError("The selected filename and schema version disagree.")
             if objects != expected:
@@ -200,6 +203,8 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
                 migrations.append((12, "larger_exercise_icons"))
             if version >= 13:
                 migrations.append((13, "unified_sets_and_body_weight"))
+            if version >= 14:
+                migrations.append((14, "ego_lifts_and_garmin_precision"))
             if connection.execute("SELECT * FROM schema_migrations ORDER BY version").fetchall() != migrations:
                 raise StorageError("The database migration record is unsupported.")
             if version>=9:
@@ -215,6 +220,9 @@ def _inspect_unlocked(value, *, selection=None, database_override=None):
             if version>=13:
                 from .measurements import validate_storage
                 validate_storage(connection)
+            if version >= 14:
+                from .ego_lifts import validate_storage as validate_ego
+                validate_ego(connection)
         finally:
             connection.close()
     except (OSError, ValueError, sqlite3.Error) as error:

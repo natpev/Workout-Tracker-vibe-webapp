@@ -60,7 +60,7 @@ def test_combined_config_autosave_navigation_history_charts_and_csv(combined_pag
     path=page.url
     expect(page.get_by_label('Weight (lb)',exact=True)).to_have_value('')
     expect(page.get_by_label('Minutes',exact=True)).to_have_value('')
-    expect(page.locator('.previous-line')).to_contain_text('20.0 lb per hand · 6:00')
+    expect(page.locator('.last-performed')).to_contain_text('20.0 lb per hand · 6:00')
     expect(page.get_by_text('Increase ↑',exact=True)).to_be_visible()
     expect(page.get_by_label('Increase duration next time',exact=True)).to_have_count(0)
     page.get_by_label('Weight (lb)',exact=True).fill('0')

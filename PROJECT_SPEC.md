@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Product and release
 
-Version 1.0.2 / schema 13 is a private home-server Flask/SQLite application for
+Version 1.1.0 / schema 14 is a private home-server Flask/SQLite application for
 multiple household people. It is passwordless trusted-LAN software, not public
 hosting or a security boundary between household members. Ordinary workouts/history
 work offline; optional Garmin and application updates need internet. Docker Compose
@@ -16,6 +16,25 @@ README.md is the beginner operating guide. docs/MEASUREMENTS.md describes curren
 and legacy results; docs/STORAGE.md covers persistence/recovery; docs/UPGRADING.md
 preserves older upgrade prerequisites; docs/GARMIN.md records verified API contracts;
 docs/TESTING.md and RELEASE_1_0_0_TEST_REPORT.md record verification.
+
+## PERMANENT — never reset user-configured exercise settings
+
+Updates, migrations, maintenance, imports and general application changes MUST NOT
+silently replace existing Exercise Library defaults or anyone's routine settings.
+Preserve the database's CURRENT sets, reps, duration, capabilities, Weight Basis,
+meaning, notes and every other configuration field. A stored 2 × 15 stays 2 × 15;
+never substitute generic 3 × 12. Never guess or reconstruct previously altered
+settings. New exercises may use initial defaults. Explicit user edits and confirmed
+Apply-to-My-Routines remain allowed and person-scoped.
+
+Every candidate migration MUST capture and compare semantic configurations using
+configuration_protection.capture/verify before activation. Schema representation
+changes must map equivalent meanings. A deliberately authorized change must name
+the exact identity, field, old/new values and reason and validate that exact result;
+no blanket exemptions. Unexpected changes reject activation and retain the original
+database, selection and existing backups. Keep regression tests with varied library
+and independently customized per-person routines, including a simulated reset that
+must fail. This requirement applies to every future release.
 
 ## People, exercises and routines
 
@@ -55,13 +74,18 @@ complexity restrictions. Invalid uploads preserve previous artwork.
 ## Workout recording
 
 One exercise screen and exactly one exercise-level weight, regardless of sets.
-Each set records enabled actual reps/duration and an explicit status:
-incomplete, completed or skipped. Inputs start blank. Incomplete drafts preserve
-partial NULLs and resume. Completed sets require every enabled value; zero weight
-and reps are valid, duration must be positive. Explicit skips store true SQL NULL
-per-set values; all-skipped exercise weight is NULL. Missing inputs never become
-zero, previous performance or automatic skips. Unresolved sets block Next/finish.
-An entirely skipped workout needs explicit confirmation.
+Each set records enabled actual reps/duration and an internal status. The live form
+has no status dropdown. Empty inputs use a visual em dash only. Complete enabled
+values imply Completed; partial required values block Next/Finish with inline
+errors. Draft autosave preserves partials and blanks as Incomplete; blank sets may
+be navigated past and become Skipped only on Finish. Weight-only exercises have
+one shared weight plus a Done checkbox per set; shared weight never performs a set.
+Unfinished checkbox intent is persisted separately even before weight is entered.
+Zero weight/reps are valid; duration must be positive. Finish is one transaction,
+resolves every untouched blank set to SQL NULL Skipped, and clears exercise weight
+and increase flag when all sets are skipped. All-skipped workouts require explicit
+confirmation. Historical completed snapshots and their old status meanings remain
+unchanged; deliberate historical/correction forms retain explicit status controls.
 
 Exercise weights use integer tenths lb, truncating extra decimals without rounding.
 Durations use integer seconds; over-59 seconds normalize. Autosave must preserve
@@ -72,8 +96,11 @@ never add false progress. Keep bar and Exercise N of M, remove redundant advance
 text. Finish atomically saves/completes; discard/exit retain their confirmations.
 
 Previous compatible performance is person/exercise/capabilities/basis specific.
-Show previous measurements/manual increase recommendation and last performed after
-a skip. Never prefill actuals. Increases remain manual, not automatic targets.
+Show Last session: Completed/Partially completed/Skipped separately from Last
+performed measurements, actual reps/durations, date and increase recommendation.
+Search across routines and repeated skips by person/permanent exercise ID and
+compatible capabilities/Weight Basis using effective corrections. Skips never erase
+the last performed recommendation; missing legacy actuals remain labeled unknown. Never prefill actuals. Increases remain manual, not automatic targets.
 
 ## History and progress
 
@@ -138,7 +165,11 @@ contract, with no invented refresh endpoint. Idempotent timestamp source IDs avo
 duplicate imports; revised tagged source values append audits, Manual records untouched.
 Accept numeric epoch milliseconds and aware ISO timestamps, normalize to UTC without
 float rounding. The individual-reading wire adapter converts grams using exact
-453.59237 g/lb and stores original value/unit. Refuse malformed, ambiguous or
+453.59237 g/lb, rounds once to 0.1 lb with Decimal ROUND_HALF_UP and retains
+original value/unit. Schema 14's explicit candidate upgrade appends before/after
+precision revisions for prior Garmin records while retaining IDs, dates, sources
+and old audits. Manual precision remains unchanged. SQL guards reject new Garmin
+weights not divisible by 100 thousandths. No unit repair or credential changes. Refuse malformed, ambiguous or
 out-of-envelope readings atomically. Do not reinterpret existing untagged imports;
 conflicting old values stop for review. See docs/GARMIN.md for the public-reference
 discrepancy. All exceptions/cancellation release owned claims with fixed nonsecret
@@ -155,13 +186,32 @@ otherwise optional weigh-in with real cached Garmin status. Blank/Skip creates n
 record and durable session acknowledgment prevents repeated prompts. Never contact
 Garmin synchronously to start a workout or create duplicate workout sessions.
 
+## Ego Lifts
+
+A trophy button immediately below routines opens a searchable alphabetical global
+library and independent selected-person attempts. One weight (existing truncation)
+and positive whole reps; save captures UTC now and displays configured local IANA
+time. Signed person/exercise-bound submission IDs make double taps/retries idempotent.
+Snapshot exercise name, permanent ID, established basis/meaning; otherwise record
+Total Weight for this attempt only. No library/default/routine/draft/history edits.
+
+Person/exercise history offers confirmed, revision-checked corrections and soft
+deletion with immutable before/after audits. Compare records only within compatible
+exercise/basis/meaning groups. Heaviest weight includes its reps; estimated 1RM uses
+Epley for 2–10 reps and actual weight for one rep, never estimates above 10 reps.
+Exclude Ego Lifts from every ordinary workout, total, recommendation and consistency
+query. Backup/restore/download includes their SQLite records/audits. Explicit global
+exercise deletion previews and removes associated Ego attempts/audits too.
+
 ## Storage, administration and updating
 
 Explicit init only for a new path. No ordinary-startup initialization/migration/
 restore/repair. Migration copies a separate candidate; validate schema, every old
 value/NULL, integrity/FKs/counts/logical chains before atomic activation. Retain
-originals/failed candidates. Schema 13 adds capabilities, new set tables, audited
-body weights and durable prompt acknowledgment while retaining legacy snapshots.
+originals/failed candidates. Schema 13 added capabilities, sets, audited body weights and durable prompt
+acknowledgment. Schema 14 adds separate Ego records/audits, draft checkbox intent,
+Garmin precision guards and an audited candidate-only precision adjustment. Existing
+workout/configuration/set cells remain unchanged.
 
 Backups disabled until configured. Verified SQLite backups/confirmed restores use
 existing locks, identity/exact-schema checks and separate candidates. Never silently

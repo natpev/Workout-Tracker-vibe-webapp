@@ -4,42 +4,50 @@
 
 This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
 
-## Existing schema 13 installation
+## Existing schema 13 installation (v1.0.2)
 
-Version 1.0.2 is a code-only patch for schema 13. Use the normal browser update;
-no database migration, connection reset or host-service upgrade is needed. It fixes
-Garmin timestamp parsing, gram-to-pound conversion and sync error recovery.
-After updating, confirm **1.0.2 / schema 13 / ready**, then open the selected
-person’s Settings → Garmin → Sync Now. Saved keys and local records remain.
-An old abandoned claim expires after five minutes; an error normally defers retry
-for 15 minutes (or longer when Garmin requests it). Do not reconnect or edit private
-files merely to clear a claim. Older-format import conflicts stop safely for review;
-this release does not automatically repair potentially incorrect earlier imports.
+Use **Settings → Application Updates → Check for Updates**, review **1.1.0** and
+confirm the explicit **schema 14** candidate migration. Before installing, create
+a verified backup and protect the complete storage tree, private `.env` and
+Garmin credential file. Never initialize existing storage or reset settings.
 
-## Existing schema 12 installation
+The independent updater builds first, validates a separate candidate, compares all
+existing library/routine configurations, preserves workout/set/correction snapshots
+and retains the original schema-13 database/selection. Garmin precision corrections
+append audits; measurement IDs/times/source metadata and Manual records remain.
+The candidate adds separate Ego Lifts and draft Done-checkbox intent. Any unexpected
+configuration change refuses activation. Existing settings are not reconstructed
+or guessed from older releases.
 
-Use Settings → Application Updates → Check for Updates, review version 1.0.2 and
-explicitly consent to target schema 13 migration. Confirm Install and watch the
-independent status tab. Before updating create a verified backup and protect the
-complete storage tree/.env. Afterwards health must report app_version 1.0.2,
-schema_version 13, ready. Create a new verified schema-13 backup.
+After a successful update, Settings/footer and `/health/ready` must show
+**app_version 1.1.0, schema_version 14, ready**. Check your existing routines and
+library settings, try Ego Lifts with disposable data, and create a new verified
+schema-14 backup. Keep schema-13 originals/backups for recovery; exact-schema
+restore does not silently downgrade a running schema-14 installation.
 
-The existing Phase-12-capable host runtime and v4 entry point understand release-info
-and explicit target 13; no replacement updater script is needed. The default
-scheduler network configuration resolves exactly as before. Automatic Garmin sync
-requires optional explicit bridge networking; see README and GARMIN.md. No live
-server/script outside the repository was inspected or changed during development.
+Your Phase-12-capable host updater and repository v4 entry point already support
+release-info and explicit candidate migration; no new updater script or service
+refresh is required. Automatic Garmin still requires the optional scheduler bridge
+networking described in README. No live server was inspected or modified.
 
-For emergency SSH:
+For an emergency SSH update, use the existing entry point:
 
 ```sh
 bash /root/WorkoutTracker/app/deployment/update_workout_tracker_v4.sh
 ```
 
-Never init-storage on an existing installation. Never overwrite .env or force-reset
-local changes. Source fetching alone does not rebuild/restart containers. Host
-service upgrades require the separate explicit installer; app container updates
-cannot replace its private runtime/assets. See deployment/README.md.
+Review the approved release and explicitly confirm migration. Fetching source alone
+does not rebuild/restart containers. Never force-reset local changes or overwrite
+`.env`. After activation never start an incompatible schema-13 image or restore
+an older database silently. Retained recovery records and deployment/README.md
+explain compatibility-aware recovery.
+
+## Existing schema 12 or older installations
+
+Supported older migrations remain available through target 14. Complete the
+classification prerequisite below where applicable. The same candidate-only
+verification preserves original measurements, NULLs, history and configurations.
+No set durations are fabricated for old exercise-level measurements.
 
 ## Older unclassified installations
 
@@ -72,7 +80,7 @@ invoke the same candidate migration used by the host updater:
 
 ```sh
 cd /root/WorkoutTracker/app
-docker compose --env-file ../.env run --rm --no-deps web   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker   --confirm-upgrade --target-version 13
+docker compose --env-file ../.env run --rm --no-deps web   python -m workout_tracker migrate-storage --data-root /var/lib/workout-tracker   --confirm-upgrade --target-version 14
 docker compose --env-file ../.env run --rm --no-deps web   python -m workout_tracker check-storage --data-root /var/lib/workout-tracker
 ```
 

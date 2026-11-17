@@ -13,28 +13,29 @@ from workout_tracker.storage import inspect_storage
 from test_phase8_updater import fixture
 
 
+@pytest.mark.parametrize('source_schema',[12,13])
 @pytest.mark.parametrize('fault',['ok','fetch','build','migration','startup','readiness'])
-def test_release13_update_failure_preserves_original_and_never_restarts_incompatible_image(tmp_path,fault):
+def test_release14_update_failure_preserves_original_and_never_restarts_incompatible_image(tmp_path,fault,source_schema):
     """Before activation retain schema12; after activation refuse old-image recovery."""
-    root,env=fixture(tmp_path,12)
-    env.update(METADATA_VERSION='1.0.2',METADATA_SCHEMA='13',MODE='ok')
+    root,env=fixture(tmp_path,source_schema)
+    env.update(METADATA_VERSION='1.1.0',METADATA_SCHEMA='14',MODE='ok')
     manifest=root/'data/storage/config/active.json';original=root/'data/storage/data'/json.loads(manifest.read_text())['database'];content=original.read_bytes();selection=manifest.read_bytes()
     with patch.dict(os.environ,env,clear=True),patch('time.sleep'):
         engine=Engine(root);release=engine.check()
         os.environ['MODE']=fault
         if fault=='ok':
             state=engine.install(release['id'],confirm=True,migration_confirm=True)
-            assert state['status']=='Completed' and state['installed_version']=='1.0.2' and state['installed_schema']==13
+            assert state['status']=='Completed' and state['installed_version']=='1.1.0' and state['installed_schema']==14
         else:
             with pytest.raises(UpdateError):engine.install(release['id'],confirm=True,migration_confirm=True)
             state=engine.state();assert state['status']=='Failed'
             if fault in ('startup','readiness'):
                 assert state['recovered'] is False
-                assert inspect_storage(root/'data/storage')['schema_version']==13
+                assert inspect_storage(root/'data/storage')['schema_version']==14
                 assert manifest.read_bytes()!=selection
             else:
                 assert manifest.read_bytes()==selection
-                assert inspect_storage(root/'data/storage')['schema_version']==12
+                assert inspect_storage(root/'data/storage')['schema_version']==source_schema
             if fault in ('build','migration'):assert state['recovered'] is True
     assert original.read_bytes()==content
     if fault!='fetch':assert list((root/'updater').glob('*.recovery.json'))

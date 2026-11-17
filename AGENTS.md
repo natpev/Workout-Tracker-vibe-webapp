@@ -6,12 +6,31 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Current release and scope
 
-Version 1.0.2 targets schema 13. The user authorizes implementation, verification
+Version 1.1.0 targets schema 14. The user authorizes implementation, verification
 and direct main merging for this release, without a pull request or PR API attempt.
 Never deploy, access production workout data, force-push, bypass protections,
 discard unrelated work or investigate the excluded duplicate/orphaned-history issue.
 Read PROJECT_SPEC.md, README.md and maintained docs before changing application code.
 Historical migration definitions and audit compatibility are required operating code.
+
+## PERMANENT — never reset user-configured exercise settings
+
+Updates, migrations, maintenance, imports and general application changes MUST NOT
+silently replace existing Exercise Library defaults or anyone's routine settings.
+Preserve the database's CURRENT sets, reps, duration, capabilities, Weight Basis,
+meaning, notes and every other configuration field. A stored 2 × 15 stays 2 × 15;
+never substitute generic 3 × 12. Never guess or reconstruct previously altered
+settings. New exercises may use initial defaults. Explicit user edits and confirmed
+Apply-to-My-Routines remain allowed and person-scoped.
+
+Every candidate migration MUST capture and compare semantic configurations using
+configuration_protection.capture/verify before activation. Schema representation
+changes must map equivalent meanings. A deliberately authorized change must name
+the exact identity, field, old/new values and reason and validate that exact result;
+no blanket exemptions. Unexpected changes reject activation and retain the original
+database, selection and existing backups. Keep regression tests with varied library
+and independently customized per-person routines, including a simulated reset that
+must fail. This requirement applies to every future release.
 
 ## Architecture and documentation
 
@@ -46,7 +65,8 @@ mobile navigation, one exercise per screen, themes, accent colors and local asse
   Never restore old conversion writers. Assigned exercise basis remains permanent,
   including when weight tracking is disabled. No name-based identity merging.
 - SQL NULL is unknown/unrecorded/skipped, never implicit zero. Explicit set status
-  distinguishes incomplete/completed/skipped. Zero weight/reps are valid; duration
+  distinguishes incomplete/completed/skipped. The live UI infers completion from
+  measurements and skips untouched blanks only on Finish; weight-only sets use Done. Zero weight/reps are valid; duration
   is positive. Never fabricate old set durations/status or actual repetitions.
 - Each person's routines/drafts/results/body weights/Garmin remain independent.
   Exercise definitions/IDs/defaults are shared. Copy only settings, never history.
@@ -66,7 +86,8 @@ mobile navigation, one exercise per screen, themes, accent colors and local asse
   no redirects, per-person credentials, idempotent source identities and safe retry.
   Keep remote requests outside workout/storage transactions.
   Garmin wire units and timestamps require explicit validation; do not infer units
-  from magnitude or silently reinterpret legacy imports. Clear owned claims on
+  from magnitude or silently reinterpret legacy units. Round Garmin imports once
+  to tenths with ROUND_HALF_UP; prior precision changes require preserved audits. Clear owned claims on
   unexpected errors/cancellation; preserve bounded recovery for killed workers.
 - Passwordless trusted-LAN operation stays explicit. Do not introduce accounts,
   passwords or HTTPS requirements. LAN users can access/manage household data.

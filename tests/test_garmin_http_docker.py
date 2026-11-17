@@ -15,7 +15,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
 from workout_tracker import APP_VERSION,TARGET_SCHEMA_VERSION,garmin as g
-assert APP_VERSION=='1.0.2' and TARGET_SCHEMA_VERSION==13
+assert APP_VERSION=='1.1.0' and TARGET_SCHEMA_VERSION==14
 payload=base64.urlsafe_b64encode(json.dumps({'exp':int(time.time()+43200)}).encode()).decode().rstrip('=')
 jwt='synthetic.'+payload+'.signature'
 def opened(req,timeout):
@@ -69,7 +69,7 @@ with g.storage_lock(root) as locked:
     assert state['claim'] is None and state['connected'] and state['key']=='synthetic-key'
 with database_session(root) as db:
     values={r[0] for r in db.execute('SELECT weight_milli_lb FROM body_weights')}
-    assert values=={220462,187393}
+    assert values=={220500,187400}
     logical_check_connection(db,13)
 '''
     docker('run','--rm','--network=none','--read-only','--tmpfs','/tmp','--entrypoint','python','workout-tracker:phase8-review','-c',script)

@@ -108,6 +108,9 @@ def logical_check_connection(db,version):
     if version>=13:
         from .measurements import validate_storage
         validate_storage(db)
+    if version>=14:
+        from .ego_lifts import validate_storage as validate_ego
+        validate_ego(db)
 
 
 def validate(root,path,selection):
@@ -208,7 +211,7 @@ def current_for_restore(root):
         selection=json.loads(active.read_text(),object_pairs_hook=_unique_object)
         if not isinstance(selection,dict) or set(selection)!= {'database','storage_id'}: raise original_error
         storage_id=selection['storage_id'];o.identity(storage_id)
-        match=re.fullmatch(rf'schema-([23456789]|10|11|12|13)-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
+        match=re.fullmatch(rf'schema-([23456789]|10|11|12|13|14)-{storage_id}-[0-9a-f]{{32}}\.sqlite3',selection['database'])
         if not match: raise original_error
         path=root/'data'/selection['database'];_regular_file(path)
         for suffix in ('-journal','-wal','-shm'):

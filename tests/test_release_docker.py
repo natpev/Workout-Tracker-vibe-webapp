@@ -33,7 +33,7 @@ def wait_url(url):
         try:
             with urllib.request.urlopen(url + "/health/ready", timeout=2) as response:
                 info = json.load(response)
-            assert info == dict(status="ready", app_version="1.0.2", schema_version=13)
+            assert info == dict(status="ready", app_version="1.1.0", schema_version=14)
             return
         except OSError:
             if time.monotonic() > deadline:
@@ -131,10 +131,10 @@ def test_documented_clean_install_real_browser_and_compose_restart(tmp_path):
         "/var/lib/workout-tracker",
         "--confirm-upgrade",
         "--target-version",
-        "13",
+        "14",
     )
     assert (
-        "schema version 13"
+        "schema version 14"
         in compose(
             "run",
             "--rm",
@@ -319,12 +319,12 @@ def test_schema12_real_cli_upgrade_preserves_legacy_history_drafts_icons_and_aud
         "--data-root",
         "/storage",
         "--target-version",
-        "13",
+        "14",
         "--confirm-upgrade",
     )
     assert (
         source.read_bytes() == original
-        and inspect_storage(root)["schema_version"] == 13
+        and inspect_storage(root)["schema_version"] == 14
     )
     with database_session(root) as db:
         after = h.all_completed(db, x["a"])

@@ -79,11 +79,11 @@ def test_bad_timestamp_never_creates_a_guessed_measurement(timestamp):
 @pytest.mark.parametrize(
     "grams,expected",
     [
-        (100000, 220462),
-        (85000, 187393),
+        (100000, 220500),
+        (85000, 187400),
         (45359.237, 100000),
-        (1000, 2205),
-        (700000, 1543236),
+        (1000, 2200),
+        (700000, 1543200),
     ],
 )
 def test_gram_conversion_is_exact_until_stored_precision_and_preserves_source(
@@ -319,7 +319,7 @@ def test_matching_untagged_legacy_reading_remains_byte_for_byte_unchanged(unifie
     person = connected(unified_root)
     old = dict(
         measured_at="2020-01-01T08:00:00.000000+00:00",
-        weight_milli_lb=220462,
+        weight_milli_lb=220500,
         source_value="100",
     )
     with database_session(unified_root, write=True) as db:

@@ -104,12 +104,13 @@ def test_seven_combinations_autosave_skip_resume_and_complete(
             page.locator("[name=reps_0]").fill("0")
         if caps & 4:
             page.locator("[name=seconds_0]").fill("90")
-        page.locator("[name=status_0]").select_option("completed")
-        page.locator("[name=status_1]").select_option("skipped")
-        page.locator("[name=status_2]").select_option("skipped")
+        if caps == 1:
+            page.locator('[name=done_0]').check()
+        expect(page.locator('select[data-set-status]')).to_have_count(0)
         expect(page.locator("#save-status")).to_have_text("✓ Saved")
         page.reload()
-        expect(page.locator("[name=status_1]")).to_have_value("skipped")
+        expect(page.locator('[name=done_1]' if caps==1 else '[name=reps_1]' if caps&2 else '[name=seconds_1]')).to_be_visible()
+        if caps == 1:expect(page.locator('[name=done_0]')).to_be_checked()
         if caps & 2:
             expect(page.locator("[name=reps_0]")).to_have_value("0")
         if caps & 4:
@@ -317,6 +318,6 @@ def test_garmin_unexpected_failure_is_safe_and_retry_recovers(release_page, view
     pw.expect(page.get_by_text("Garmin synchronization complete: 2 new or updated measurements.", exact=True)).to_be_visible()
     with database_session(x["root"]) as db:
         rows = db.execute("SELECT weight_milli_lb FROM body_weights WHERE person_id=?", (x["person"],)).fetchall()
-        assert [r[0] for r in rows] == [220462, 220462]
+        assert [r[0] for r in rows] == [220500, 220500]
         assert db.execute("SELECT count(*) FROM body_weights WHERE person_id=?", (x["other"],)).fetchone()[0] == 0
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")

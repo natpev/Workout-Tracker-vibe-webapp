@@ -59,7 +59,7 @@ def test_readable_workouts_zone_free_history_and_responsive_filters(ui_page,widt
     with database_session(root,write=True) as db:draft,_=w.start(db,a,r,ZONE)
     for position,previous in enumerate(('40.9 lb','00:45','20.0 lb total weight · 6:00')):
         page.goto(base+f'/people/{a}/workouts/{draft}?position={position}')
-        target=page.locator('.target');measurement=page.locator('.previous-line strong')
+        target=page.locator('.target');measurement=page.locator('.last-performed strong')
         expect(measurement).to_contain_text(previous)
         if position==0:expect(target).to_contain_text('per hand')
         if position==2:expect(target).to_contain_text('total weight')

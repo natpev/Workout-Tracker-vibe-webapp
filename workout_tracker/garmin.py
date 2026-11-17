@@ -9,9 +9,10 @@ import base64
 import json
 import os
 import re
+import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import Decimal, ROUND_HALF_UP
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
 from uuid import uuid4
@@ -374,9 +375,10 @@ def decoded_weights(raw):
                     "Garmin returned a weight outside the supported 1–700 kg range in grams; nothing was imported."
                 )
             milli = int(
-                (grams * 1000 / Decimal("453.59237")).to_integral_value(
-                    rounding=ROUND_HALF_EVEN
+                (grams / Decimal("453.59237")).quantize(
+                    Decimal("0.1"), rounding=ROUND_HALF_UP
                 )
+                * 1000
             )
             measurement = dict(
                 measured_at=instant,
@@ -593,3 +595,112 @@ def tick(value, zone):
             sync(value, person, zone, scheduled=True)
         except (GarminError, StorageError):
             pass
+
+
+def rounded_existing(row):
+    """Round verified original grams once; older untagged imports retain their unit meaning."""
+    original = row["weight_milli_lb"]
+    try:
+        source = json.loads(row["source_value"] or "")
+        grams = Decimal(source["value"])
+        if (
+            source["unit"] != "g"
+            or not grams.is_finite()
+            or not 1000 <= grams <= 700000
+        ):
+            raise ValueError()
+    except (ValueError, TypeError, KeyError, ArithmeticError):
+        return (
+            int((Decimal(original) / 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+            * 100
+        )
+    exact = grams / Decimal("453.59237")
+    rounded = int(exact.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP) * 1000)
+    if abs(exact * 1000 - original) > Decimal("0.5") and original != rounded:
+        raise StorageError(
+            "Garmin source metadata disagrees with a stored reading; precision migration requires review."
+        )
+    return rounded
+
+
+def round_existing(db):
+    """Explicit candidate migration only: append precision revisions, never touch Manual records."""
+    old_factory = db.row_factory
+    db.row_factory = sqlite3.Row
+    try:
+        for row in db.execute(
+            "SELECT * FROM body_weights WHERE source='garmin'"
+        ).fetchall():
+            before = dict(row)
+            weight = rounded_existing(before)
+            if weight == before["weight_milli_lb"]:
+                continue
+            db.execute(
+                "UPDATE body_weights SET weight_milli_lb=?,updated_at=?,revision=revision+1 WHERE id=?",
+                (weight, w.now().isoformat(), before["id"]),
+            )
+            b.audit(
+                db,
+                before["person_id"],
+                before["id"],
+                before,
+                b.record(db, before["person_id"], before["id"]),
+            )
+    finally:
+        db.row_factory = old_factory
+
+
+def verify_rounding(source, candidate):
+    """Validate the narrowly authorized precision change and every pre-existing audit cell."""
+    import sqlite3
+
+    factories = source.row_factory, candidate.row_factory
+    source.row_factory = candidate.row_factory = sqlite3.Row
+    try:
+        before = {
+            r["id"]: dict(r) for r in source.execute("SELECT * FROM body_weights")
+        }
+        after = {
+            r["id"]: dict(r) for r in candidate.execute("SELECT * FROM body_weights")
+        }
+        if before.keys() != after.keys():
+            raise StorageError("Migration changed body-weight identities.")
+        changed_count = 0
+        for identity, row in before.items():
+            expected = (
+                rounded_existing(row)
+                if row["source"] == "garmin"
+                else row["weight_milli_lb"]
+            )
+            changed = expected != row["weight_milli_lb"]
+            changed_count += int(changed)
+            projected = dict(after[identity])
+            if projected["weight_milli_lb"] != expected or projected["revision"] != row[
+                "revision"
+            ] + int(changed):
+                raise StorageError("Unauthorized body-weight migration change.")
+            for key, value in row.items():
+                if (
+                    key not in ("weight_milli_lb", "revision")
+                    and (key != "updated_at" or not changed)
+                    and projected[key] != value
+                ):
+                    raise StorageError("Migration changed body-weight source metadata.")
+        if (
+            candidate.execute("SELECT count(*) FROM body_weight_audit").fetchone()[0]
+            != source.execute("SELECT count(*) FROM body_weight_audit").fetchone()[0]
+            + changed_count
+        ):
+            raise StorageError(
+                "Migration created unexpected body-weight audit revisions."
+            )
+        for row in source.execute("SELECT * FROM body_weight_audit"):
+            saved = candidate.execute(
+                "SELECT * FROM body_weight_audit WHERE id=?", (row["id"],)
+            ).fetchone()
+            if saved is None or tuple(row) != tuple(saved):
+                raise StorageError(
+                    "Migration changed a pre-existing body-weight audit."
+                )
+    finally:
+        source.row_factory, candidate.row_factory = factories

@@ -132,11 +132,108 @@ def validate(entry, weight, sets, *, complete=False):
     return sets
 
 
-def parse(entry, values, *, complete=False):
+def inferred(entry, weight, row, index, *, finalize=False, require=False, done=False):
+    """Infer live status from actuals. Shared weight never performs a set by itself.
+
+    Incomplete drafts retain partial input. On Next reject partial required fields,
+    but permit entirely blank sets; only Finish turns blanks into explicit skips.
+    """
+    caps = entry["capabilities"]
+    fields = [
+        row[key]
+        for bit, key in ((2, "actual_reps"), (4, "actual_duration_seconds"))
+        if caps & bit
+    ]
+    populated = done if caps == 1 else any(value is not None for value in fields)
+    valid = (
+        populated
+        and (not caps & 1 or weight is not None)
+        and all(value is not None for value in fields)
+    )
+    if require and populated and not valid:
+        raise c.ValidationError(
+            f"Set {index+1}: enter every enabled measurement"
+            + (", including weight" if caps & 1 else "")
+            + ", or clear this set."
+        )
+    row["status"] = (
+        "completed"
+        if valid
+        else "skipped" if finalize and not populated else "incomplete"
+    )
+    return row
+
+
+def finalize_draft(db, entry):
+    """Resolve only unfinished live rows, inside Finish's existing atomic transaction."""
+    rows = [dict(row) for row in entry["sets"]]
+    for index, row in enumerate(rows):
+        # Earlier explicit skips and completed draft sets retain their actuals.
+        if row["status"] == "incomplete":
+            checked = None
+            if (
+                entry["capabilities"] == 1
+                and db.execute("PRAGMA user_version").fetchone()[0] >= 14
+            ):
+                checked = db.execute(
+                    "SELECT done FROM workout_set_checks WHERE entry_id=? AND set_index=?",
+                    (entry["id"], index),
+                ).fetchone()
+            try:
+                inferred(
+                    entry,
+                    entry["actual_weight_tenths_lb"],
+                    row,
+                    index,
+                    finalize=True,
+                    require=True,
+                    done=bool(checked[0]) if checked else False,
+                )
+            except c.ValidationError as error:
+                from .workouts import MeasurementError
+
+                raise MeasurementError(
+                    {"sets": entry["name"] + ": " + str(error)}
+                ) from None
+
+    weight = (
+        entry["actual_weight_tenths_lb"]
+        if any(r["status"] == "completed" for r in rows)
+        else None
+    )
+    validate(entry, weight, rows, complete=True)
+    # Set rows must be resolved before dropping all-skipped exercise weight.
+    for index, row in enumerate(rows):
+        db.execute(
+            "UPDATE workout_sets SET status=?,actual_reps=?,actual_duration_seconds=? WHERE entry_id=? AND set_index=?",
+            (
+                row["status"],
+                row["actual_reps"],
+                row["actual_duration_seconds"],
+                entry["id"],
+                index,
+            ),
+        )
+    db.execute(
+        "UPDATE workout_entries SET actual_weight_tenths_lb=?,increase_next_time=? WHERE id=?",
+        (
+            weight,
+            (
+                entry["increase_next_time"]
+                if any(r["status"] == "completed" for r in rows)
+                else None
+            ),
+            entry["id"],
+        ),
+    )
+
+
+def parse(entry, values, *, complete=False, finalize=False):
     """Browser fields -> exact exercise weight and independent status/reps/duration."""
     from . import workouts as w
 
     caps = entry["capabilities"]
+    automatic = values.get("automatic_sets") == "yes"
     rows = []
     errors = {}
     weight = None
@@ -146,7 +243,11 @@ def parse(entry, values, *, complete=False):
         except c.ValidationError as error:
             errors["weight"] = str(error)
     for index in range(entry["target_sets"]):
-        status = w.field(values, f"status_{index}") or "incomplete"
+        status = (
+            "incomplete"
+            if automatic
+            else w.field(values, f"status_{index}") or "incomplete"
+        )
         result = dict(status=status, actual_reps=None, actual_duration_seconds=None)
         if status != "skipped":
             for bit, key in ((2, "reps"), (4, "duration")):
@@ -167,20 +268,44 @@ def parse(entry, values, *, complete=False):
                         )
                 except c.ValidationError as error:
                     errors[f"{key}_{index}"] = str(error)
+        if automatic:
+            try:
+                inferred(
+                    entry,
+                    weight,
+                    result,
+                    index,
+                    finalize=finalize,
+                    require=complete,
+                    done=values.get(f"done_{index}") == "yes",
+                )
+            except c.ValidationError as error:
+                errors[
+                    (
+                        f"reps_{index}"
+                        if caps & 2
+                        else f"duration_{index}" if caps & 4 else "sets"
+                    )
+                ] = str(error)
         rows.append(result)
     if errors:
         raise w.MeasurementError(errors)
     if all(row["status"] == "skipped" for row in rows):
         weight = None
     try:
-        validate(entry, weight, rows, complete=complete)
+        validate(entry, weight, rows, complete=complete and (not automatic or finalize))
     except c.ValidationError as error:
         raise w.MeasurementError({"sets": str(error)}) from error
     flag = w.field(values, "increase")
     if flag not in ("", "0", "1"):
         raise w.MeasurementError({"increase": "Invalid increase recommendation."})
     increase = (
-        int(flag == "1") if any(r["status"] == "completed" for r in rows) else None
+        int(flag == "1")
+        if (
+            any(r["status"] == "completed" for r in rows)
+            or (automatic and any(r["status"] == "incomplete" for r in rows))
+        )
+        else None
     )
     return dict(
         actual_weight_tenths_lb=weight,

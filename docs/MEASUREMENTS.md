@@ -12,11 +12,24 @@ shared validation path. Targets live in existing snapshot columns. Exercise-leve
 weight remains integer tenths lb; repetitions and positive duration seconds live
 in ordered workout_sets/historical_sets rows with explicit status.
 
-Incomplete drafts may contain partial enabled values. Completed sets require all
-enabled measurements plus the shared exercise weight when enabled. Skips contain
-NULL set actuals. All-skipped exercises also have NULL weight. SQL guards and
-service validation protect the same invariants; completed original set rows cannot
-be edited/deleted except through the existing deliberate deletion capability.
+Live drafts retain incomplete and partially entered measurements. The form infers
+Completed only from all enabled values and shows no status dropdown. Untouched
+blank sets stay Incomplete through autosave/Back/Next and become Skipped only in
+Finish's atomic transaction. Partially entered sets block Next/Finish with inline
+errors. Weight-only sets use Done checkboxes, with unfinished intent persisted in
+schema-14 workout_set_checks. One weight still belongs to the entire exercise.
+
+Finish keeps NULL set actuals for skipped sets and clears exercise weight/increase
+when no set was performed. Shared weight alone never performs a set. Zero weight
+and reps remain valid. An all-skipped workout requires confirmation. Historical
+completed sets remain frozen; explicit status controls remain on deliberate
+historical entry/correction screens. No historical snapshots are rewritten to
+match the new live-entry behavior.
+
+Previous performance uses compatible corrected person/exercise history across
+routines. Last session status is separate from the last genuine performance; any
+number of skipped sessions cannot erase the latter's increase recommendation.
+Missing actual legacy reps/durations remain unknown, never invented results.
 
 Corrections append sets in before/after JSON, validated against immutable captured
 capabilities/targets. They never update original set tables. Effective readers
@@ -54,3 +67,12 @@ row with stable identity/status/source columns; exercise weight is context repea
 in that column, not independently recorded per-set weights. Legacy unknown data is
 labeled and durations stay in legacy_exercise_duration_seconds. UTF-8 BOM, standard
 quoting, formula protection, m:ss durations and exact decimal weights apply.
+
+## Ego Lifts
+
+Schema 14's ego_lifts/ego_lift_audit are separate from workout sessions and all
+normal statistics. Immutable name/basis/meaning snapshots qualify compatible
+records. Weight uses the existing tenths/truncation convention; reps are positive.
+Confirmed corrections and soft deletions append before/after audits with revision
+checks. Epley estimates use exact fractions for 2–10 reps; a true single uses the
+recorded weight. No 1RM is estimated above 10 reps. No library/routine fields change.

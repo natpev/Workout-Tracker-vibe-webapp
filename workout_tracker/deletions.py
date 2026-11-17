@@ -38,6 +38,7 @@ def fingerprint(db):
            'historical_forms','historical_workouts','historical_entries','workout_registry','workout_corrections')
     if db.execute('PRAGMA user_version').fetchone()[0]>=9:names+=('basis_transitions','basis_assignments')
     if db.execute('PRAGMA user_version').fetchone()[0]>=11:names+=('exercise_icons','exercise_weight_basis')
+    if db.execute('PRAGMA user_version').fetchone()[0]>=14:names+=('ego_lifts','ego_lift_audit')
     digest=hashlib.sha256()
     for table in names:
         digest.update(repr([tuple(r) for r in db.execute(f'SELECT * FROM {table} ORDER BY 1')]).encode())
@@ -60,8 +61,12 @@ def impact(db, kind, identity, person_id):
     for table in ('workout_entries','historical_entries'):
         rows=db.execute(f'SELECT person_id FROM {table} WHERE exercise_id=?',(identity,)).fetchall()
         count+=len(rows);owners.update(r[0] for r in rows)
+    ego_count=0
+    if db.execute('PRAGMA user_version').fetchone()[0]>=14:
+        ego=db.execute('SELECT person_id FROM ego_lifts WHERE exercise_id=?',(identity,)).fetchall()
+        ego_count=len(ego);owners.update(r[0] for r in ego)
     blocked=db.execute("SELECT 1 FROM workout_entries e JOIN workout_sessions s ON s.id=e.session_id WHERE e.exercise_id=? AND s.status='draft'",(identity,)).fetchone()
-    return dict(name=row['name'],people=len(owners),routines=len(routines),entries=count,blocked=bool(blocked),revision=fingerprint(db))
+    return dict(name=row['name'],people=len(owners),routines=len(routines),entries=count,ego_count=ego_count,blocked=bool(blocked),revision=fingerprint(db))
 
 
 def confirm(db,kind,identity,person_id,values):
@@ -102,6 +107,9 @@ def delete_exercise(db,person_id,identity,values):
     """
     confirm(db,'exercise',identity,person_id,values)
     with capability(db):
+        if db.execute('PRAGMA user_version').fetchone()[0]>=14:
+            db.execute('DELETE FROM ego_lift_audit WHERE lift_id IN (SELECT id FROM ego_lifts WHERE exercise_id=?)',(identity,))
+            db.execute('DELETE FROM ego_lifts WHERE exercise_id=?',(identity,))
         routines=[r[0] for r in db.execute('SELECT DISTINCT routine_id FROM routine_exercises WHERE exercise_id=?',(identity,))]
         db.execute('DELETE FROM routine_exercises WHERE exercise_id=?',(identity,))
         for routine in routines: reorder(db,'routine_exercises','routine_id',routine)

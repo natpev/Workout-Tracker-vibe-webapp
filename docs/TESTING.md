@@ -109,3 +109,54 @@ The new failure/recovery cases run at 390×844 and 844×390 in both themes. No
 physical device or Safari testing is claimed. Total: **769 distinct tests passed,
 zero failed or skipped** across the complete backend suite and these selected
 browser/Docker suites.
+
+## Release 1.1.0 verification
+
+The release keeps schema-13 objects frozen and uses an explicit schema-14 candidate.
+Configuration tests capture all library/default/routine fields and permanent IDs,
+including 2×15, 3×12, 4×8, timed/combined settings and independently customized
+settings for another person. Both library and routine reset injections refuse
+activation and preserve original bytes/selection. Separate tests prove that an
+exact approved setting change works and an equivalent capability representation
+is compared semantically, while unrelated history still uses exact-cell checks.
+
+All seven live measurement combinations cover inferred completion, blank sets
+remaining incomplete until Finish, NULL skipped results, zero weight/reps,
+positive durations, partial-input errors, durable weight-only Done intent,
+Back/Next checkpoints and all-skipped confirmation. Effective historical
+corrections, cross-routine last performance and repeated skipped sessions retain
+measurements and increase recommendations without modifying original snapshots.
+
+Ego Lifts coverage includes shared exercise IDs, signed duplicate submissions,
+local IANA display, independent people, active-draft isolation, confirmed/stale
+corrections, audited deletion, compatible record groups, exact Epley calculations,
+backup/restore and database downloads. Normal workout queries/totals remain separate.
+Garmin checks verify original-gram HALF_UP rounding to tenths, preserved source
+metadata/identities/timestamps/credentials/audits, unchanged Manual precision and
+idempotent repeated sync. No actual Garmin accounts or production data were used.
+
+README was opened/reviewed against real features, CLI options, Compose, installation,
+upgrade/recovery procedures and local links. Commands were checked against Compose
+and the actual maintenance CLI. Current version/schema examples and schema-14
+confirmation were updated; the beginner opening/disclosure remain. Release notes
+in releases/1.1.0.json describe the user-facing changes in plain English. The
+existing browser/independent host updater and repository v4 need no new script.
+
+Final verified coverage: **797 backend/script cases, 153 Chromium cases and 34
+Docker cases: 984 distinct passing cases, no unresolved failures or skipped cases.**
+The full Chromium run initially had one test navigation race: it reloaded while
+Save's asynchronous POST/redirect was still pending. The test now waits for that
+navigation without removing any persistence assertions; all four affected mobile
+flows passed on replay. Existing combined/readability assertions follow the new
+Last performed display and retain their exact value/font/contrast requirements.
+
+All 34 Docker cases passed, including actual schema-13→14 migration, verified
+backups/restores/downloads, credential exclusion, startup refusal without automatic
+migration, fresh Compose/browser/restart and updater failure/recovery scenarios.
+Seven critical Docker cases were replayed on the rebuilt final-source image.
+Additional focused regression reruns are not double-counted. Browser coverage uses
+real Chromium with mobile/desktop viewport emulation, light/dark/automatic themes
+and household accents; no physical iPhone/Safari, home-server deployment or live
+Garmin-account claim is made. Pre-1.0 legacy snapshots/drafts retain their explicit
+compatibility representation instead of inventing per-set measurements. Older
+untagged Garmin units are not guessed/repaired by this precision-only update.

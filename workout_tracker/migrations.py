@@ -1,5 +1,5 @@
 # SHAMELESSLY VIBE-CODED — AI-generated with minimal human supervision. Review before trusting.
-"""Explicit known-schema -> target-2-through-13 candidate migration called only by the CLI.
+"""Explicit known-schema -> target-2-through-14 candidate migration called only by the CLI.
 
 Reads the original SQLite database and copies it with SQLite's backup API.
 Only the new candidate receives DDL. Fully validated candidates are selected by
@@ -83,11 +83,46 @@ def _upgrade_candidate(connection, target_version=2):
             from .unified_schema import upgrade_unified
             upgrade_unified(connection)
             connection.execute("INSERT INTO schema_migrations VALUES (13, 'unified_sets_and_body_weight')")
+        if current < 14 and target_version >= 14:
+            from .ego_schema import upgrade_ego
+            upgrade_ego(connection)
+            connection.execute("INSERT INTO schema_migrations VALUES (14, 'ego_lifts_and_garmin_precision')")
         connection.execute(f"PRAGMA user_version={target_version}")
         connection.commit()
     except Exception:
         connection.rollback()
         raise
+
+
+
+def authorized_configuration_changes(source, target_version, protected):
+    """Declare exact previously approved transitions; new ones require reviewed code.
+
+    This is intentionally not a CLI bypass. Each item identifies identity, field,
+    original value, intended value and approval reason, then both comparison layers
+    verify it. Current schema-13→14 upgrades authorize NO configuration changes.
+    """
+    allowed = {}
+    if (
+        source.execute("PRAGMA user_version").fetchone()[0] == 9
+        and target_version >= 10
+    ):
+        for (table, identity), fields in protected.items():
+            if table == "routine_exercises":
+                exercise = source.execute(
+                    "SELECT exercise_id FROM routine_exercises WHERE id=?", (identity,)
+                ).fetchone()[0]
+                basis = source.execute(
+                    "SELECT weight_basis FROM exercise_defaults WHERE exercise_id=?",
+                    (exercise,),
+                ).fetchone()[0]
+                if fields["weight_basis"] != basis:
+                    allowed[(table, identity, "weight_basis")] = (
+                        fields["weight_basis"],
+                        basis,
+                        "Previously approved permanent library Weight Basis migration",
+                    )
+    return allowed
 
 
 def _write_manifest(path, selection):
@@ -102,13 +137,13 @@ def _write_manifest(path, selection):
 def _migrate_storage(value, target_version=2):
     """Upgrade explicitly; keep original and failed candidates for inspection.
 
-    Known schemas 1–12 may upgrade to supported targets through 13. A matching target
+    Known schemas 1–13 may upgrade to supported targets through 14. A matching target
     invocation is a read-only no-op; downgrades and unknown versions are refused. The caller must stop external tools and
     workers not following our locking protocol before requesting maintenance.
     """
     with storage_lock(value, exclusive=True, nonblocking=True) as root:
         source = _inspect_unlocked(root)
-        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13) or source["schema_version"] > target_version:
+        if target_version not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) or source["schema_version"] > target_version:
             raise StorageError("Unsupported migration target; downgrade is not permitted.")
         if source["schema_version"] == target_version:
             return {"changed": False, "schema_version": target_version}
@@ -130,10 +165,21 @@ def _migrate_storage(value, target_version=2):
             try:
                 target_connection = sqlite3.connect(candidate.as_uri() + "?mode=rw", uri=True)
                 source_connection.backup(target_connection)
+                from .configuration_protection import capture, verify
+                protected = capture(source_connection)
                 if target_version == 2:
                     _upgrade_candidate(target_connection)
                 else:
                     _upgrade_candidate(target_connection, target_version)
+                # The old permanent-basis migration has one previously approved
+                # semantic change. Declare each exact routine transition, not a
+                # blanket exemption that could conceal unrelated settings resets.
+                allowed = authorized_configuration_changes(source_connection, target_version, protected)
+                verify(protected, capture(target_connection), allowed)
+                if source['schema_version']<14 and target_version>=14:
+                    for name in ('ego_lifts','ego_lift_audit','workout_set_checks'):
+                        if target_connection.execute(f'SELECT count(*) FROM {name}').fetchone()[0]:
+                            raise StorageError('Migration created unexpected Ego Lifts or draft checks.')
                 # Compare every pre-existing table, row and NULL exactly. Counts
                 # alone could miss a changed value or ownership relationship.
                 existing = ["storage_metadata", "schema_migrations"]
@@ -149,7 +195,21 @@ def _migrate_storage(value, target_version=2):
                     existing += ["basis_transitions", "basis_assignments"]
                 if source["schema_version"]>=11:
                     existing += ["exercise_icons", "exercise_weight_basis"]
+                if source["schema_version"] >= 13:
+                    existing += ['workout_sets', 'historical_sets', 'workout_weighin_prompts']
+                    from .garmin import verify_rounding
+                    verify_rounding(source_connection, target_connection)
                 for name in existing:
+                    if name in ('exercise_defaults','routine_exercises','exercises'):
+                        # Configurations were compared semantically above, with
+                        # every identity/value and declared allowance verified.
+                        # Count rows too, including initially empty tables. Do
+                        # not demand identical physical columns here: a future
+                        # reviewed representation change can retain equivalent
+                        # settings through capture's version-aware adapters.
+                        if source_connection.execute(f'SELECT count(*) FROM {name}').fetchone()[0] != target_connection.execute(f'SELECT count(*) FROM {name}').fetchone()[0]:
+                            raise StorageError('Migration changed protected configuration record counts.')
+                        continue
                     # New metadata columns are allowed; every original column/cell
                     # must remain exactly identical, including NULL and audit JSON.
                     columns=','.join('"'+r[1]+'"' for r in source_connection.execute(f'PRAGMA table_info({name})'))
@@ -157,13 +217,6 @@ def _migrate_storage(value, target_version=2):
                     after = target_connection.execute(f"SELECT {columns} FROM {name} ORDER BY 1").fetchall()
                     if name == "schema_migrations":
                         after = [row for row in after if row[0] <= source["schema_version"]]
-                    if target_version >= 10 and source['schema_version']<10 and name == 'routine_exercises':
-                        # Library convention wins for future configurations only.
-                        # Every other original cell remains identical.
-                        basis_index=[r[1] for r in source_connection.execute(f'PRAGMA table_info({name})')].index('weight_basis') if source['schema_version']>=9 else None
-                        if basis_index is not None:
-                            before=[tuple(v for i,v in enumerate(row) if i!=basis_index) for row in before]
-                            after=[tuple(v for i,v in enumerate(row) if i!=basis_index) for row in after]
                     if before != after:
                         raise StorageError("Migration changed pre-existing logical data.")
                 if target_version>=9 and source['schema_version']<9:
@@ -257,7 +310,7 @@ def _validate_candidate(root, candidate, selection):
     maintenance call. The public inspect_storage always reads active.json.
     """
     details = _inspect_unlocked(root, selection=selection)
-    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13) or details["database"] != candidate:
+    if details["schema_version"] not in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14) or details["database"] != candidate:
         raise StorageError("Candidate schema validation failed.")
 
 

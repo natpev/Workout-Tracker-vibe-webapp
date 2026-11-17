@@ -28,6 +28,33 @@ snapshot structure and correction/conversion/body audit chains. Atomically selec
 only a verified candidate. Preserve original database bytes and old selection on
 failure. Older migration steps and classification checks remain supported.
 
+## Schema 14 and permanent configuration protection
+
+Only explicit candidate migration adds Ego Lifts/audits, weight-only draft checkbox
+intent and Garmin precision guards. Every schema-13 DDL object remains unchanged.
+Original workout/set/correction/conversion cells and NULLs remain unchanged.
+Exercise Library and per-person routine settings are captured semantically before
+upgrading and compared before selection. No generic 3×12 reset is authorized.
+configuration_protection.verify accepts only exact identity/field/old/new/reason
+allowances for a deliberately approved future change. Legacy capability mappings
+retain equivalent meanings; the previously approved schema-10 basis transition
+has exact per-record allowances rather than a broad exemption.
+
+Garmin body-weight precision is the one authorized existing-data adjustment:
+Decimal ROUND_HALF_UP to a tenth of a pound, with original rows captured in new
+before/after audit revisions. IDs/times/source metadata and earlier audits stay
+unchanged; Manual values are untouched. Verified original gram metadata is used
+when consistent with the saved value. Ambiguous/mismatched metadata refuses the
+migration instead of repairing units. New Garmin records require multiples of 100
+in integer-thousandths storage. Private credential files remain outside SQL and
+are not rewritten. Migration failure retains original selection, database and
+existing backups; failed candidates remain for inspection.
+
+Ego attempts support confirmed audited soft deletion. Explicit global exercise
+deletion includes those attempts and audits in its existing household-wide impact
+review. New Ego data is included by the existing generic SQLite backup/download
+infrastructure; credentials remain excluded.
+
 ## Backups versus downloads
 
 Backup Now/scheduler creates verified SQLite copies with operation metadata.

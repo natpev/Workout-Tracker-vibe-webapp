@@ -15,10 +15,10 @@ from werkzeug.exceptions import SecurityError
 
 from .storage import StorageError, inspect_storage, load_signing_key
 
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.1.0"
 # Release metadata describes the desired full-feature schema, not a request to
 # upgrade storage. Updaters can read it without constructing an app or opening SQL.
-TARGET_SCHEMA_VERSION = 13
+TARGET_SCHEMA_VERSION = 14
 
 
 def create_app(test_config=None):
@@ -71,6 +71,8 @@ def create_app(test_config=None):
     app.register_blueprint(garmin_bp)
     from .report_views import bp as report_bp
     app.register_blueprint(report_bp)
+    from .ego_views import bp as ego_bp
+    app.register_blueprint(ego_bp)
     emit(app.config["WORKOUT_DATA_ROOT"], "INFO", "Application", "Application worker started")
     import atexit
     def shutdown_event():

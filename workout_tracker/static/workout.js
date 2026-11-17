@@ -52,24 +52,8 @@
       if (next) next.focus();
     }
   }));
-  // A set status is explicit. Skipping disables its inputs so browser POSTs
-  // cannot accidentally submit previous values; the server stores real NULLs.
-  form.querySelectorAll('[data-set-row]').forEach(row => {
-    const state=row.querySelector('[data-set-status]');
-    const fields=[...row.querySelectorAll('input[data-set-input]')];
-    const update=() => {fields.forEach(input => {input.disabled=state.value==='skipped';});};
-    state.addEventListener('input',() => {if(state.value==='skipped') fields.forEach(input=>{input.value='';});update();});
-    const refresh=()=>{
-      const rep=fields.find(f=>f.name.startsWith('reps'));
-      const durations=fields.filter(f=>f.name.startsWith('minutes')||f.name.startsWith('seconds'));
-      const weight=form.querySelector('[name=weight]');
-      if(state.value!=='skipped' && fields.length) state.value=(!weight||weight.value!=='')&&(!rep||rep.value!=='')&&(!durations.length||durations.some(f=>f.value!==''))?'completed':'incomplete';
-    };
-    fields.forEach(input=>input.addEventListener('input',refresh));
-    const sharedWeight=form.querySelector('[name=weight]');
-    if(sharedWeight) sharedWeight.addEventListener('input',refresh);
-    update();
-  });
+  // Live set status is inferred by the server. No client-side status dropdown
+  // or disabled fields can discard measurements while typing or autosaving.
   const status = document.getElementById("save-status");
   const revision = form.elements.namedItem("revision");
   const cursor = form.elements.namedItem("current_position");

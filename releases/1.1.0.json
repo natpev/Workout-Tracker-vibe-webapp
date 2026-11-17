@@ -1,0 +1,10 @@
+{
+  "version": "1.1.0",
+  "notes": [
+    "Simplified workout entry: fill in your sets and leave unused sets blank to skip them when finishing.",
+    "Added Done checkboxes for weight-only sets and clearer reminders of your last performed workout.",
+    "Added Ego Lifts for separate strength attempts, history and estimated personal records.",
+    "Added stronger upgrade checks to protect your exercise defaults and personal routine settings.",
+    "Garmin weigh-ins now round consistently to the nearest tenth of a pound."
+  ]
+}

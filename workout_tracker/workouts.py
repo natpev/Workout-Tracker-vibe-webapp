@@ -224,7 +224,11 @@ def update(db, person_id, session_id, values, *, completing=False):
     if current.get('capabilities') is not None:
         from .measurements import parse
         require=completing or (action in ('next','jump') and position>current['position'])
-        result=parse(current,values,complete=require)
+        result=parse(current,values,complete=require,finalize=completing)
+        if current['capabilities']==1 and values.get('automatic_sets')=='yes' and db.execute('PRAGMA user_version').fetchone()[0]>=14:
+            for index in range(current['target_sets']):
+                db.execute('INSERT INTO workout_set_checks VALUES (?,?,?) ON CONFLICT(entry_id,set_index) DO UPDATE SET done=excluded.done',
+                           (entry_id,index,int(values.get(f'done_{index}')=='yes')))
         db.execute('UPDATE workout_entries SET actual_weight_tenths_lb=?,actual_duration_seconds=NULL,increase_next_time=? WHERE id=?',
                    (result['actual_weight_tenths_lb'],result['increase_next_time'],entry_id))
         for index,row in enumerate(result['sets']):
@@ -273,6 +277,12 @@ def finish(db, person_id, session_id, values):
         return parent
     parent = update(db, person_id, session_id, values,completing=True)
     rows = entries(db, person_id, session_id)
+    if values.get('automatic_sets')=='yes':
+        from .measurements import finalize_draft
+        for row in rows:
+            if row.get('capabilities') is not None:
+                finalize_draft(db,row)
+        rows = entries(db,person_id,session_id)
     for row in rows:
         if row.get('capabilities') is not None:
             from .measurements import validate
@@ -362,3 +372,14 @@ def display_measurement(entry):
     if duration is not None:
         return f"{duration // 60:02d}:{duration % 60:02d}"
     return 'Skipped'
+
+
+def performance_status(entry):
+    """Describe the last session separately from the last genuine performed result."""
+    if entry is None:
+        return 'No previous session'
+    entry=dict(entry)
+    if entry.get('capabilities') is not None:
+        completed=sum(row['status']=='completed' for row in entry['sets'])
+        return 'Skipped' if completed==0 else 'Completed' if completed==len(entry['sets']) else 'Partially completed'
+    return 'Completed' if count_performed([entry]) else 'Skipped'

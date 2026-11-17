@@ -97,7 +97,7 @@ def test_workout_autosave_navigation_recovery_finish_and_themes(workout_page):
     page.get_by_role('button',name='Start workout',exact=True).click()
     expect(page.get_by_label('Weight (lb)')).to_have_value('')
     expect(page.get_by_text('Increase ↑',exact=True)).to_be_visible()
-    expect(page.get_by_text('Previous session:',exact=False)).to_contain_text('40.9 lb')
+    expect(page.get_by_text('Last performed:',exact=False)).to_contain_text('40.9 lb')
 
 
 def test_discard_cancel_ok_and_all_skipped_confirmation(workout_page):

@@ -64,6 +64,9 @@ def page_context(person_id, session_id, message=None):
             set_values['weight']='' if weight is None else f'{weight//10}.{weight%10}'
             for index,row in enumerate(current['sets']):
                 set_values[f'status_{index}']=row['status']
+                if current['capabilities']==1 and db.execute('PRAGMA user_version').fetchone()[0]>=14:
+                    checked=db.execute('SELECT done FROM workout_set_checks WHERE entry_id=? AND set_index=?',(current['id'],index)).fetchone()
+                    if checked is not None:set_values[f'done_{index}']='yes' if checked[0] else 'no'
                 set_values[f'reps_{index}']='' if row['actual_reps'] is None else str(row['actual_reps'])
                 duration=row['actual_duration_seconds']
                 set_values[f'minutes_{index}']='' if duration is None else str(duration//60)
@@ -71,7 +74,7 @@ def page_context(person_id, session_id, message=None):
         prior, performed = workouts.previous(db, person_id, parent, current)
         return dict(set_values=set_values,artwork=artwork,statistics=statistics,person=owner, workout=parent, entries=rows, current=current, position=position,
                     previous=prior, last_performed=performed, completed=workouts.count_performed(rows), navigation_progress=len(rows) if parent['status']=='completed' else parent['current_position'],
-                    display=workouts.display_measurement, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
+                    display=workouts.display_measurement, performance_status=workouts.performance_status, message=message, history_enabled=db.execute('PRAGMA user_version').fetchone()[0]>=4,
                     local_started=datetime.fromisoformat(parent['started_at']).astimezone(ZoneInfo(parent['timezone'])))
 
 
