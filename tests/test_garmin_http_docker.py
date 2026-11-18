@@ -15,7 +15,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
 from workout_tracker import APP_VERSION,TARGET_SCHEMA_VERSION,garmin as g
-assert APP_VERSION=='1.1.0' and TARGET_SCHEMA_VERSION==14
+assert APP_VERSION=='1.1.1' and TARGET_SCHEMA_VERSION==14
 payload=base64.urlsafe_b64encode(json.dumps({'exp':int(time.time()+43200)}).encode()).decode().rstrip('=')
 jwt='synthetic.'+payload+'.signature'
 def opened(req,timeout):

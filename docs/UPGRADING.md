@@ -4,9 +4,15 @@
 
 This application was built with a healthy dose of AI, questionable amounts of confidence, and minimal human supervision. It appears to work, but don’t mistake that for a warranty. Use at your own risk, and keep backups.
 
+## Existing schema 14 installation (v1.1.0)
+
+Use the normal browser update to install **1.1.1**. No database migration or host
+updater refresh is needed. Verify **1.1.1 / schema 14 / ready** after installation.
+Keep your usual verified backup before updating.
+
 ## Existing schema 13 installation (v1.0.2)
 
-Use **Settings → Application Updates → Check for Updates**, review **1.1.0** and
+Use **Settings → Application Updates → Check for Updates**, review **1.1.1** and
 confirm the explicit **schema 14** candidate migration. Before installing, create
 a verified backup and protect the complete storage tree, private `.env` and
 Garmin credential file. Never initialize existing storage or reset settings.
@@ -20,7 +26,7 @@ configuration change refuses activation. Existing settings are not reconstructed
 or guessed from older releases.
 
 After a successful update, Settings/footer and `/health/ready` must show
-**app_version 1.1.0, schema_version 14, ready**. Check your existing routines and
+**app_version 1.1.1, schema_version 14, ready**. Check your existing routines and
 library settings, try Ego Lifts with disposable data, and create a new verified
 schema-14 backup. Keep schema-13 originals/backups for recovery; exact-schema
 restore does not silently downgrade a running schema-14 installation.

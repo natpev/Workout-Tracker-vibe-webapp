@@ -28,15 +28,40 @@ def test_ego_mobile_create_edit_delete_idempotence_and_isolation(
     page.set_viewport_size(dict(zip(("width", "height"), viewport)))
     person = x["person"]
     exercise = x["exercises"][0]
+    from workout_tracker import exercise_icons
+
+    with database_session(x["root"], write=True) as db:
+        exercise_icons.update(
+            db,
+            exercise,
+            "start",
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L10 10"/></svg>',
+        )
     page.goto(base + f"/settings?person_id={person}")
     page.select_option("#theme", theme)
     page.goto(base + f"/people/{person}")
-    page.get_by_role("link", name="🏆 Ego Lifts", exact=True).click()
-    page.get_by_role("searchbox", name="Search exercises").fill("Exercise 1")
-    page.get_by_role("button", name="Search", exact=True).click()
-    page.locator(".ego-exercises").get_by_role(
-        "link", name="Exercise 1", exact=True
-    ).click()
+    tile = page.locator(".ego-tile")
+    routine_card = page.locator(".routine-card").first
+    assert abs(tile.bounding_box()["width"] - routine_card.bounding_box()["width"]) < 1
+    last = page.locator(".routine-card:not(.ego-tile)").last.bounding_box()
+    assert tile.bounding_box()["y"] - last["y"] - last["height"] >= 24
+    page.get_by_role("button", name="Start Ego Lift", exact=True).click()
+    expect(
+        page.get_by_role("heading", name="Select Exercise", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("button", name="Select Exercise", exact=True)
+    ).to_be_disabled()
+    page.locator("#ego-exercise").select_option(exercise)
+    expect(page.locator("#ego-preview .exercise-icon")).to_have_count(2)
+    expect(page.locator('#ego-preview path[d="M0 0L10 10"]')).to_have_count(1)
+    icons = page.locator("#ego-preview .exercise-icon").all()
+    assert abs(icons[0].bounding_box()["y"] - icons[1].bounding_box()["y"]) < 1
+    assert "/record/" not in page.url
+    expect(
+        page.get_by_role("button", name="Select Exercise", exact=True)
+    ).to_be_enabled()
+    page.get_by_role("button", name="Select Exercise", exact=True).click()
     expect(
         page.get_by_text("No previous Ego Lifts recorded.", exact=True)
     ).to_be_visible()
@@ -46,6 +71,8 @@ def test_ego_mobile_create_edit_delete_idempotence_and_isolation(
     page.get_by_role("button", name="Save Lift", exact=True).click()
     expect(page.get_by_text("Ego Lift saved.", exact=True)).to_be_visible()
     expect(page.get_by_text("Estimated 1RM: 61.1 lb", exact=True)).to_be_visible()
+    page.get_by_role("link", name="Back to selection", exact=True).click()
+    page.get_by_role("link", name="Ego History", exact=True).click()
     expect(page.locator(".ego-history-row")).to_have_count(1)
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
     page.get_by_role("link", name="Correct or delete lift", exact=True).click()

@@ -160,3 +160,41 @@ and household accents; no physical iPhone/Safari, home-server deployment or live
 Garmin-account claim is made. Pre-1.0 legacy snapshots/drafts retain their explicit
 compatibility representation instead of inventing per-set measurements. Older
 untagged Garmin units are not guessed/repaired by this precision-only update.
+
+## Patch 1.1.1 Ego Lifts workflow verification
+
+Remote main already contained v1.1.0/schema 14, so the revised three-screen workflow
+is a patch release. No schema, migration, workout storage, configuration-protection
+or Garmin data writer changed. Existing v1.1.0 coverage remains in place.
+
+The revised Chromium flow covers the routine-style trophy tile and spacing,
+initially empty alphabetical dropdown, disabled Select button, asynchronous
+selection without leaving the page, shared custom/default Start/End artwork,
+separate recording form, last attempt, compatible personal records, third-tab
+history, confirmed corrections/deletions and person isolation. It runs at
+320/390/844/768/1280 widths in light and dark themes. Backend checks also verify
+that only the selected person's newest five attempts are previewed, in order,
+Progress context survives the new tab and archived exercise history remains
+filterable using stable IDs.
+
+README was reviewed against the implementation, Compose, actual maintenance CLI,
+installation/update instructions and local links. Current version examples and
+Ego navigation were updated; the beginner opening and full humorous disclosure
+remain. Version-matched plain-English notes are in releases/1.1.1.json. The
+existing browser/independent host updater and v4 need no new script. Schema-14
+installations need no migration; schema-13 installations still explicitly migrate
+a separate verified candidate to schema 14. No production data, actual Garmin
+credentials, physical iPhone or Safari were used.
+
+Complete regression results: **798 backend cases, 153 Chromium cases and 34 Docker
+cases — 985 distinct passing cases, zero failures, errors or skips.** Additional
+focused reruns are not double-counted. The packaged final image was compared by
+SHA-256 against all 127 application files and reports 1.1.1/target schema 14
+without opening storage. Full Docker coverage includes candidate migration,
+configuration preservation, backups/restores, downloads, updater recovery and
+fresh Compose/browser/restart persistence.
+Seven critical Docker checks also passed on the exact rebuilt final-source image:
+schema-13→14 configuration/credential preservation, Ego backup/restore/download,
+fresh Compose/browser/restart, legacy upgrade compatibility, both Garmin transport
+regressions and the actual v4 host-updater migration. These replay cases are not
+added to the 985 distinct-test total.

@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Current release and scope
 
-Version 1.1.0 targets schema 14. The user authorizes implementation, verification
+Version 1.1.1 targets schema 14. The user authorizes implementation, verification
 and direct main merging for this release, without a pull request or PR API attempt.
 Never deploy, access production workout data, force-push, bypass protections,
 discard unrelated work or investigate the excluded duplicate/orphaned-history issue.
@@ -125,3 +125,7 @@ change, Codex MUST:
 
 These requirements are mandatory, not optional. Keep maintained docs current
 rather than adding a new obsolete phase checklist for every small patch.
+
+Ego Lifts uses a routine-style Start Ego Lift tile, a dedicated dropdown selection
+screen with shared artwork/latest five attempts, and a separate recording screen.
+Ego History is the third History / Progress tab. Schema 14 is unchanged for v1.1.1.

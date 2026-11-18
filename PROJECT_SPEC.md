@@ -6,7 +6,7 @@ This application was built with a healthy dose of AI, questionable amounts of co
 
 ## Product and release
 
-Version 1.1.0 / schema 14 is a private home-server Flask/SQLite application for
+Version 1.1.1 / schema 14 is a private home-server Flask/SQLite application for
 multiple household people. It is passwordless trusted-LAN software, not public
 hosting or a security boundary between household members. Ordinary workouts/history
 work offline; optional Garmin and application updates need internet. Docker Compose
@@ -188,8 +188,10 @@ Garmin synchronously to start a workout or create duplicate workout sessions.
 
 ## Ego Lifts
 
-A trophy button immediately below routines opens a searchable alphabetical global
-library and independent selected-person attempts. One weight (existing truncation)
+A routine-style trophy tile below the routines opens a dedicated alphabetical
+exercise dropdown. Choosing an exercise reveals the shared Start/End artwork and
+latest five personal Ego attempts without leaving the screen. Select Exercise
+opens the separate recording screen; Ego History is the third History/Progress tab. One weight (existing truncation)
 and positive whole reps; save captures UTC now and displays configured local IANA
 time. Signed person/exercise-bound submission IDs make double taps/retries idempotent.
 Snapshot exercise name, permanent ID, established basis/meaning; otherwise record

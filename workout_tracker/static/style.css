@@ -236,3 +236,8 @@ dialog::backdrop { background:#0008; }
 .ego-exercises a {display:block;padding:.6rem 0;overflow-wrap:anywhere}
 .ego-history-row,.ego-record {border-top:1px solid var(--border);padding:.75rem 0;overflow-wrap:anywhere}
 .set-done {display:flex;align-items:center;gap:.6rem;min-height:44px}
+
+/* Reuse routine cards and the shared artwork; only this preview forces side-by-side positions. */
+.ego-tile { margin-top:2rem; }
+.history-tabs { display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0; }
+.ego-artwork .exercise-icons { flex-wrap:nowrap; }

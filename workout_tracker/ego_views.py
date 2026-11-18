@@ -42,17 +42,19 @@ def local_time(value):
     )
 
 
-@bp.route("/people/<person_id>/ego-lifts", methods=["GET", "POST"])
-def index(person_id):
-    """Search/selection stays GET; only a signed Save Lift form writes an attempt."""
+@bp.route("/people/<person_id>/ego-lifts/record/<exercise_id>", methods=["GET", "POST"])
+def record_lift(person_id, exercise_id):
+    """Only this signed recording form writes attempts; selection is a separate GET view."""
     error = None
     status = 200
     values = request.form.to_dict() if request.method == "POST" else {}
     exercise = (
-        request.form.get("exercise_id", "")
-        if request.method == "POST"
-        else request.args.get("exercise", "")
+        request.form.get("exercise_id", "") if request.method == "POST" else exercise_id
     )
+    if exercise != exercise_id:
+        raise c.ValidationError(
+            "The selected exercise changed; reload the recording form."
+        )
     token = values.get("submission", "")
     if request.method == "POST":
         try:
@@ -75,14 +77,14 @@ def index(person_id):
                 e.save(db, person_id, exercise, values)
             flash("Ego Lift saved.", "success")
             return redirect(
-                url_for("ego.index", person_id=person_id, exercise=exercise), code=303
+                url_for("ego.record_lift", person_id=person_id, exercise_id=exercise),
+                code=303,
             )
         except c.ValidationError as exc:
             error = str(exc)
             status = 400
     with connection() as db:
         person = c.person(db, person_id)
-        library = c.definitions(db, person_id)
         selected = dict(c.definition(db, person_id, exercise)) if exercise else None
         defaults = (
             dict(c.exercise_defaults(db, person_id, exercise)) if exercise else None
@@ -90,16 +92,17 @@ def index(person_id):
         if defaults:
             defaults["weight_basis"] = e.weight_basis(db, exercise)
         rows = e.history(db, person_id, exercise)
+        from .exercise_icons import pairs
+
+        artwork = pairs(db, [exercise])[exercise]
     if not token and exercise:
         token = signer().dumps([person_id, exercise, uuid4().hex])
-    search = request.args.get("search", "").strip().casefold()
-    library = [row for row in library if search in row["name"].casefold()]
     return (
         render_template(
-            "ego.html",
+            "ego_record.html",
+            artwork=artwork,
             local_time=local_time,
             person=person,
-            library=library,
             selected=selected,
             defaults=defaults,
             rows=rows,
@@ -107,7 +110,6 @@ def index(person_id):
             values=values,
             submission=token,
             error=error,
-            search=request.args.get("search", ""),
         ),
         status,
     )
@@ -143,7 +145,9 @@ def edit(person_id, identity):
                 "success",
             )
             return redirect(
-                url_for("ego.index", person_id=person_id, exercise=row["exercise_id"]),
+                url_for(
+                    "ego.history", person_id=person_id, exercise=row["exercise_id"]
+                ),
                 code=303,
             )
         except c.ValidationError as exc:
@@ -166,3 +170,63 @@ def edit(person_id, identity):
         ),
         status,
     )
+
+
+@bp.get("/people/<person_id>/ego-lifts")
+def index(person_id):
+    """Read-only selection preview; choosing an option never leaves this screen."""
+    exercise = request.args.get("exercise", "")
+    with connection() as db:
+        person = c.person(db, person_id)
+        library = c.definitions(db, person_id)
+        selected = c.definition(db, person_id, exercise) if exercise else None
+        rows = e.history(db, person_id, exercise)[:5] if exercise else []
+        from .exercise_icons import pairs
+
+        artwork = pairs(db, [exercise])[exercise] if exercise else None
+    return render_template(
+        "ego_select.html",
+        person=person,
+        library=library,
+        selected=selected,
+        rows=rows,
+        artwork=artwork,
+        local_time=local_time,
+    )
+
+
+@bp.get("/people/<person_id>/ego-history")
+def history(person_id):
+    """Third history tab uses existing effective Ego rows and confirmation routes."""
+    exercise = request.args.get("exercise", "")
+    with connection() as db:
+        person = c.person(db, person_id)
+        library = c.definitions(db, person_id)
+        rows = e.history(db, person_id, exercise)
+        # Retained snapshots keep archived identities filterable without name-based matching.
+        choices = {row["id"]: row["name"] for row in library}
+        for row in rows:
+            choices.setdefault(row["exercise_id"], row["exercise_name"])
+        library = [
+            dict(id=identity, name=name)
+            for identity, name in sorted(
+                choices.items(), key=lambda item: (item[1].casefold(), item[0])
+            )
+        ]
+    return render_template(
+        "ego_history.html",
+        person=person,
+        library=library,
+        rows=rows,
+        selected_id=exercise,
+        records=e.records(rows),
+        local_time=local_time,
+    )
+
+
+@bp.context_processor
+def progress_navigation():
+    """Reuse existing filter context so visiting Ego History retains Progress selections."""
+    from .history_views import navigation_context
+
+    return dict(progress_context=navigation_context())

@@ -15,10 +15,10 @@ This application was built with a healthy dose of AI, questionable amounts of co
 [Updating the application](#updating-the-application). Never initialize an existing
 database again, delete its storage, or overwrite its configuration to update it.
 
-Current application: **1.1.0**. Database schema: **14**. This release simplifies
-workout set entry, improves previous-performance reminders and adds independent
-**Ego Lifts**. Existing library and routine settings are protected during upgrades.
-Garmin weigh-ins now round once to the nearest 0.1 lb.
+Current application: **1.1.1**. Database schema: **14**. This patch improves the
+three-screen **Ego Lifts** workflow. Existing schema-14 installations need no
+migration. Automatic workout skips, previous-performance reminders, protected
+exercise settings and Garmin rounding from v1.1.0 remain available.
 
 Existing schema-13 installations require an explicitly confirmed migration to a
 **separate schema-14 database candidate**. The original remains untouched. The
@@ -201,7 +201,7 @@ Verify the actual application inside the container:
 
 ```sh
 docker compose --env-file ../.env exec -T web python -c \
-  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.1.0",schema_version=14)'
+  'import json,urllib.request; r=json.load(urllib.request.urlopen("http://127.0.0.1:8000/health/ready",timeout=10)); print(r); assert r==dict(status="ready",app_version="1.1.1",schema_version=14)'
 ```
 
 If startup is still in progress, retry after a few seconds. Both containers use
@@ -214,7 +214,7 @@ stopped until you run `up -d` again. Reboot behavior on your server needs checki
 In a browser on the same trusted home network, open **http://192.168.1.100:8000**,
 substituting your server address. Do not use `localhost` on your phone: that means
 the phone itself. The People screen should appear. Settings/About and the footer
-should report **1.1.0 / database 14**. Check all three themes in Settings.
+should report **1.1.1 / database 14**. Check all three themes in Settings.
 
 Your router, server and any VM firewall must allow TCP 8000 from trusted LAN
 devices only. Docker publishing can bypass ordinary UFW rules; use Docker-aware
@@ -320,12 +320,16 @@ custom illustration restores the default. See [SVG rules](docs/EXERCISE_ICONS.md
 
 ## Ego Lifts
 
-Below your routine cards, tap **🏆 Ego Lifts**. Search the shared Exercise Library,
-choose an exercise and enter one weight plus a positive repetition count. **Save
-Lift** records the current date/time automatically. It does not start a workout or
+Use **History → Ego History**, the third tab beside History and Progress, to filter,
+correct or delete attempts. Ego records remain separate from regular workouts.
+
+Below your routine cards, press **Start Ego Lift**. Choose an exercise from the
+alphabetical dropdown, review its artwork and your last five attempts, then press
+**Select Exercise**. On the separate recording screen, enter one weight plus a
+positive repetition count. **Save Lift** records the current date/time automatically. It does not start a workout or
 change the exercise, routines, lifting totals or normal increase recommendations.
 
-The page shows your last Ego Lift, history and compatible personal records. A
+The recording screen shows your last Ego Lift and compatible personal records. A
 single rep uses the actual weight for estimated 1RM; 2–10 reps use the Epley
 estimate. Higher repetitions do not produce a 1RM estimate. Weight Basis is shown
 and saved with each attempt. Exercises without an assigned basis use Total Weight
@@ -460,7 +464,7 @@ verified backup and protect the complete storage tree before updating.
 Open **Settings → Application Updates → Check for Updates**. Read the release
 notes, confirm installation and any required schema migration, then Install.
 The independent status tab stays available while the app restarts. After success,
-verify Settings/footer and `/health/ready`: **1.1.0 / schema 14 / ready**. Make a new
+verify Settings/footer and `/health/ready`: **1.1.1 / schema 14 / ready**. Make a new
 verified backup. Existing schema-12/13 installations require candidate migration to 14.
 
 Your already upgraded Phase 12 independent updater supports this release; a new

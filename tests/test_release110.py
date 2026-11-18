@@ -602,7 +602,7 @@ def test_ego_http_signed_double_submission_timezone_and_owner_checks(root110):
             TESTING=True, WORKOUT_DATA_ROOT=root110, WORKOUT_TIMEZONE="Pacific/Honolulu"
         )
     ).test_client()
-    path = f"/people/{person}/ego-lifts?exercise={exercise}"
+    path = f"/people/{person}/ego-lifts/record/{exercise}"
     page = client.get(path)
     signature = re.search(rb'name="submission" value="([^"]+)"', page.data)[1].decode()
     payload = dict(
@@ -615,14 +615,25 @@ def test_ego_http_signed_double_submission_timezone_and_owner_checks(root110):
     stamp = datetime(2026, 11, 17, 5, 30, tzinfo=timezone.utc)
     with patch.object(w, "now", return_value=stamp):
         assert (
-            client.post(f"/people/{person}/ego-lifts", data=payload).status_code == 303
+            client.post(
+                f"/people/{person}/ego-lifts/record/{exercise}", data=payload
+            ).status_code
+            == 303
         )
         assert (
-            client.post(f"/people/{person}/ego-lifts", data=payload).status_code == 303
+            client.post(
+                f"/people/{person}/ego-lifts/record/{exercise}", data=payload
+            ).status_code
+            == 303
         )
     page = client.get(path)
     assert b"2026-11-16 19:30" in page.data
-    assert client.post(f"/people/{other}/ego-lifts", data=payload).status_code == 400
+    assert (
+        client.post(
+            f"/people/{other}/ego-lifts/record/{exercise}", data=payload
+        ).status_code
+        == 400
+    )
     with database_session(root110) as db:
         rows = e.history(db, person, exercise)
         assert len(rows) == 1 and rows[0]["occurred_at"] == stamp.isoformat()
@@ -632,7 +643,8 @@ def test_ego_http_signed_double_submission_timezone_and_owner_checks(root110):
     assert client.get(f'/people/{other}/ego-lifts/{rows[0]["id"]}').status_code == 404
     assert (
         client.post(
-            f"/people/{person}/ego-lifts", data=dict(payload, csrf_token="invalid")
+            f"/people/{person}/ego-lifts/record/{exercise}",
+            data=dict(payload, csrf_token="invalid"),
         ).status_code
         == 400
     )
@@ -795,3 +807,56 @@ def test_equivalent_configuration_representation_is_compared_semantically(tmp_pa
         assert c.exercise_defaults(db,person,exercise)['measurement_type']=='weight'
         assert c.exercise_defaults(db,person,exercise)['target_sets']==2
         logical_check_connection(db,14)
+
+
+def test_ego_selection_latest_five_custom_artwork_and_no_default_selection(root110):
+    """Selection reuses sanitized artwork and only the selected person's newest five attempts."""
+    from workout_tracker import create_app, exercise_icons
+
+    with database_session(root110, write=True) as db:
+        person, routine, exercise = setup(db)
+        other = c.create_person(db, "Other")
+        for index in range(7):
+            e.save(
+                db,
+                person,
+                exercise,
+                dict(weight=str(index), repetitions="1", submission_id=uuid4().hex),
+            )
+        e.save(
+            db,
+            other,
+            exercise,
+            dict(weight="999", repetitions="1", submission_id=uuid4().hex),
+        )
+        exercise_icons.update(
+            db,
+            exercise,
+            "start",
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L10 10"/></svg>',
+        )
+    client = create_app(dict(TESTING=True, WORKOUT_DATA_ROOT=root110)).test_client()
+    blank = client.get(f"/people/{person}/ego-lifts")
+    assert (
+        b"Choose an exercise" in blank.data
+        and b"disabled" in blank.data
+        and b'name="weight"' not in blank.data
+    )
+    page = client.get(f"/people/{person}/ego-lifts?exercise={exercise}")
+    assert page.data.count(b'class="ego-recent"') == 5 and b"999.0" not in page.data
+    positions = [page.data.index(f"{value}.0 lb".encode()) for value in (6, 5, 4, 3, 2)]
+    assert positions == sorted(positions)
+    assert b"M0 0L10 10" in page.data and b'data-icon-position="end"' in page.data
+    history = client.get(f"/people/{person}/ego-history")
+    assert history.data.count(b'class="ego-history-row"') == 7
+    assert b"History and Progress" in history.data
+    remembered = client.get(f"/people/{person}/ego-history?progress_range=12m")
+    assert b"range=12m" in remembered.data
+    with database_session(root110, write=True) as db:
+        db.execute(
+            "DELETE FROM routine_exercises WHERE routine_id=? AND exercise_id=?",
+            (routine, exercise),
+        )
+        c.update_definition(db, person, exercise, "", "archive")
+    archived = client.get(f"/people/{person}/ego-history?exercise={exercise}")
+    assert archived.status_code == 200 and exercise.encode() in archived.data
